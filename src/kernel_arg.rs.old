@@ -1,0 +1,134 @@
+// pub struct UserEvent(cl_event);
+
+
+
+// pub struct Event(cl_event);
+
+// impl Event {
+
+    // /// [FIXME]: ADD VALIDITY CHECK BY CALLING '_INFO' OR SOMETHING:
+    // /// NULL CHECK IS NOT ENOUGH
+    // ///
+    // /// This still leads to crazy segfaults when non-event pointers (random
+    // /// whatever addresses) are passed. Need better check.
+    // ///
+    // /// Sets a callback function, `callback_receiver`, to trigger upon
+    // /// completion of this event with an optional pointer to user data.
+    // ///
+    // /// The callback function must have a signature matching:
+    // /// `extern "C" fn (ffi::cl_event, i32, *mut libc::c_void)`
+    // ///
+    // /// # Safety
+    // ///
+    // /// `user_data` must be guaranteed to still exist if and when `callback_receiver`
+    // /// is ever called.
+    // ///
+    // /// TODO: Create a safer type wrapper for `callback_receiver` (using an
+    // /// `Arc`?, etc.) within `ocl`.
+    // ///
+    // //
+    // // [NOTE]: Making callback_receiver optional is pointless. There is no way
+    // // to unset a previously set callback.
+    // pub unsafe fn set_callback(&self,
+    //         callback_receiver: EventCallbackFn,
+    //         user_data_ptr: *mut c_void,
+    //         ) -> OclCoreResult<()>
+    // {
+    //     if self.is_valid() {
+    //         crate::set_event_callback(self, CommandExecutionStatus::Complete,
+    //             Some(callback_receiver), user_data_ptr as *mut _ as *mut c_void)
+    //     } else {
+    //         Err("ocl_core::Event::set_callback: This event is null. Cannot set callback until \
+    //             internal event pointer is actually created by a `clCreate...` function.".into())
+    //     }
+    // }
+
+
+    // /// Returns the `Context` associated with this event.
+    // pub fn context(&self) -> OclCoreResult<Context> {
+    //     match functions::get_event_info(self, EventInfo::Context) {
+    //         Ok(EventInfoResult::Context(c)) => Ok(c),
+    //         Err(err) => Err(err),
+    //         _ => unreachable!(),
+    //     }
+    // }
+
+    /// Returns an immutable reference to a pointer, do not deref and store it unless
+    /// you will manage its associated reference count carefully.
+    ///
+    ///
+    /// ### Warning
+    ///
+    /// DO NOT store this pointer.
+    ///
+    /// DO NOT send this pointer across threads unless you are incrementing
+    /// the reference count before sending and decrementing after sending.
+    ///
+    /// Use `::into_raw` for these purposes. Thank you.
+
+    // #[inline]
+    // pub unsafe fn as_ptr_ref(&self) -> &cl_event {
+    //     &self.0
+    // }
+
+    /// Returns a mutable reference to a pointer, do not deref then modify or store it
+    /// unless you will manage its associated reference count carefully.
+    ///
+    ///
+    /// ### Warning
+    ///
+    /// DO NOT store this pointer.
+    ///
+    /// DO NOT send this pointer across threads unless you are incrementing
+    /// the reference count before sending and decrementing after sending.
+    ///
+    /// Use `::into_raw` for these purposes. Thank you.
+    ///
+    // #[inline]
+    // pub unsafe fn as_ptr_mut(&mut self) -> &mut cl_event {
+    //     &mut self.0
+    // }
+
+    /// Consumes the `Event`, returning the wrapped `cl_event` pointer.
+    ///
+    /// To avoid a memory leak the pointer must be converted back to an `Event` using
+    /// [`Event::from_raw`][from_raw].
+    ///
+    /// [from_raw]: struct.Event.html#method.from_raw
+
+
+    // pub fn into_raw(self) -> cl_event {
+    //     let ptr = self.0;
+    //     mem::forget(self);
+    //     ptr
+    // }
+
+    /// Constructs an `Event` from a raw `cl_event` pointer.
+    ///
+    /// The raw pointer must have been previously returned by a call to a
+    /// [`Event::into_raw`][into_raw].
+    ///
+    /// [into_raw]: struct.Event.html#method.into_raw
+    // #[inline]
+    // pub unsafe fn from_raw(ptr: cl_event) -> Event {
+    //     assert!(!ptr.is_null(), "Null pointer passed.");
+    //     Event(ptr)
+    // }
+
+    // /// Ensures this contains a null event and returns a mutable pointer to it.
+    // fn _alloc_new(&mut self) -> *mut cl_event {
+    //     assert!(self.0.is_null(), "ocl_core::Event::alloc_new: An 'Event' cannot be \
+    //         used as target for event creation (as a new event) more than once.");
+    //     &mut self.0
+    // }
+
+    // /// Returns a pointer pointer expected when used as a wait list.
+    // unsafe fn _as_ptr_ptr(&self) -> *const cl_event {
+    //     if self.0.is_null() { ptr::null() } else { &self.0 as *const cl_event }
+    // }
+
+    // /// Returns a count expected when used as a wait list.
+    // fn _count(&self) -> u32 {
+    //     if self.0.is_null() { 0 } else { 1 }
+    // }
+// }
