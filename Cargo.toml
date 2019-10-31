@@ -1,27 +1,5 @@
-[package]
-name = "open_cl_bindings"
-version = "0.1.0"
-authors = ["Jason Goldberger <jlgoldb2@asu.edu>"]
-edition = "2018"
-links = "OpenCL"
-build = "build.rs"
-
-[dependencies]
-paste = "0.1.6"
-libc = "0.2.65"
-log = "0.4.8"
-lazy_static = "1.4.0"
-bitflags = "1.2.1"
-failure = "0.1.6"
-
-[lib]
-name = "open_cl_bindings"
-
-[build-dependencies]
-bindgen = "0.51.1"
-which = "3.0.0"
-
-
-[[example]]
-name = "simple_add"
-path = "examples/simple_add/main.rs"
+[workspace]
+members = [
+    "opencl_bindings",
+    "opencl-sys"
+]
