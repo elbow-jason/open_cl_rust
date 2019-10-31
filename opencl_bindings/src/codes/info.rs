@@ -1,10 +1,8 @@
 use crate::ffi::{
     cl_image_info,
     cl_sampler_info,
-    // cl_pipe_info,
 };
 
-/* cl_image_info */
 crate::__codes_enum!(ImageInfo, cl_image_info, {
     Format => 0x1110,
     ElementSize => 0x1111,
