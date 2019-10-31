@@ -5,8 +5,23 @@ use std::fmt;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
-use crate::ffi::{cl_buffer_create_type, cl_mem, cl_mem_flags, cl_mem_info, cl_mem_object_type};
-use crate::open_cl::{cl_get_mem_object_info, cl_release_mem, ClObject, Output};
+use crate::ffi::{
+    cl_buffer_create_type,
+    cl_mem,
+    cl_mem_flags,
+    cl_mem_info,
+    cl_mem_object_type
+};
+use crate::open_cl::{
+    cl_get_mem_object_info,
+    cl_release_mem,
+    ClObject,
+    Output,
+    cl_create_buffer_with_len,
+    cl_create_buffer_from_slice, 
+};
+
+use crate::context::Context;
 
 #[derive(Eq, PartialEq)]
 pub struct DeviceMem<T>
@@ -118,7 +133,66 @@ impl<T: Debug> DeviceMem<T> {
     pub fn uses_svm_pointer(&self) -> Output<usize> {
         self.info(MemInfo::UsesSvmPointer)
     }
+
+    pub fn create_with_len(context: &Context, flags: MemFlags, len: usize) -> Output<DeviceMem<T>>
+    where
+        T: Debug,
+    {
+        let device_mem: DeviceMem<T> = cl_create_buffer_with_len::<T>(
+            context,
+            flags,
+            len,
+        )?;
+        Ok(device_mem)
+    }
+
+    pub fn create_from(context: &Context, flags: MemFlags, slice: &[T]) -> Output<DeviceMem<T>>
+    where
+        T: Debug,
+    {
+        let device_mem: DeviceMem<T> = cl_create_buffer_from_slice::<T>(
+            context,
+            flags,
+            slice
+        )?;
+        Ok(device_mem)
+    }
+
+    pub fn create_read_only(context: &Context, len: usize) -> Output<DeviceMem<T>>
+    where
+        T: Debug,
+    {   
+        DeviceMem::create_with_len(
+            context,
+            MemFlags::READ_ONLY_ALLOC_HOST_PTR,
+            len,
+        )
+    }
+
+    pub fn create_write_only(context: &Context, len: usize) -> Output<DeviceMem<T>>
+    where
+        T: Debug,
+    {
+         DeviceMem::create_with_len(
+            context,
+            MemFlags::WRITE_ONLY_ALLOC_HOST_PTR,
+            len,
+        )
+    }
+
+    pub fn create_read_write(context: &Context, len: usize) -> Output<DeviceMem<T>>
+    where
+        T: Debug,
+    {
+        DeviceMem::create_with_len(
+            context,
+            MemFlags::READ_WRITE_ALLOC_HOST_PTR,
+            len,
+        )
+    }
 }
+
+
 
 // NOTE: Version for cl_mem_migration_flags?
 // crate::__codes_enum!(MemMigrationFlags, cl_mem_migration_flags, {
@@ -156,9 +230,7 @@ crate::__codes_enum!(BufferCreateType, cl_buffer_create_type, {
     CreateTypeRegion => 0x1220
 });
 
-// cl_mem_flag is a bitfield, but some definitions are mutually exclusive.
-// Therefore MemFlag is *actually* a proper enum.
-//
+
 // CL_MEM_READ_WRITE
 //
 //   - The OpenCL Kernels will both read and write the buffer
@@ -178,18 +250,31 @@ crate::__codes_enum!(BufferCreateType, cl_buffer_create_type, {
 //     or write only is specified, some coherency operations may be skipped for
 //     performance.
 
-crate::__codes_enum!(MemFlag, cl_mem_flags, {
-    ReadWrite => 1 << 0,
-    WriteOnly => 1 << 1,
-    ReadOnly => 1 << 2,
-    AllocHostPtr => 1 << 4
-    // // TODO: implement the mem types for the following flags
-    // UseHostPtr => 1 << 3,
-    // CopyHostPtr => 1 << 5,
-    // HostWriteOnly => 1 << 7,
-    // HostReadOnly => 1 << 8,
-    // HostNoAccess => 1 << 9,
-    // SvmFineGrainBuffer => 1 << 10,
-    // SvmAtomics => 1 << 11,
-    // KernelReadAndWrite => 1 << 12
-});
+
+bitflags! {
+    /// NOTE: Due to the mutual exclusion of some of the combinations of the flags
+    /// of MemFlags. There is a better way. We _could_ compose the desired result
+    /// as a struct of enums (e.g. RW::ReadWrite, RW::WriteOnly, RW::ReadWrite),
+    /// carrying around the valid state of the buffer creation and generating the
+    /// cl_bitfield immediately before the call to clCreateBuffer.
+    /// 
+    /// Details: https://www.khronos.org/registry/OpenCL/sdk/1.0/docs/man/xhtml/clCreateBuffer.html
+    pub struct MemFlags: cl_mem_flags {
+        const READ_WRITE = 1 << 0;
+        const WRITE_ONLY = 1 << 1;
+        const READ_ONLY = 1 << 2;
+        const ALLOC_HOST_PTR = 1 << 4;
+        const USE_HOST_PTR = 1 << 3;
+        const COPY_HOST_PTR = 1 << 5;
+        const HOST_WRITE_ONLY = 1 << 7;
+        const HOST_READ_ONLY = 1 << 8;
+        const HOST_NO_ACCESS = 1 << 9;
+        const SVM_FINE_GRAIN_BUFFER = 1 << 10;
+        const SVM_ATOMICS = 1 << 11;
+        const KERNEL_READ_AND_WRITE = 1 << 12;
+        // a few useful custom MemFlags that are also examples.
+        const READ_WRITE_ALLOC_HOST_PTR = Self::READ_WRITE.bits | Self::ALLOC_HOST_PTR.bits;
+        const READ_ONLY_ALLOC_HOST_PTR = Self::READ_ONLY.bits | Self::ALLOC_HOST_PTR.bits;
+        const WRITE_ONLY_ALLOC_HOST_PTR = Self::WRITE_ONLY.bits | Self::ALLOC_HOST_PTR.bits;
+    }
+}

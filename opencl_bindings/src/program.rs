@@ -6,10 +6,16 @@ use crate::ffi::{
 };
 
 use crate::open_cl::{
-    cl_build_program, cl_create_kernel, cl_get_program_build_log, cl_release_program, ClObject,
+    cl_create_program_with_binary,
+    cl_create_program_with_source,
+    cl_build_program,
+    cl_create_kernel,
+    cl_get_program_build_log,
+    cl_release_program,
+    ClObject,
 };
 
-use crate::{Device, Kernel, Output};
+use crate::{Device, Kernel, Output, Context};
 
 fn do_build_on_devices(program: &Program, devices: &[&Device]) -> Output<()> {
     cl_build_program(program, devices)
@@ -34,11 +40,19 @@ impl ClObject<cl_program> for Program {
 }
 
 impl Program {
-    pub fn new(inner: cl_program) -> Program {
+    pub unsafe fn new(inner: cl_program) -> Program {
         Program {
             inner,
             _phantom: (),
         }
+    }
+
+    pub fn create_with_source(context: &Context, src: String) -> Output<Program> {
+        cl_create_program_with_source(context, &src[..])
+    }
+
+    pub fn create_program_with_binary(context: &Context, device: &Device, binary: String) -> Output<Program> {
+        cl_create_program_with_binary(context, device, &binary[..])
     }
 
     pub fn build_on_many_devices(&self, devices: &[&Device]) -> Output<()> {

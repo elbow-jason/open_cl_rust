@@ -14,6 +14,7 @@ use crate::open_cl::{
     cl_enqueue_read_buffer,
     cl_enqueue_write_buffer,
     cl_finish,
+    cl_create_command_queue,
     cl_release_command_queue,
     ClObject,
 };
@@ -21,12 +22,16 @@ use crate::open_cl::{
 use crate::{
     BufferOpConfig,
     DeviceMem,
+    Device,
+    Context,
     Event,
     Kernel,
     Output,
     WaitList,
     Work,
 };
+
+
 
 #[repr(C)]
 #[derive(Debug, Eq, PartialEq, Hash)]
@@ -42,6 +47,23 @@ impl ClObject<cl_command_queue> for CommandQueue {
 }
 
 impl CommandQueue {
+    pub fn create(
+        context: &Context,
+        device: &Device,
+        opt_props: Option<CommandQueueProperties>,
+    ) -> Output<CommandQueue> {
+        let properties = match opt_props {
+            None => CommandQueueProperties::ProfilingEnable,
+            Some(prop) => prop,
+        };
+        let command_queue = cl_create_command_queue(
+            context,
+            &device,
+            properties.bits() as cl_command_queue_properties,
+        )?;
+        Ok(unsafe { CommandQueue::new(command_queue) })
+    }
+
     pub(crate) unsafe fn new(queue: cl_command_queue) -> CommandQueue {
         CommandQueue {
             inner: queue,

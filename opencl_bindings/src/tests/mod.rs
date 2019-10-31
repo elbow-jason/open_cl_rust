@@ -39,15 +39,15 @@ where
         assert!(devices.len() > 0, "No usable devices found");
         // println!("Number of devices: {:?}", devices.len());
         // println!("Devices: {:?}", devices);
-        for d in devices.iter() {
+        for device in devices.iter() {
             // println!("starting device: {:?}", i);
             // println!("creating context: {:?}", i);
-            let context = d.create_context().unwrap();
+            let context = Context::create(device).unwrap();
             // println!("created context: {:?}", i);
             // println!("creating command queue: {:?}", i);
-            let queue = context.create_command_queue(d, None).unwrap();
+            let queue = CommandQueue::create(&context, device, None).unwrap();
             // println!("created command queue: {:?}", i);
-            test(d, &context, &queue);
+            test(device, &context, &queue);
         }
     }
 }
@@ -155,8 +155,8 @@ mod testing {
         let src = "__kernel void test(__global int *i) { \
                    *i += 1; \
                    }";
-        super::test_all(&mut |device, ctx, _| {
-            let prog = ctx.create_program_with_source(src.to_string()).unwrap();
+        super::test_all(&mut |device, context, _| {
+            let prog = Program::create_with_source(context, src.to_string()).unwrap();
             prog.build_on_one_device(&device).unwrap();
         })
     }
@@ -167,9 +167,9 @@ mod testing {
         __kernel void test(__global int *i) {
             *i += 1;
         }";
-        test_all(&mut |device, ctx, queue| {
+        test_all(&mut |device, context, queue| {
             println!("here 0");
-            let prog = ctx.create_program_with_source(src.to_string()).unwrap();
+            let prog = Program::create_with_source(context, src.to_string()).unwrap();
             println!("here 1");
             prog.build_on_one_device(&device).unwrap();
             println!("here 2");
@@ -177,7 +177,7 @@ mod testing {
             println!("here 3");
             let mut v1: Vec<isize> = vec![1];
             println!("here 4");
-            let mem1 = ctx.create_read_write_buffer::<isize>(v1.len()).unwrap();
+            let mem1 = DeviceMem::create_read_write(context, v1.len()).unwrap();
             println!("here 5");
             let work_size = v1.len();
             println!("here 6");
@@ -214,15 +214,13 @@ mod testing {
             *i += num;
         }";
 
-        test_all(&mut |device, ctx, queue| {
-            let program = ctx.create_program_with_source(src.to_string()).unwrap();
+        test_all(&mut |device, context, queue| {
+            let program = Program::create_with_source(context, src.to_string()).unwrap();
             program.build_on_one_device(device).unwrap();
 
             let add_scalar_var: Kernel = program.fetch_kernel("test").unwrap();
             let initial_values = vec![1i32];
-            let mem1 = ctx
-                .create_write_only_buffer::<i32>(initial_values.len())
-                .unwrap();
+            let mem1 = DeviceMem::create_write_only(context, initial_values.len()).unwrap();
             let _write_event = queue
                 .write_buffer(&mem1, &initial_values[..], WaitList::empty(), None)
                 .unwrap();
@@ -326,14 +324,14 @@ mod testing {
                    int s = get_global_size(0);
                    N[i * s + j] = i * j;
         }";
-        test_all(&mut |device, ctx, queue| {
-            let prog = ctx.create_program_with_source(src.to_string()).unwrap();
+        test_all(&mut |device, context, queue| {
+            let prog = Program::create_with_source(context, src.to_string()).unwrap();
 
             let () = prog.build_on_one_device(device).unwrap();
 
             let k = prog.fetch_kernel("test").unwrap();
             let v1 = vec![1isize, 2, 3, 4, 5, 6, 7, 8, 9];
-            let b1 = ctx.create_read_only_buffer::<isize>(v1.len()).unwrap();
+            let b1 = DeviceMem::create_read_only(context, v1.len()).unwrap();
             let work = Work::new((3, 3));
             let () = k.set_arg(0, &b1).unwrap();
 
@@ -352,8 +350,8 @@ mod testing {
 
     #[test]
     fn memory_read_write_test() {
-        test_all(&mut |_, ctx, queue| {
-            let buffer: DeviceMem<isize> = ctx.create_read_only_buffer(8).unwrap();
+        test_all(&mut |_, context, queue| {
+            let buffer: DeviceMem<isize> = DeviceMem::create_read_only(context, 8).unwrap();
 
             let input = [0isize, 1, 2, 3, 4, 5, 6, 7];
             let mut output = [0isize, 0, 0, 0, 0, 0, 0, 0];

@@ -27,12 +27,12 @@ fn run() -> Result<(), Error> {
         panic!("No devices found!!!");
     }
     let device = devices.remove(1);
-    let context = device.create_context()?;
-    let command_queue: CommandQueue = context.create_command_queue(&device, None)?;
+    let context = Context::create(&device)?;
+    let command_queue: CommandQueue = CommandQueue::create(&context, &device, None)?;
     let name = device.name_info()?;
 
     println!("creating program...");
-    let program: Program = context.create_program_with_source(src)?;
+    let program: Program = Program::create_with_source(&context, src)?;
 
     println!("building program on device {}...", name);
     let () = program.build_on_one_device(&device)?;
@@ -40,16 +40,16 @@ fn run() -> Result<(), Error> {
     let vec_a = vec![1isize, 2, 3];
     let vec_b = vec![0isize, -1, -2];
 
-    let buffer_size = vec_a.len();
+    let len = vec_a.len();
 
-    let work: Work = Work::new(buffer_size);
+    let work: Work = Work::new(len);
 
     println!("{}", name);
 
-    let mem_a: DeviceMem<isize> = context.create_read_write_buffer(buffer_size)?;
-    let mem_b: DeviceMem<isize> = context.create_read_write_buffer(buffer_size)?;
-    let mem_c: DeviceMem<isize> = context.create_read_write_buffer(buffer_size)?;
-
+    let mem_a = DeviceMem::create_read_write(&context, len)?;
+    let mem_b = DeviceMem::create_read_write(&context, len)?;
+    let mem_c = DeviceMem::create_read_write(&context, len)?;
+&
     println!("fetching_kernel simple_add");
     let simple_add: Kernel = program.fetch_kernel("simple_add")?;
 
@@ -62,20 +62,19 @@ fn run() -> Result<(), Error> {
     println!("mem_a {:?}", mem_a);
 
     println!("setting simple_add arg 0 as mem_a");
-    simple_add.set_arg::<DeviceMem<isize>>(0, &mem_a)?;
+    simple_add.set_arg(0, &mem_a)?;
 
     println!("setting simple_add arg 1 as mem_b");
-    simple_add.set_arg::<DeviceMem<isize>>(1, &mem_b)?;
+    simple_add.set_arg(1, &mem_b)?;
 
     println!("setting simple_add mut arg 2 as mem_c");
-    simple_add.set_arg::<DeviceMem<isize>>(2, &mem_c)?;
+    simple_add.set_arg(2, &mem_c)?;
 
     println!("calling sync_enqueue_kernel on simple_add");
     let _exec_event = command_queue.sync_enqueue_kernel(&simple_add, work, WaitList::empty())?;
-    // println!("putting event into WaitList...");
-    // let event_list: WaitList = WaitList::from(event);
+    
     println!("done putting event into WaitList...");
-    let mut vec_c: Vec<isize> = vec![0; buffer_size];
+    let mut vec_c: Vec<isize> = vec![0; len];
 
     let _read_event = command_queue.read_buffer(&mem_c, &mut vec_c, WaitList::empty(), None)?;
 

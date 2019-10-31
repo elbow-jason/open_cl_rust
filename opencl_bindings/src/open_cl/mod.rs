@@ -33,7 +33,7 @@ use crate::{Context, Device, Event, Platform, Program};
 
 use crate::{
     CommandQueue, DeviceError, DeviceMem, EventError, Kernel, KernelArg, KernelArgSizeAndPointer,
-    KernelError,
+    KernelError, MemFlags
 };
 
 // TODO: move this to the app level, move contextual errors (e.g. EmptyBitfield)
@@ -217,10 +217,10 @@ pub fn cl_get_device_info(device: &Device, device_info: cl_device_info) -> Outpu
     Ok(strings::to_utf8_string(buf))
 }
 
-pub fn cl_create_context(device: &Device) -> Output<cl_context> {
+pub fn cl_create_context(device: &Device) -> Output<Context> {
     device.usability_check()?;
     let mut err_code = 0;
-    let ctx = unsafe {
+    let context = unsafe {
         clCreateContext(
             ptr::null(),
             1,
@@ -230,26 +230,57 @@ pub fn cl_create_context(device: &Device) -> Output<cl_context> {
             &mut err_code,
         )
     };
-    into_result(err_code, ctx)
+    let checked_context = into_result(err_code, context)?;
+    debug_assert!(checked_context.is_null() == false);
+    unsafe { Ok(Context::new(checked_context)) }
 }
 
-pub fn cl_create_buffer<T>(
+pub fn cl_create_buffer_from_slice<T>(
     context: &Context,
-    len: usize,
-    mem_flags: cl_mem_flags,
-) -> Output<cl_mem> {
-    let mut err_code = 0;
-    let mut buf = unsafe {
-        clCreateBuffer(
-            context.raw_cl_object(),
+    mem_flags: MemFlags,
+    slice: &[T],
+) -> Output<DeviceMem<T>> where T: Debug {
+    unsafe {
+        let (
+            buffer_mem_size,
+            buffer_ptr
+        ) = buffer_mem_size_and_ptr(slice);
+        
+        _cl_create_buffer(
+            context,
             mem_flags,
-            (len * std::mem::size_of::<T>()) as libc::size_t,
-            ptr::null_mut(),
-            &mut err_code,
+            buffer_mem_size,
+            buffer_ptr as *mut libc::c_void,
         )
-    };
-    buf = into_result(err_code, buf)?;
-    Ok(buf)
+    }
+}
+
+pub fn cl_create_buffer_with_len<T>(
+    context: &Context,
+    mem_flags: MemFlags,
+    len: usize,
+) -> Output<DeviceMem<T>> where T: Debug {
+    unsafe {
+        _cl_create_buffer(context, mem_flags, len, ptr::null_mut())
+    }
+}
+
+unsafe fn _cl_create_buffer<T>(
+    context: &Context,
+    mem_flags: MemFlags,
+    len: usize,
+    ptr: *mut libc::c_void,
+) -> Output<DeviceMem<T>> where T: Debug {
+    let mut err_code: cl_int = 0;
+    let mut cl_mem_object: cl_mem = clCreateBuffer(
+        context.raw_cl_object(),
+        mem_flags.bits() as cl_mem_flags,
+        (std::mem::size_of::<T>() * len) as libc::size_t,
+        ptr,
+        &mut err_code,
+    );
+    cl_mem_object = into_result(err_code, cl_mem_object)?;
+    Ok(DeviceMem::new(cl_mem_object))
 }
 
 pub fn cl_get_mem_object_info<T>(
@@ -517,7 +548,9 @@ pub fn cl_create_program_with_source(context: &Context, src: &str) -> Output<Pro
             &mut err_code,
         )
     };
-    into_result(err_code, Program::new(program))
+    
+    let checked_program = into_result(err_code, program)?;
+    unsafe { Ok(Program::new(checked_program)) }
 }
 
 pub fn cl_create_program_with_binary(
@@ -539,7 +572,9 @@ pub fn cl_create_program_with_binary(
             &mut err_code,
         )
     };
-    into_result(err_code, Program::new(program))
+    let checked_program = into_result(err_code, program)?;
+    debug_assert!(checked_program.is_null() == false);
+    unsafe { Ok(Program::new(checked_program)) }
 }
 
 pub fn cl_create_command_queue(

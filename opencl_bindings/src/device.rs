@@ -11,10 +11,13 @@ use crate::ffi::{
     // cl_device_svm,
 };
 use crate::open_cl::{
-    cl_create_context, cl_get_device_count, cl_get_device_ids, cl_get_device_info, ClObject,
+    cl_get_device_count,
+    cl_get_device_ids,
+    cl_get_device_info,
+    ClObject,
 };
 
-use crate::{Context, Error, Output, Platform};
+use crate::{Error, Output, Platform};
 
 /// NOTE: UNUSABLE_DEVICE_ID might be osx specific? or OpenCL
 /// implementation specific?
@@ -71,11 +74,6 @@ impl Device {
         } else {
             Err(Error::DeviceError(DeviceError::UnusableDevice))
         }
-    }
-
-    pub fn create_context(&self) -> Output<Context> {
-        let context_id = cl_create_context(self)?;
-        Ok(Context::new(context_id))
     }
 
     pub fn all(platform: &Platform) -> Output<Vec<Device>> {
