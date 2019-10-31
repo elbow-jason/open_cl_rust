@@ -1,0 +1,24 @@
+[package]
+name = "opencl_bindings"
+version = "0.1.0"
+authors = ["Jason Goldberger <jasongoldberger@gmail.com>"]
+edition = "2018"
+
+[lib]
+name = "opencl_bindings"
+
+[dependencies]
+opencl-sys = { version = "0.1.0", path = "../opencl-sys" }
+paste = "0.1.6"
+libc = "0.2.65"
+# log = "0.4.8"
+lazy_static = "1.4.0"
+bitflags = "1.2.1"
+failure = "0.1.6"
+colored = "1.8.0"
+num = "0.2"
+
+
+[[example]]
+name = "simple_add"
+path = "examples/simple_add/main.rs"
