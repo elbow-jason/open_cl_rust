@@ -1,4 +1,3 @@
-
 use crate::*;
 
 #[allow(unused_macros)]
@@ -20,10 +19,10 @@ macro_rules! expect (
 );
 
 pub fn test_all<F>(test: &mut F)
-    where F: FnMut(&Device, &Context, &CommandQueue)
+where
+    F: FnMut(&Device, &Context, &CommandQueue),
 {
     let platforms = Platform::all().unwrap();
-    // println!("Number of platforms: {:?}", platforms.len());
     for p in platforms.iter() {
         let devices: Vec<Device> = p
             .all_devices()
@@ -41,7 +40,6 @@ pub fn test_all<F>(test: &mut F)
         // println!("Number of devices: {:?}", devices.len());
         // println!("Devices: {:?}", devices);
         for d in devices.iter() {
-            
             // println!("starting device: {:?}", i);
             // println!("creating context: {:?}", i);
             let context = d.create_context().unwrap();
@@ -150,8 +148,8 @@ mod mem {
 
 #[cfg(test)]
 mod testing {
-    use crate::*;
     use super::test_all;
+    use crate::*;
     #[test]
     fn program_build() {
         let src = "__kernel void test(__global int *i) { \
@@ -160,7 +158,6 @@ mod testing {
         super::test_all(&mut |device, ctx, _| {
             let prog = ctx.create_program_with_source(src.to_string()).unwrap();
             prog.build_on_one_device(&device).unwrap();
-        
         })
     }
 
@@ -186,23 +183,27 @@ mod testing {
             println!("here 6");
             let work: Work = Work::new(work_size);
             println!("here 7");
-            let write_event = queue.write_buffer(&mem1, &v1, WaitList::empty(), None).unwrap();
+            let write_event = queue
+                .write_buffer(&mem1, &v1, WaitList::empty(), None)
+                .unwrap();
 
             assert!(write_event.command_execution_status() == Ok(CommandExecutionStatus::Complete));
-            
+
             println!("here 8");
             let () = k.set_arg(0, &mem1).unwrap();
             println!("here 9");
-            let _queue_event: Event = queue.sync_enqueue_kernel(&k, work, WaitList::empty())
+            let _queue_event: Event = queue
+                .sync_enqueue_kernel(&k, work, WaitList::empty())
                 .unwrap_or_else(|error| {
                     panic!("Failed to unwrap sync_enqueue_kernel result: {:?}", error);
                 });
-            
-            let _read_event = queue.read_buffer(&mem1, &mut v1, WaitList::empty(), None).unwrap();
+
+            let _read_event = queue
+                .read_buffer(&mem1, &mut v1, WaitList::empty(), None)
+                .unwrap();
 
             expect!(v1.len(), 1);
             expect!(v1[0], 2);
-            
         })
     }
 
@@ -219,9 +220,13 @@ mod testing {
 
             let add_scalar_var: Kernel = program.fetch_kernel("test").unwrap();
             let initial_values = vec![1i32];
-            let mem1 = ctx.create_write_only_buffer::<i32>(initial_values.len()).unwrap();
-            let _write_event = queue.write_buffer(&mem1, &initial_values[..], WaitList::empty(), None).unwrap();
-            
+            let mem1 = ctx
+                .create_write_only_buffer::<i32>(initial_values.len())
+                .unwrap();
+            let _write_event = queue
+                .write_buffer(&mem1, &initial_values[..], WaitList::empty(), None)
+                .unwrap();
+
             let () = add_scalar_var.set_arg(0, &mem1).unwrap();
 
             let arg = 42i32;
@@ -229,19 +234,21 @@ mod testing {
 
             let work_size = initial_values.len();
             let work: Work = Work::new(work_size);
-            let _queue_event: Event = queue.sync_enqueue_kernel(&add_scalar_var, work, WaitList::empty())
+            let _queue_event: Event = queue
+                .sync_enqueue_kernel(&add_scalar_var, work, WaitList::empty())
                 .unwrap_or_else(|error| {
                     panic!("Failed to unwrap sync_enqueue_kernel result: {:?}", error);
                 });
             let mut result = vec![0i32];
-            let _write_event = queue.read_buffer(&mem1, &mut result[..], WaitList::empty(), None).unwrap();
+            let _write_event = queue
+                .read_buffer(&mem1, &mut result[..], WaitList::empty(), None)
+                .unwrap();
 
             expect!(initial_values[0], 1);
             expect!(result[0], 43);
             expect!(initial_values.len(), result.len());
         })
     }
-
 
     // #[test]
     // fn chain_kernel_event() {
@@ -270,50 +277,49 @@ mod testing {
     //     })
     // }
 
-//     #[test]
-//     fn chain_kernel_event_list() {
-//         let src = "__kernel void inc(__global int *i) { \
-//                    *i += 1; \
-//                    } \
-//                    __kernel void add(__global int *a, __global int *b, __global int *c) { \
-//                    *c = *a + *b; \
-//                    }";
+    //     #[test]
+    //     fn chain_kernel_event_list() {
+    //         let src = "__kernel void inc(__global int *i) { \
+    //                    *i += 1; \
+    //                    } \
+    //                    __kernel void add(__global int *a, __global int *b, __global int *c) { \
+    //                    *c = *a + *b; \
+    //                    }";
 
-//         ::test_all_platforms_devices(&mut |device, ctx, queue| {
-//             let prog = ctx.create_program_from_source(src);
-//             prog.build(device).unwrap();
+    //         ::test_all_platforms_devices(&mut |device, ctx, queue| {
+    //             let prog = ctx.create_program_from_source(src);
+    //             prog.build(device).unwrap();
 
-//             let k_inc_a = prog.create_kernel("inc");
-//             let k_inc_b = prog.create_kernel("inc");
-//             let k_add = prog.create_kernel("add");
+    //             let k_inc_a = prog.create_kernel("inc");
+    //             let k_inc_b = prog.create_kernel("inc");
+    //             let k_add = prog.create_kernel("add");
 
-//             let a = ctx.create_buffer_from(vec![1isize], CL_MEM_READ_WRITE);
-//             let b = ctx.create_buffer_from(vec![1isize], CL_MEM_READ_WRITE);
-//             let c = ctx.create_buffer_from(vec![1isize], CL_MEM_READ_WRITE);
+    //             let a = ctx.create_buffer_from(vec![1isize], CL_MEM_READ_WRITE);
+    //             let b = ctx.create_buffer_from(vec![1isize], CL_MEM_READ_WRITE);
+    //             let c = ctx.create_buffer_from(vec![1isize], CL_MEM_READ_WRITE);
 
-//             k_inc_a.set_arg(0, &a);
-//             k_inc_b.set_arg(0, &b);
+    //             k_inc_a.set_arg(0, &a);
+    //             k_inc_b.set_arg(0, &b);
 
-//             let event_list = [
-//                 queue.enqueue_async_kernel(&ctx, &k_inc_a, 1isize, None, ()),
-//                 queue.enqueue_async_kernel(&ctx, &k_inc_b, 1isize, None, ()),
-//             ];
+    //             let event_list = [
+    //                 queue.enqueue_async_kernel(&ctx, &k_inc_a, 1isize, None, ()),
+    //                 queue.enqueue_async_kernel(&ctx, &k_inc_b, 1isize, None, ()),
+    //             ];
 
-//             k_add.set_arg(0, &a);
-//             k_add.set_arg(1, &b);
-//             k_add.set_arg(2, &c);
+    //             k_add.set_arg(0, &a);
+    //             k_add.set_arg(1, &b);
+    //             k_add.set_arg(2, &c);
 
-//             let event = queue.enqueue_async_kernel(&ctx, &k_add, 1isize, None, &event_list[..]);
+    //             let event = queue.enqueue_async_kernel(&ctx, &k_add, 1isize, None, &event_list[..]);
 
-//             let v: Vec<isize> = queue.get(&c, event);
+    //             let v: Vec<isize> = queue.get(&c, event);
 
-//             expect!(v[0], 4);
-//         })
-//     }
+    //             expect!(v[0], 4);
+    //         })
+    //     }
 
     #[test]
-    fn kernel_2d()
-    {
+    fn kernel_2d() {
         let src = "__kernel void test(__global long int *N) {
                    int i = get_global_id(0);
                    int j = get_global_id(1);
@@ -331,26 +337,33 @@ mod testing {
             let work = Work::new((3, 3));
             let () = k.set_arg(0, &b1).unwrap();
 
-            let _kernel_event = queue.sync_enqueue_kernel(&k, work, WaitList::empty()).unwrap();
+            let _kernel_event = queue
+                .sync_enqueue_kernel(&k, work, WaitList::empty())
+                .unwrap();
 
             let mut v2 = vec![0; v1.len()]; // utils::vec_filled_with(0, v1.len());
-            let _event: Event = queue.read_buffer(&b1, &mut v2, WaitList::empty(), None).unwrap();
+            let _event: Event = queue
+                .read_buffer(&b1, &mut v2, WaitList::empty(), None)
+                .unwrap();
 
             expect!(v2, vec!(0, 0, 0, 0, 1, 2, 0, 2, 4));
         })
     }
 
     #[test]
-    fn memory_read_write_test()
-    {
+    fn memory_read_write_test() {
         test_all(&mut |_, ctx, queue| {
             let buffer: DeviceMem<isize> = ctx.create_read_only_buffer(8).unwrap();
 
             let input = [0isize, 1, 2, 3, 4, 5, 6, 7];
             let mut output = [0isize, 0, 0, 0, 0, 0, 0, 0];
 
-            let _write_event = queue.write_buffer(&buffer, &input[..], WaitList::empty(), None).unwrap();
-            let _read_event = queue.read_buffer(&buffer, &mut output[..], WaitList::empty(), None).unwrap();
+            let _write_event = queue
+                .write_buffer(&buffer, &input[..], WaitList::empty(), None)
+                .unwrap();
+            let _read_event = queue
+                .read_buffer(&buffer, &mut output[..], WaitList::empty(), None)
+                .unwrap();
 
             expect!(input, output);
         })
@@ -366,56 +379,54 @@ mod testing {
     //     })
     // }
 
+    //     #[test]
+    //     fn memory_read_owned()
+    //     {
+    //         ::test_all_platforms_devices(&mut |_, ctx, queue| {
+    //             let input = vec!(0isize, 1, 2, 3, 4, 5, 6, 7);
+    //             let buffer = ctx.create_buffer_from(&input, CL_MEM_READ_WRITE);
+    //             let output: Vec<isize> = queue.get(&buffer, ());
+    //             expect!(input, output);
+    //         })
+    //     }
 
-//     #[test]
-//     fn memory_read_owned()
-//     {
-//         ::test_all_platforms_devices(&mut |_, ctx, queue| {
-//             let input = vec!(0isize, 1, 2, 3, 4, 5, 6, 7);
-//             let buffer = ctx.create_buffer_from(&input, CL_MEM_READ_WRITE);
-//             let output: Vec<isize> = queue.get(&buffer, ());
-//             expect!(input, output);
-//         })
-//     }
+    //     #[test]
+    //     fn memory_read_owned_clone()
+    //     {
+    //         ::test_all_platforms_devices(&mut |_, ctx, queue| {
+    //             let input = vec!(0isize, 1, 2, 3, 4, 5, 6, 7);
+    //             let buffer = ctx.create_buffer_from(input.clone(), CL_MEM_READ_WRITE);
+    //             let output: Vec<isize> = queue.get(&buffer, ());
+    //             expect!(input, output);
+    //         })
+    //     }
 
-//     #[test]
-//     fn memory_read_owned_clone()
-//     {
-//         ::test_all_platforms_devices(&mut |_, ctx, queue| {
-//             let input = vec!(0isize, 1, 2, 3, 4, 5, 6, 7);
-//             let buffer = ctx.create_buffer_from(input.clone(), CL_MEM_READ_WRITE);
-//             let output: Vec<isize> = queue.get(&buffer, ());
-//             expect!(input, output);
-//         })
-//     }
+    //     #[test]
+    //     fn event_get_times() {
+    //         let src = "__kernel void test(__global int *i) { \
+    //                    *i += 1; \
+    //                    }";
 
-//     #[test]
-//     fn event_get_times() {
-//         let src = "__kernel void test(__global int *i) { \
-//                    *i += 1; \
-//                    }";
+    //         let (device, ctx, queue) = util::create_compute_context().unwrap();
+    //         let prog = ctx.create_program_from_source(src);
+    //         prog.build(&device).unwrap();
 
-//         let (device, ctx, queue) = util::create_compute_context().unwrap();
-//         let prog = ctx.create_program_from_source(src);
-//         prog.build(&device).unwrap();
+    //         let k = prog.create_kernel("test");
+    //         let v = ctx.create_buffer_from(vec![1isize], CL_MEM_READ_WRITE);
 
-//         let k = prog.create_kernel("test");
-//         let v = ctx.create_buffer_from(vec![1isize], CL_MEM_READ_WRITE);
+    //         k.set_arg(0, &v);
 
-//         k.set_arg(0, &v);
+    //         let e = queue.enqueue_async_kernel(&ctx, &k, 1isize, None, ());
+    //         e.wait();
 
-//         let e = queue.enqueue_async_kernel(&ctx, &k, 1isize, None, ());
-//         e.wait();
-
-//         // the that are returned are not useful for unit test, this test
-//         // is mostly testing that opencl returns no error
-//         e.queue_time();
-//         e.submit_time();
-//         e.start_time();
-//         e.end_time();
-//     }
+    //         // the that are returned are not useful for unit test, this test
+    //         // is mostly testing that opencl returns no error
+    //         e.queue_time();
+    //         e.submit_time();
+    //         e.start_time();
+    //         e.end_time();
+    //     }
 }
-
 
 // #[cfg(test)]
 // mod array {
@@ -438,7 +449,6 @@ mod testing {
 //         })
 //     }
 
-
 //     #[test]
 //     fn read_write_2d()
 //     {
@@ -460,7 +470,6 @@ mod testing {
 //             }
 //         })
 //     }
-
 
 //     #[test]
 //     fn kernel_2d()
@@ -545,7 +554,6 @@ mod testing {
 //             }
 //         })
 //     }*/
-
 //     #[test]
 //     fn put_get_3d()
 //     {
@@ -563,7 +571,6 @@ mod testing {
 //             }
 //         })
 //     }
-
 
 //     #[test]
 //     fn read_write_3d()
@@ -588,7 +595,6 @@ mod testing {
 //             }
 //         })
 //     }
-
 
 //     #[test]
 //     fn kernel_3d()

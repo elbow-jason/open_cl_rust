@@ -1,17 +1,11 @@
 use crate::ffi::{
-    cl_command_queue,
-    cl_context,
-    cl_command_type,
-    cl_int,
-    cl_uint,
-    cl_event_info,
-    clGetEventInfo,        
+    clGetEventInfo, cl_command_queue, cl_command_type, cl_context, cl_event_info, cl_int, cl_uint,
 };
 
-use crate::open_cl::{ClObject, into_result, Output};
 use crate::command_queue::CommandQueue;
 use crate::context::Context;
 use crate::event::Event;
+use crate::open_cl::{into_result, ClObject, Output};
 
 /* command execution status */
 crate::__codes_enum!(CommandExecutionStatus, cl_int, {
@@ -55,7 +49,6 @@ crate::__codes_enum!(CommandType, cl_command_type, {
     SvmUnmap => 0x120D
 });
 
-
 /* cl_event_info */
 crate::__codes_enum!(EventInfoFlag, cl_event_info, {
     CommandQueue => 0x11D0,
@@ -85,25 +78,23 @@ pub enum EventInfo {
     // NOTE: add support for khr.
     CommandType(CommandType),
     CommandExecutionStatus(CommandExecutionStatus),
-    ReferenceCount(usize)
+    ReferenceCount(usize),
 }
 
 impl EventInfo {
-    unsafe fn from_raw_parts(
-        info_flag: EventInfoFlag,
-        return_value: usize,
-    ) -> EventInfo {
+    unsafe fn from_raw_parts(info_flag: EventInfoFlag, return_value: usize) -> EventInfo {
         use EventInfoFlag as F;
 
         match info_flag {
             F::CommandQueue => {
-                let command_queue: CommandQueue = CommandQueue::new(return_value as cl_command_queue);
+                let command_queue: CommandQueue =
+                    CommandQueue::new(return_value as cl_command_queue);
                 EventInfo::CommandQueue(command_queue)
-            },
+            }
             F::CommandType => {
                 let command_type: CommandType = CommandType::from(return_value as cl_command_type);
                 EventInfo::CommandType(command_type)
-            },
+            }
             F::ReferenceCount => EventInfo::ReferenceCount(return_value as usize),
             F::CommandExecutionStatus => {
                 let ce_status = CommandExecutionStatus::from(return_value as cl_int);
@@ -114,7 +105,7 @@ impl EventInfo {
                 EventInfo::Context(context)
             }
         }
-    }   
+    }
 }
 
 pub fn cl_get_event_info(event: &Event, info_flag: EventInfoFlag) -> Output<EventInfo> {
@@ -122,8 +113,8 @@ pub fn cl_get_event_info(event: &Event, info_flag: EventInfoFlag) -> Output<Even
     let return_value_size = 0usize;
     let return_value = 0usize;
 
-    let err_code = unsafe {    
-        clGetEventInfo (
+    let err_code = unsafe {
+        clGetEventInfo(
             event.raw_cl_object(),
             info_flag as cl_event_info,
             expected_size_of_return,
@@ -133,15 +124,6 @@ pub fn cl_get_event_info(event: &Event, info_flag: EventInfoFlag) -> Output<Even
     };
     let () = into_result(err_code, ())?;
 
-    let event_info = unsafe { 
-        EventInfo::from_raw_parts(
-            info_flag,
-            return_value,
-            // return_value_size,
-            // expected_size_of_return
-        )
-    };
+    let event_info = unsafe { EventInfo::from_raw_parts(info_flag, return_value) };
     Ok(event_info)
-
 }
-

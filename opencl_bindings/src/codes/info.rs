@@ -19,6 +19,7 @@ crate::__codes_enum!(ImageInfo, cl_image_info, {
     NumSamples => 0x111A
 });
 
+// NOTE: Version for cl_pipe_info?
 // crate::__codes_enum!(PipeInfo, cl_pipe_info, {
 //     PacketSize => 0x1120,
 //     MaxPackets => 0x1121

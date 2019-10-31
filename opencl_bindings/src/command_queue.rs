@@ -7,44 +7,32 @@ use crate::ffi::{
     cl_command_queue,
     cl_command_queue_info,
     cl_command_queue_properties,
-    // cl_mem,
 };
 
 use crate::open_cl::{
     cl_enqueue_nd_range_kernel,
     cl_enqueue_read_buffer,
     cl_enqueue_write_buffer,
-    // cl_event,
     cl_finish,
     cl_release_command_queue,
     ClObject,
 };
 
 use crate::{
-    // Count,
-    // AsMutPointer,
-    // MemSize,
-    // Offset,
-    DeviceMem,
-    // Event,
-    Event,
-    // UserEvent,
-    WaitList,
-    Kernel,
     BufferOpConfig,
+    DeviceMem,
+    Event,
+    Kernel,
     Output,
-    // ReadFromDeviceMem,
+    WaitList,
     Work,
-    // AsPointer,
-    // WriteToDeviceMem,
-    // HostBuffer,
 };
 
 #[repr(C)]
 #[derive(Debug, Eq, PartialEq, Hash)]
-pub struct CommandQueue{
+pub struct CommandQueue {
     inner: cl_command_queue,
-    _unconstructable: ()
+    _unconstructable: (),
 }
 
 impl ClObject<cl_command_queue> for CommandQueue {
@@ -55,67 +43,46 @@ impl ClObject<cl_command_queue> for CommandQueue {
 
 impl CommandQueue {
     pub(crate) unsafe fn new(queue: cl_command_queue) -> CommandQueue {
-        CommandQueue{
+        CommandQueue {
             inner: queue,
-            _unconstructable: ()
+            _unconstructable: (),
         }
     }
 
-
-    /// Move data from the HostBuffer (probably a Vec<T> or &[T]) to the OpenCL cl_mem pointer.
+    /// write_buffer is used to ,ove data from the host buffer (buffer: &[T]) to
+    /// the OpenCL cl_mem pointer inside `d_mem: &DeviceMem<T>`.
     pub fn write_buffer<T>(
         &self,
-        d_mem: &DeviceMem<T>,
-        buffer: &[T],
+        device_mem: &DeviceMem<T>,
+        host_buffer: &[T],
         event_list: WaitList,
         maybe_op_config: Option<BufferOpConfig>,
     ) -> Output<Event>
     where
         T: Sized + Debug + Num,
     {
-        let buffer_op_cfg: BufferOpConfig = maybe_op_config.unwrap_or_else(|| BufferOpConfig::default());
-        println!("write_buffer enqueuing {:?} to {:?}", buffer, d_mem);
-        cl_enqueue_write_buffer(
-            self,
-            d_mem,
-            buffer,
-            buffer_op_cfg,
-            event_list,
-        )
+        let buffer_op_cfg: BufferOpConfig =
+            maybe_op_config.unwrap_or_else(|| BufferOpConfig::default());
+
+        cl_enqueue_write_buffer(self, device_mem, host_buffer, buffer_op_cfg, event_list)
     }
 
-    /// Move data from the OpenCL cl_mem pointer to the HostBuffer.
+    /// read_buffer is used to move data from the `device_mem` (`cl_mem` pointer
+    /// inside `&DeviceMem<T>`) into a `host_buffer` (`&mut [T]`).
     pub fn read_buffer<T>(
         &self,
         device_mem: &DeviceMem<T>,
-        buffer: &mut [T],
+        host_buffer: &mut [T],
         event_list: WaitList,
         maybe_op_config: Option<BufferOpConfig>,
     ) -> Output<Event>
     where
         T: Sized + Debug + Num,
     {
-        // println!("
-        // read_buffer
-        // device_mem: {:?}
-        // buffer: {:?}
-        // event_list: {:?}
-        // ",
-        // device_mem,
-        // buffer,
-        // event_list,
+        let buffer_op_cfg: BufferOpConfig =
+            maybe_op_config.unwrap_or_else(|| BufferOpConfig::default());
 
-        // );
-    
-        let buffer_op_cfg: BufferOpConfig = maybe_op_config.unwrap_or_else(|| BufferOpConfig::default());
-
-        cl_enqueue_read_buffer(
-            self,
-            device_mem,
-            buffer,
-            buffer_op_cfg,
-            event_list,
-        )
+        cl_enqueue_read_buffer(self, device_mem, host_buffer, buffer_op_cfg, event_list)
     }
 
     pub fn sync_enqueue_kernel(
@@ -136,10 +103,6 @@ impl CommandQueue {
         event_list: WaitList,
         _execution_event: Option<Event>,
     ) -> Output<Event> {
-        // println!(
-        //     "async_enqueue_kernel (self: {:?}, kernel: {:?}, work: {:?}, event_list: {:?}",
-        //     self, kernel, work, event_list
-        // );
         cl_enqueue_nd_range_kernel(
             &self,
             kernel,
@@ -154,8 +117,9 @@ impl CommandQueue {
 
 impl Drop for CommandQueue {
     fn drop(&mut self) {
-        // println!("Dropping command_queue {:?}", self);
-        unsafe { cl_release_command_queue(&self.raw_cl_object()); }
+        unsafe {
+            cl_release_command_queue(&self.raw_cl_object());
+        }
     }
 }
 

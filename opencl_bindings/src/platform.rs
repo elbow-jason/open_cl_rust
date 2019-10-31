@@ -1,13 +1,7 @@
-use crate::ffi::{
-    cl_platform_id,
-    cl_platform_info,
-};
+use crate::ffi::{cl_platform_id, cl_platform_info};
 
 use crate::open_cl::{
-    cl_get_platform_info,
-    cl_get_platforms_count,
-    cl_get_platforms_ids,
-    ClObject,
+    cl_get_platform_info, cl_get_platforms_count, cl_get_platforms_ids, ClObject,
 };
 use crate::{Device, Output};
 
@@ -15,19 +9,21 @@ use crate::{Device, Output};
 #[derive(Debug, Eq, PartialEq)]
 pub struct Platform {
     inner: cl_platform_id,
-    _phantom: ()
+    _phantom: (),
 }
 
 impl ClObject<cl_platform_id> for Platform {
     unsafe fn raw_cl_object(&self) -> cl_platform_id {
-        // println!("getting raw_cl_object for Platform {:?}", self);
         self.inner
     }
 }
 
 impl Platform {
     pub fn new(inner: cl_platform_id) -> Platform {
-        Platform{ inner, _phantom: () }
+        Platform {
+            inner,
+            _phantom: (),
+        }
     }
 
     pub fn count() -> Output<u32> {
@@ -75,8 +71,6 @@ impl Platform {
     }
 }
 
-// /// https://github.com/KhronosGroup/OpenCL-Headers/blob/master/CL/cl.h#L260-L268
-// /* cl_platform_info */
 crate::__codes_enum!(PlatformInfo, cl_platform_info, {
     Profile => 0x0900,
     Version => 0x0901,

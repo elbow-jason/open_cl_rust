@@ -6,11 +6,7 @@ use crate::ffi::{
 };
 
 use crate::open_cl::{
-    cl_build_program,
-    cl_create_kernel,
-    cl_get_program_build_log,
-    cl_release_program,
-    ClObject,
+    cl_build_program, cl_create_kernel, cl_get_program_build_log, cl_release_program, ClObject,
 };
 
 use crate::{Device, Kernel, Output};
@@ -19,19 +15,16 @@ fn do_build_on_devices(program: &Program, devices: &[&Device]) -> Output<()> {
     cl_build_program(program, devices)
 }
 
-
 #[repr(C)]
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub struct Program {
     inner: cl_program,
-    _phantom: ()
+    _phantom: (),
 }
-
 
 impl Drop for Program {
     fn drop(&mut self) {
-        // println!("Dropping program {:?}", self);
-        unsafe{ cl_release_program(&self.raw_cl_object()) };
+        unsafe { cl_release_program(&self.raw_cl_object()) };
     }
 }
 impl ClObject<cl_program> for Program {
@@ -42,7 +35,10 @@ impl ClObject<cl_program> for Program {
 
 impl Program {
     pub fn new(inner: cl_program) -> Program {
-        Program{ inner, _phantom: () }
+        Program {
+            inner,
+            _phantom: (),
+        }
     }
 
     pub fn build_on_many_devices(&self, devices: &[&Device]) -> Output<()> {
@@ -70,7 +66,6 @@ impl Program {
     }
 }
 
-// /* cl_program_build_info */
 crate::__codes_enum!(ProgramBuildInfo, cl_program_build_info, {
     STATUS => 0x1181,
     OPTIONS => 0x1182,
@@ -79,7 +74,6 @@ crate::__codes_enum!(ProgramBuildInfo, cl_program_build_info, {
     GLOBALVARIABLETOTALSIZE => 0x1185
 });
 
-// /* cl_program_info */
 crate::__codes_enum!(ProgramInfo, cl_program_info, {
     REFERENCE_COUNT => 0x1160,
     CONTEXT => 0x1161,
@@ -96,7 +90,6 @@ crate::__codes_enum!(ProgramInfo, cl_program_info, {
 
 });
 
-// // /* cl_program_binary_type */
 // crate::__codes_enum!(ProgramBinaryType, cl_program_binary_type, {
 //     NONE => 0x0,
 //     COMPILED_OBJECT => 0x1,

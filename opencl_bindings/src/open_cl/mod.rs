@@ -1,10 +1,9 @@
 /// The functions in this module MUST NOT RETURN cl_object pointers that
 /// are not wrapped in Drop implementing wrapper structs. Exposing the
 /// caller to any raw pointer completely negates the point of using Rust
-/// as the language to interface with OpenCL. 
+/// as the language to interface with OpenCL.
 
 /// API Spec https://www.khronos.org/registry/OpenCL/specs/opencl-2.0.pdf
-
 use std::fmt;
 use std::fmt::Debug;
 
@@ -14,41 +13,31 @@ use std::sync::Mutex;
 
 use libc;
 
-pub mod host_buffer;
-pub mod status_code;
-pub mod volume;
-mod wait_list;
-mod event_helpers;
 pub mod cl_object;
 pub mod events;
-
+pub mod buffer_op_config;
+pub mod status_code;
+pub mod volume;
+pub mod wait_list;
 
 use crate::ffi::*;
-// 
-// pub use host_buffer::{Buffer, Vectorable, VectorBuffer, BufferBuilder, BufferOpConfig};
-pub use host_buffer::BufferOpConfig;
-pub use status_code::StatusCode;
-pub use volume::Volume;
+
 pub use cl_object::{ClObject, CopyClObject, MutClObject};
 pub use events::*;
+pub use buffer_op_config::BufferOpConfig;
+pub use status_code::StatusCode;
+pub use volume::Volume;
+pub use wait_list::WaitList;
+
+use crate::{Context, Device, Event, Platform, Program};
 
 use crate::{
-    WaitList, Event, Context, Device, Program, Platform,
-};
-
-use crate::{
-    KernelArgSizeAndPointer,
+    CommandQueue, DeviceError, DeviceMem, EventError, Kernel, KernelArg, KernelArgSizeAndPointer,
     KernelError,
-    EventError,
-    CommandQueue,
-    DeviceError,
-    Kernel,
-    KernelArg,
-    DeviceMem,
 };
 
 // TODO: move this to the app level, move contextual errors (e.g. EmptyBitfield)
-// 
+//
 #[derive(Debug, Fail, PartialEq, Clone)]
 pub enum Error {
     KernelError(KernelError),
@@ -67,8 +56,8 @@ impl fmt::Display for Error {
             Error::StatusCode(err_code) => {
                 let status = StatusCode::from(*err_code as cl_int);
                 write!(f, "Error::({:?})", status)
-            },
-            _ => write!(f, "{:?}", self)
+            }
+            _ => write!(f, "{:?}", self),
         }
     }
 }
@@ -76,8 +65,8 @@ impl fmt::Display for Error {
 pub type Output<T> = Result<T, Error>;
 
 mod strings {
-    use std::ffi::CString;
     use super::{Error, Output};
+    use std::ffi::CString;
 
     pub fn to_c_string(string: &str, error: Error) -> Output<CString> {
         CString::new(string).or_else(|_| Err(error))
@@ -86,11 +75,8 @@ mod strings {
     pub fn to_utf8_string(buf: Vec<u8>) -> String {
         let safe_vec = buf.into_iter().filter(|c| *c != 0u8).collect();
         String::from_utf8(safe_vec).unwrap()
-
     }
-
 }
-
 
 // This mutex is used to work around weak OpenCL implementations.
 // On some implementations concurrent calls to clGetPlatformIDs
@@ -149,7 +135,7 @@ pub fn cl_get_platform_info(
             platform_info,
             0,
             ptr::null_mut(),
-            &mut size
+            &mut size,
         )
     };
     size = into_result(err_code, size)?;
@@ -168,10 +154,7 @@ pub fn cl_get_platform_info(
     Ok(info)
 }
 
-pub fn cl_get_device_count(
-    platform: &Platform,
-    device_type: cl_device_type,
-) -> Output<u32> {
+pub fn cl_get_device_count(platform: &Platform, device_type: cl_device_type) -> Output<u32> {
     let mut num_devices = 0;
     let err_code = unsafe {
         clGetDeviceIDs(
@@ -209,13 +192,13 @@ pub fn cl_get_device_ids(
 pub fn cl_get_device_info(device: &Device, device_info: cl_device_info) -> Output<String> {
     device.usability_check()?;
     let mut size = 0 as libc::size_t;
-    let err_code =
-        unsafe { clGetDeviceInfo(
+    let err_code = unsafe {
+        clGetDeviceInfo(
             device.raw_cl_object(),
             device_info,
             0,
             ptr::null_mut(),
-            &mut size
+            &mut size,
         )
     };
     size = into_result(err_code, size)?;
@@ -235,7 +218,6 @@ pub fn cl_get_device_info(device: &Device, device_info: cl_device_info) -> Outpu
 }
 
 pub fn cl_create_context(device: &Device) -> Output<cl_context> {
-    // println!("Starting cl_create_context with device {:?}", device);
     device.usability_check()?;
     let mut err_code = 0;
     let ctx = unsafe {
@@ -272,10 +254,10 @@ pub fn cl_create_buffer<T>(
 
 pub fn cl_get_mem_object_info<T>(
     device_mem: &DeviceMem<T>,
-    mem_info_flag: cl_mem_info
+    mem_info_flag: cl_mem_info,
 ) -> Output<usize>
-    where T: Debug,
-
+where
+    T: Debug,
 {
     let mut size: libc::size_t = 0;
     let err_code = unsafe {
@@ -290,48 +272,29 @@ pub fn cl_get_mem_object_info<T>(
     into_result(err_code, size as usize)
 }
 
-pub fn cl_set_kernel_arg<T>(
-        kernel: &Kernel,
-        arg_index: usize,
-        arg: &T,
-    ) -> Output<()> where T: KernelArg + Debug {
-    
-        let err_code = unsafe {
-            let (arg_size, arg_ptr): KernelArgSizeAndPointer = arg.as_kernel_arg();
-            debug_assert!(!kernel.raw_cl_object().is_null());
-            println!("
-            clSetKernelArg starting call...
-            arg: {:?}
-            arg_size: {:?}
-            arg_ptr: {:?}
-            arg_ptr_deref: {:?}
-            ",
-            arg,
+pub fn cl_set_kernel_arg<T>(kernel: &Kernel, arg_index: usize, arg: &T) -> Output<()>
+where
+    T: KernelArg + Debug,
+{
+    let err_code = unsafe {
+        let (arg_size, arg_ptr): KernelArgSizeAndPointer = arg.as_kernel_arg();
+
+        debug_assert!(!kernel.raw_cl_object().is_null());
+
+        clSetKernelArg(
+            kernel.raw_cl_object(),
+            arg_index as cl_uint,
             arg_size,
             arg_ptr,
-            *arg_ptr,
-            );
-            clSetKernelArg(
-                kernel.raw_cl_object(),
-                arg_index as cl_uint,
-                arg_size,
-                arg_ptr,
-            )
-        };
-        println!("call to clSetKernelArg succeeded without crashing {:?}", err_code);
-        into_result(err_code, ())
+        )
+    };
+    into_result(err_code, ())
 }
 
 pub fn cl_create_kernel(program: &Program, name: &str) -> Output<cl_kernel> {
     let mut err_code = 0;
     let c_name = strings::to_c_string(name, Error::CStringInvalidKernelName)?;
-    let kernel = unsafe {
-        clCreateKernel(
-            program.raw_cl_object(),
-            c_name.as_ptr(),
-            &mut err_code
-        )
-    };
+    let kernel = unsafe { clCreateKernel(program.raw_cl_object(), c_name.as_ptr(), &mut err_code) };
     into_result(err_code, kernel)
 }
 
@@ -392,8 +355,6 @@ pub fn cl_get_program_build_log(
     Ok(strings::to_utf8_string(buf))
 }
 
-
-
 pub fn cl_get_event_profiling_info(event: &cl_event, info: cl_profiling_info) -> Output<u64> {
     let mut time: cl_ulong = 0;
     let err_code = unsafe {
@@ -408,30 +369,19 @@ pub fn cl_get_event_profiling_info(event: &cl_event, info: cl_profiling_info) ->
     into_result(err_code, time as u64)
 }
 
-
-pub fn cl_wait_for_events(event_list: WaitList) -> Output<()> {
+pub fn cl_wait_for_events(wait_list: WaitList) -> Output<()> {
     let err_code = unsafe {
-        let (
-            wait_list_len,
-            wait_list_ptr_ptr
-        ) = wait_list::len_and_ptr_ptr(event_list.cl_object());
-    
-        clWaitForEvents(
-            wait_list_len,
-            wait_list_ptr_ptr,
-        )
+        let (wait_list_len, wait_list_ptr_ptr) = wait_list.len_and_ptr_ptr();
+
+        clWaitForEvents(wait_list_len, wait_list_ptr_ptr)
     };
     into_result(err_code, ())
 }
 
 pub fn cl_finish(queue: &CommandQueue) -> Output<()> {
-    // println!("cl_finish starting...");
-    let out = into_result(unsafe { clFinish(queue.raw_cl_object()) }, ())?;
-    // println!("cl_finish completed");
-    Ok(out)
+    into_result(unsafe { clFinish(queue.raw_cl_object()) }, ())
 }
 
-/// global_work_size[0] * ... * global_work_size[work_dim–1].
 pub fn cl_enqueue_nd_range_kernel(
     queue: &CommandQueue,
     kernel: &Kernel,
@@ -439,48 +389,16 @@ pub fn cl_enqueue_nd_range_kernel(
     global_work_offset: Option<[usize; 3]>,
     global_work_size: [usize; 3],
     local_work_size: Option<[usize; 3]>,
-    event_list: WaitList,
-
+    wait_list: WaitList,
 ) -> Output<Event> {
     let mut tracking_event: cl_event = new_tracking_event();
     let err_code = unsafe {
-        let (
-            wait_list_len,
-            wait_list_ptr_ptr
-        ) = wait_list::len_and_ptr_ptr(event_list.cl_object());
+        let (wait_list_len, wait_list_ptr_ptr) = wait_list.len_and_ptr_ptr();
 
         let global_work_offset_ptr = volume::option_to_ptr(global_work_offset);
         let global_work_size_ptr = volume::to_ptr(global_work_size);
         let local_work_size_ptr = volume::option_to_ptr(local_work_size);
-        // println!(" clEnqueueNDRangeKernel called with
-        // queue: {:?}
-        // kernel: {:?}
-        // work_dim: {:?}
-        // global_work_offset: {:?}
-        // global_work_offset_ptr: {:?}
-        // global_work_size: {:?}
-        // global_work_size_ptr: {:?}
-        // local_work_size: {:?}
-        // local_work_size_ptr: {:?}
-        // event_list: {:?}
-        // wait_list_len: {:?}
-        // wait_list_ptr_ptr: {:?}
-        // tracking_event: {:?}
-        // ",
-        // queue,
-        // kernel,
-        // work_dim,
-        // global_work_offset,
-        // global_work_offset_ptr,
-        // global_work_size,
-        // global_work_size_ptr,
-        // local_work_size,
-        // local_work_size_ptr,
-        // event_list,
-        // wait_list_len,
-        // wait_list_ptr_ptr,
-        // tracking_event,
-        // );
+
         clEnqueueNDRangeKernel(
             queue.raw_cl_object(),
             kernel.raw_cl_object(),
@@ -494,17 +412,17 @@ pub fn cl_enqueue_nd_range_kernel(
         )
     };
 
-    // println!("got past clEnqueueNDRangeKernel");
-
     let () = into_result(err_code, ())?;
     let () = cl_finish(queue)?;
-    Ok(Event::new(tracking_event))    
+    Ok(Event::new(tracking_event))
 }
 
 fn buffer_mem_size_and_ptr<T>(buf: &[T]) -> (usize, *const libc::c_void) {
-    (std::mem::size_of::<T>() * buf.len(), buf.as_ptr() as *const libc::c_void)
+    (
+        std::mem::size_of::<T>() * buf.len(),
+        buf.as_ptr() as *const libc::c_void,
+    )
 }
-
 
 fn new_tracking_event() -> cl_event {
     std::ptr::null_mut() as cl_event
@@ -516,155 +434,68 @@ fn into_event(err_code: cl_int, tracking_event: cl_event) -> Output<Event> {
     Ok(Event::new(tracking_event))
 }
 
-
-// pub fn cl_enqueue_read_buffer<T: Num>(
-//         command_queue: &CommandQueue,
-//         device_mem: &DeviceMem<T>,
-//         buffer: &mut [T],
-//         buffer_op_config: BufferOpConfig,
-//         event_list: WaitList,
-//     ) -> Output<Event> where
-//         T: Sized + Debug,
-//     {
-//         let mut tracking_event = new_tracking_event();
-//         let err_code = unsafe {
-//             let (
-//                 wait_list_len,
-//                 wait_list_ptr_ptr
-//             ) = wait_list::len_and_ptr_ptr(event_list.cl_object());
-//             let (
-//                 buffer_mem_size,
-//                 buffer_ptr,
-//             ) = buffer_mem_size_and_ptr(buffer);
-            
-//             println!("calling clEnqueueReadBuffer...
-//             buffer {:?}
-//             buffer_mem_size {:?}
-//             buffer_ptr {:?}
-//             ",
-//             buffer,
-//             buffer_mem_size,
-//             buffer_ptr,
-//             );
-//             let err_code = clEnqueueReadBuffer(
-//                 command_queue.raw_cl_object(),
-//                 device_mem.raw_cl_object(),
-//                 // buffer_op_config.is_blocking as cl_bool,
-//                 1 as cl_bool,
-//                 buffer_op_config.offset,
-//                 buffer_mem_size,
-//                 buffer_ptr as *mut libc::c_void,
-//                 wait_list_len,
-//                 wait_list_ptr_ptr,
-//                 &mut tracking_event,
-//             );
-//             println!("called clEnqueueReadBuffer without crashing");
-//             err_code
-//         };
-//         into_event(err_code, tracking_event)
-// }
-
 pub fn cl_enqueue_read_buffer<T>(
-        queue: &CommandQueue,
-        device_mem: &DeviceMem<T>,
-        buffer: &mut [T],
-        buffer_op_config: BufferOpConfig,
-        event_list: WaitList,
-    ) -> Output<Event> where T: Debug {
-        let mut tracking_event = new_tracking_event();
-        let err_code = unsafe {
-            let (
-                wait_list_len,
-                wait_list_ptr_ptr
-            ) = wait_list::len_and_ptr_ptr(event_list.cl_object());
+    queue: &CommandQueue,
+    device_mem: &DeviceMem<T>,
+    buffer: &mut [T],
+    buffer_op_config: BufferOpConfig,
+    wait_list: WaitList,
+) -> Output<Event>
+where
+    T: Debug,
+{
+    let mut tracking_event = new_tracking_event();
+    let err_code = unsafe {
+        let (wait_list_len, wait_list_ptr_ptr) = wait_list.len_and_ptr_ptr();
 
-            let (
-                buffer_mem_size,
-                buffer_ptr,
-            ) = buffer_mem_size_and_ptr(buffer);
-            debug_assert!(buffer.len() == device_mem.len().unwrap());
-            println!(" clEnqueueReadBuffer called with
-            buffer: {:?}
-            ",
-            buffer,
-            );
-            // queue: {:?}
-            // device_mem: {:?}
-            // event_list: {:?}
-            // wait_list_len: {:?}
-            // wait_list_ptr_ptr: {:?}
-            // buffer_mem_size: {:?}
-            // buffer_ptr {:?}
-            // tracking_event: {:?}
-            // ",
-            // queue,
-            // device_mem,
-            // event_list,
-            // wait_list_len,
-            // wait_list_ptr_ptr,
-            // buffer_mem_size,
-            // buffer_ptr,
-            // tracking_event,
-            // );
-            let err = clEnqueueReadBuffer(
-                queue.raw_cl_object(),
-                device_mem.raw_cl_object(),
-                buffer_op_config.is_blocking as cl_bool,
-                buffer_op_config.offset,
-                buffer_mem_size,
-                buffer_ptr as *mut libc::c_void,
-                wait_list_len,
-                wait_list_ptr_ptr,
-                &mut tracking_event,
-            );
+        let (buffer_mem_size, buffer_ptr) = buffer_mem_size_and_ptr(buffer);
 
-            println!("clEnqueueReadBuffer after...
-            buffer: {:?}
-            ",
-            buffer,
-            );
-            // println!("NEW VERSION clEnqueueReadBuffer called without crashing...");
-            err
-        };
-        into_event(err_code, tracking_event)
+        debug_assert!(buffer.len() == device_mem.len().unwrap());
+
+        clEnqueueReadBuffer(
+            queue.raw_cl_object(),
+            device_mem.raw_cl_object(),
+            buffer_op_config.is_blocking as cl_bool,
+            buffer_op_config.offset,
+            buffer_mem_size,
+            buffer_ptr as *mut libc::c_void,
+            wait_list_len,
+            wait_list_ptr_ptr,
+            &mut tracking_event,
+        )
+    };
+    into_event(err_code, tracking_event)
 }
 
 pub fn cl_enqueue_write_buffer<T>(
-        command_queue: &CommandQueue,
-        device_mem: &DeviceMem<T>,
-        buffer: &[T],
-        buffer_op_config: BufferOpConfig,
-        event_list: WaitList,
-    ) -> Output<Event> where T: Debug {
-        let mut tracking_event = new_tracking_event();
-        let err_code = unsafe {
-            let (
-                wait_list_len,
-                wait_list_ptr_ptr
-            ) = wait_list::len_and_ptr_ptr(event_list.cl_object());
+    command_queue: &CommandQueue,
+    device_mem: &DeviceMem<T>,
+    buffer: &[T],
+    buffer_op_config: BufferOpConfig,
+    wait_list: WaitList,
+) -> Output<Event>
+where
+    T: Debug,
+{
+    let mut tracking_event = new_tracking_event();
+    let err_code = unsafe {
+        let (wait_list_len, wait_list_ptr_ptr) = wait_list.len_and_ptr_ptr();
 
-            let (
-                buffer_mem_size,
-                buffer_ptr,
-            ) = buffer_mem_size_and_ptr(buffer);
-            println!("clEnqueueWriteBuffer...");
-            let err = clEnqueueWriteBuffer(
-                command_queue.raw_cl_object(),
-                device_mem.raw_cl_object(),
-                buffer_op_config.is_blocking as cl_bool,
-                buffer_op_config.offset,
-                buffer_mem_size,
-                buffer_ptr,
-                // (buffer.len() * std::mem::size_of::<T>()) as libc::size_t,
-                // buffer.as_ptr() as *mut libc::c_void,
-                wait_list_len,
-                wait_list_ptr_ptr,
-                &mut tracking_event,
-            );
-            // println!("clEnqueueWriteBuffer called without crashing...");
-            err
-        };
-        into_event(err_code, tracking_event)
+        let (buffer_mem_size, buffer_ptr) = buffer_mem_size_and_ptr(buffer);
+
+        clEnqueueWriteBuffer(
+            command_queue.raw_cl_object(),
+            device_mem.raw_cl_object(),
+            buffer_op_config.is_blocking as cl_bool,
+            buffer_op_config.offset,
+            buffer_mem_size,
+            buffer_ptr,
+            wait_list_len,
+            wait_list_ptr_ptr,
+            &mut tracking_event,
+        )
+    };
+    into_event(err_code, tracking_event)
 }
 
 pub fn cl_create_program_with_source(context: &Context, src: &str) -> Output<Program> {
@@ -723,14 +554,11 @@ pub fn cl_create_command_queue(
             context.raw_cl_object(),
             device.raw_cl_object(),
             flags,
-            &mut err_code
+            &mut err_code,
         )
     };
     into_result(err_code, command_queue)
 }
-
-
-
 
 // all cl_release_* and cl_retain_* functions take a raw reference to the
 // cl object they pertain to.
@@ -762,7 +590,7 @@ macro_rules! release_retain {
                 }
             }
         }
-    }
+    };
 }
 
 release_retain!(command_queue, CommandQueue);
@@ -771,8 +599,6 @@ release_retain!(program, Program);
 release_retain!(context, Context);
 release_retain!(mem, MemObject);
 release_retain!(kernel, Kernel);
-
-
 
 #[test]
 fn test_cl_get_platforms_count() {
@@ -784,7 +610,6 @@ fn test_cl_get_platforms_count() {
 
 #[test]
 fn test_cl_get_platforms_ids() {
-    // use types::PlatformID;
     let platform_ids_result: Output<Vec<cl_platform_id>> = cl_get_platforms_ids();
     assert!(platform_ids_result.is_ok());
     let platform_ids = platform_ids_result.unwrap();

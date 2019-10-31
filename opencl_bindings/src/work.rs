@@ -1,11 +1,10 @@
-
-use std::marker::PhantomData;
 use crate::open_cl::Volume;
+use std::marker::PhantomData;
 
 #[derive(Debug, Fail, Clone, Eq, PartialEq)]
 pub enum VolumetricError {
     #[fail(display = "Volumetric does not allow a zero value for its dimenions")]
-    DimCannotBeZero
+    DimCannotBeZero,
 }
 
 #[repr(C)]
@@ -34,7 +33,7 @@ impl Dims {
         }
     }
 
-    pub fn len(&self) -> usize {
+    pub fn count(&self) -> usize {
         match *self {
             One(x) => x,
             Two(x, y) => x * y,
@@ -51,19 +50,18 @@ impl Dims {
     }
 }
 
-
 /// Volumetric is a representation of 1, 2, or 3 dimensions.
-/// 
+///
 /// For Volumetric none of the dimensions can be 0. Therefore,
 /// construction of a Volumetric is protected. However, a
-/// 
+///
 /// If you need a zeroable structure see Dims.
-/// 
+///
 #[repr(C)]
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Volumetric {
     dims: Dims,
-    _phantom: PhantomData<()>
+    _phantom: PhantomData<()>,
 }
 
 #[inline]
@@ -76,24 +74,31 @@ fn cannot_be_zero(num: usize) -> Result<(), VolumetricError> {
 }
 
 impl Volumetric {
-    
-    pub fn one_dim(x: usize)  -> Result<Volumetric, VolumetricError> {
-        // println!("Volumetric x {}", x);
+    pub fn one_dim(x: usize) -> Result<Volumetric, VolumetricError> {
         cannot_be_zero(x)?;
-        Ok(Volumetric{dims: Dims::One(x), _phantom: PhantomData})
+        Ok(Volumetric {
+            dims: Dims::One(x),
+            _phantom: PhantomData,
+        })
     }
-    
+
     pub fn two_dim(x: usize, y: usize) -> Result<Volumetric, VolumetricError> {
         cannot_be_zero(x)?;
         cannot_be_zero(y)?;
-        Ok(Volumetric{dims: Dims::Two(x, y),  _phantom: PhantomData})
+        Ok(Volumetric {
+            dims: Dims::Two(x, y),
+            _phantom: PhantomData,
+        })
     }
-    
+
     pub fn three_dim(x: usize, y: usize, z: usize) -> Result<Volumetric, VolumetricError> {
         cannot_be_zero(x)?;
         cannot_be_zero(y)?;
         cannot_be_zero(z)?;
-        Ok(Volumetric{dims: Dims::Three(x, y, z),  _phantom: PhantomData})
+        Ok(Volumetric {
+            dims: Dims::Three(x, y, z),
+            _phantom: PhantomData,
+        })
     }
 
     pub fn dims(&self) -> Dims {
@@ -107,8 +112,8 @@ impl Volumetric {
         self.dims.as_offset_volume()
     }
 
-    pub fn len(&self) -> usize {
-        self.dims.len()
+    pub fn count(&self) -> usize {
+        self.dims.count()
     }
 
     pub fn n_dimensions(&self) -> u8 {
@@ -118,17 +123,19 @@ impl Volumetric {
 
 impl From<usize> for Volumetric {
     fn from(num: usize) -> Volumetric {
-        // println!("Volumetric num {}", num);
-        Volumetric::one_dim(num).unwrap_or_else(|e| {
-            panic!("Failed to convert usize to Volumetric {:?}", e)
-        })
+        Volumetric::one_dim(num)
+            .unwrap_or_else(|e| panic!("Failed to convert usize to Volumetric {:?}", e))
     }
 }
 
 impl From<(usize,)> for Volumetric {
     fn from((x,): (usize,)) -> Volumetric {
         Volumetric::one_dim(x).unwrap_or_else(|e| {
-            panic!("Failed to convert (usize,) to Volumetric - {:?} - {:?}", (x,), e)
+            panic!(
+                "Failed to convert (usize,) to Volumetric - {:?} - {:?}",
+                (x,),
+                e
+            )
         })
     }
 }
@@ -136,7 +143,11 @@ impl From<(usize,)> for Volumetric {
 impl From<(usize, usize)> for Volumetric {
     fn from((x, y): (usize, usize)) -> Volumetric {
         Volumetric::two_dim(x, y).unwrap_or_else(|e| {
-            panic!("Failed to convert (usize, usize) to Volumetric - {:?} - {:?}", (x, y), e)
+            panic!(
+                "Failed to convert (usize, usize) to Volumetric - {:?} - {:?}",
+                (x, y),
+                e
+            )
         })
     }
 }
@@ -144,7 +155,11 @@ impl From<(usize, usize)> for Volumetric {
 impl From<(usize, usize, usize)> for Volumetric {
     fn from((x, y, z): (usize, usize, usize)) -> Volumetric {
         Volumetric::three_dim(x, y, z).unwrap_or_else(|e| {
-            panic!("Failed to convert (usize, usize, usize) to Volumetric - {:?} - {:?}", (x, y, z), e)
+            panic!(
+                "Failed to convert (usize, usize, usize) to Volumetric - {:?} - {:?}",
+                (x, y, z),
+                e
+            )
         })
     }
 }
@@ -154,16 +169,18 @@ impl From<(usize, usize, usize)> for Volumetric {
 pub struct Work {
     size: Volumetric,
     offset: Option<Dims>,
-    local_size: Option<Volumetric>
+    local_size: Option<Volumetric>,
 }
 
 impl Work {
-    pub fn new<S>(size: S) -> Work where S: Into<Volumetric> {
+    pub fn new<S>(size: S) -> Work
+    where
+        S: Into<Volumetric>,
+    {
         Work {
             size: size.into(),
             offset: None,
             local_size: None,
-
         }
     }
 

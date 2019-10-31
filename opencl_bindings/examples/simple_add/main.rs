@@ -22,7 +22,7 @@ fn run() -> Result<(), Error> {
     let platform = platforms.remove(0);
     let mut devices = platform.all_devices()?;
 
-    println!("all_devices {:?}", devices);
+    // println!("all_devices {:?}", devices);
     if devices.len() == 0 {
         panic!("No devices found!!!");
     }
@@ -52,7 +52,7 @@ fn run() -> Result<(), Error> {
 
     println!("fetching_kernel simple_add");
     let simple_add: Kernel = program.fetch_kernel("simple_add")?;
-    
+
     println!("writing buffer a...");
     let _write_event_a = command_queue.write_buffer(&mem_a, &vec_a, WaitList::empty(), None)?;
 

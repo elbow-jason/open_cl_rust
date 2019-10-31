@@ -95,7 +95,7 @@ impl StatusCode {
             Failure(-62) => "CL_INVALID_MIP_LEVEL".to_string(),
             Failure(-63) => "CL_INVALID_GLOBAL_WORK_SIZE".to_string(),
             Failure(-64) => "CL_INVALID_PROPERTY".to_string(),
-            Failure(001) => "CL_PLATFORM_NOT_FOUND_KHR".to_string(),
+            Failure(1) => "CL_PLATFORM_NOT_FOUND_KHR".to_string(),
             Failure(unk_code) => format!("UNKNOWN_ERROR_CODE_{:?}", unk_code),
         }
     }

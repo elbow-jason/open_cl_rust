@@ -6,16 +6,15 @@ use crate::ffi::{
     cl_device_local_mem_type,
     cl_device_mem_cache_type,
     cl_device_type,
+    // cl_device_partition_property,
+    // cl_device_affinity_domain,
+    // cl_device_svm,
 };
 use crate::open_cl::{
-    cl_create_context,
-    cl_get_device_count,
-    cl_get_device_ids,
-    cl_get_device_info,
-    ClObject,
+    cl_create_context, cl_get_device_count, cl_get_device_ids, cl_get_device_info, ClObject,
 };
 
-use crate::{Error, Context, Output, Platform};
+use crate::{Context, Error, Output, Platform};
 
 /// NOTE: UNUSABLE_DEVICE_ID might be osx specific? or OpenCL
 /// implementation specific?
@@ -23,8 +22,8 @@ use crate::{Error, Context, Output, Platform};
 /// Pro for a Radeon graphics card that becomes unavailable when
 /// powersaving mode enables. Apparently the OpenCL platform can still
 /// see the device, instead of a "legit" cl_device_id the inactive
-/// device's cl_device_id is listed as 0xFFFFFFFF.
-const UNUSABLE_DEVICE_ID: cl_device_id = 0xFFFFFFFF as *mut usize as cl_device_id;
+/// device's cl_device_id is listed as 0xFFFF_FFFF.
+const UNUSABLE_DEVICE_ID: cl_device_id = 0xFFFF_FFFF as *mut usize as cl_device_id;
 
 /// An error related to an Event or WaitList.
 #[derive(Debug, Fail, PartialEq, Eq, Clone)]
@@ -37,18 +36,17 @@ pub enum DeviceError {
 #[derive(Debug, Eq, PartialEq)]
 pub struct Device {
     inner: cl_device_id,
-    _unconstructable: ()
+    _unconstructable: (),
 }
 
 impl From<cl_device_id> for Device {
     fn from(inner: cl_device_id) -> Device {
-       Device::new(inner)
+        Device::new(inner)
     }
 }
 
 impl ClObject<cl_device_id> for Device {
     unsafe fn raw_cl_object(&self) -> cl_device_id {
-        // println!("getting raw_cl_object for {:?}", self);
         self.inner
     }
 }
@@ -56,9 +54,11 @@ impl ClObject<cl_device_id> for Device {
 use DeviceInfo::*;
 
 impl Device {
-
     pub fn new(inner: cl_device_id) -> Device {
-        Device { inner, _unconstructable: ()}
+        Device {
+            inner,
+            _unconstructable: (),
+        }
     }
 
     pub fn is_usable(&self) -> bool {
@@ -374,13 +374,11 @@ impl Device {
     }
 }
 
-
 // impl fmt::Display for Device {
 //     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 //         write!(f, "Device({:?})", self.name_info().unwrap())
 //     }
 // }
-
 
 // https://github.com/KhronosGroup/OpenCL-Headers/blob/master/CL/cl.h#L412-L414
 // /* cl_device_exec_capabilities - bitfield */
@@ -511,35 +509,11 @@ crate::__codes_enum!(DeviceLocalMemType,  cl_device_local_mem_type, {
     Global => 0x2
 });
 
-// https://github.com/KhronosGroup/OpenCL-Headers/blob/master/CL/cl.h#L403-L406
 crate::__codes_enum!(DeviceMemCacheType, cl_device_mem_cache_type, {
     NoneType => 0x0,
     ReadOnlyCache => 0x1,
     ReadWriteCache => 0x2
 });
-
-// crate::__codes_enum!(DevicePartitionPropertery, cl_device_partition_property, {
-//     Equally => 0x1086,
-//     ByCounts => 0x1087,
-//     ByCountsListEnd => 0x0,
-//     ByAffinityDomain => 0x1088
-// });
-
-// crate::__codes_enum!(DeviceSvm, cl_device_svm, {
-//     CoarseGrainBuffer => 1,
-//     FineGrainBuffer => 2,
-//     FineGrainSystem => 4,
-//     Atomics => 8
-// });
-
-// https://github.com/KhronosGroup/OpenCL-Headers/blob/master/CL/cl.h#L270-L278
-//
-// Note: CL_DEVICE_TYPE_CUSTOM is avaiable only in CL_VERSION_1_2
-//
-// Note: the value for the All variant is max u32.
-// (1 <<< 32) - 1 == 0xFFFFFFFF
-// Hope it works but seems risky...
-//
 
 bitflags! {
     pub struct DeviceType: cl_device_type {
@@ -548,11 +522,27 @@ bitflags! {
         const GPU = 4;
         const ACCELERATOR = 8;
         const CUSTOM = 16;
-        const ALL = 0xFFFFFFFF;
+        const ALL = 0xFFFF_FFFF;
     }
 }
 
-/* cl_device_affinity_domain */
+// NOTE: Version for cl_device_partition_property?
+// crate::__codes_enum!(DevicePartitionPropertery, cl_device_partition_property, {
+//     Equally => 0x1086,
+//     ByCounts => 0x1087,
+//     ByCountsListEnd => 0x0,
+//     ByAffinityDomain => 0x1088
+// });
+
+// NOTE: Version for cl_device_svm?
+// crate::__codes_enum!(DeviceSvm, cl_device_svm, {
+//     CoarseGrainBuffer => 1,
+//     FineGrainBuffer => 2,
+//     FineGrainSystem => 4,
+//     Atomics => 8
+// });
+
+// NOTE: Version for cl_device_affinity_domain?
 // crate::__codes_enum!(DeviceAffinityDomain, cl_device_affinity_domain, {
 //     Numa => 1,
 //     L4Cache => 2,

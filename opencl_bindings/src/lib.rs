@@ -1,5 +1,3 @@
-
-
 ///
 /// The OpenCL implementation is thread-safe for API calls that create,
 /// retain and release objects such as a context, command-queue, program,
@@ -19,26 +17,13 @@ extern crate bitflags;
 #[macro_use]
 extern crate failure;
 
-
-
 // macros are in there keep it first. order matters.
-pub mod codes;
-
 #[macro_use]
-mod macros {
-    #[doc(hidden)]
-    #[macro_export]
-    macro_rules! size_t {
-        ($t:ty) => {
-            std::mem::size_of::<$t>() as libc::size_t
-        }
-    }
-}
+pub mod macros;
 
 pub extern crate opencl_sys as ffi;
 
 extern crate num;
-
 
 pub mod open_cl;
 
@@ -50,8 +35,8 @@ pub mod event;
 pub mod kernel;
 pub mod platform;
 pub mod program;
-pub mod work;
 pub mod utils;
+pub mod work;
 
 pub use command_queue::*;
 pub use context::*;
