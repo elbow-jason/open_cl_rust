@@ -36,7 +36,6 @@ pub fn cl_create_buffer_from_slice<T>(
             buffer_mem_size,
             buffer_ptr
         ) = buffer_mem_size_and_ptr(slice);
-        
         _cl_create_buffer(
             context,
             mem_flags,
@@ -52,21 +51,26 @@ pub fn cl_create_buffer_with_len<T>(
     len: usize,
 ) -> Output<DeviceMem<T>> where T: Debug {
     unsafe {
-        _cl_create_buffer(context, mem_flags, len, std::ptr::null_mut())
+        _cl_create_buffer(
+            context,
+            mem_flags,
+            (std::mem::size_of::<T>() * len) as libc::size_t,
+            std::ptr::null_mut(),
+        )
     }
 }
 
 unsafe fn _cl_create_buffer<T>(
     context: &Context,
     mem_flags: MemFlags,
-    len: usize,
+    size_in_bytes: usize,
     ptr: *mut libc::c_void,
 ) -> Output<DeviceMem<T>> where T: Debug {
     let mut err_code: cl_int = 0;
     let mut cl_mem_object: cl_mem = clCreateBuffer(
         context.raw_cl_object(),
         mem_flags.bits() as cl_mem_flags,
-        (std::mem::size_of::<T>() * len) as libc::size_t,
+        size_in_bytes,
         ptr,
         &mut err_code,
     );

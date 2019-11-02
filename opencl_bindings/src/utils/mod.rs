@@ -21,6 +21,7 @@ pub use {
     },
     status_code::{
         StatusCode,
+        ClError,
     }
 
 };

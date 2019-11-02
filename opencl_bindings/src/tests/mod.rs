@@ -351,10 +351,10 @@ mod testing {
     #[test]
     fn memory_read_write_test() {
         test_all(&mut |_, context, queue| {
-            let buffer: DeviceMem<isize> = DeviceMem::create_read_only(context, 8).unwrap();
+            let input = vec![0isize, 1, 2, 3, 4, 5, 6, 7];
+            let buffer: DeviceMem<isize> = DeviceMem::create_read_only(context, input.len()).unwrap();
 
-            let input = [0isize, 1, 2, 3, 4, 5, 6, 7];
-            let mut output = [0isize, 0, 0, 0, 0, 0, 0, 0];
+            let mut output = utils::vec_filled_with(0, input.len());
 
             let _write_event = queue.write_buffer(&buffer, &input[..]).unwrap();
             let _read_event = queue.read_buffer(&buffer, &mut output[..]).unwrap();
@@ -363,40 +363,38 @@ mod testing {
         })
     }
 
-    // #[test]
-    // fn memory_read_vec_test() {
-    //     test_all(&mut |_, ctx, queue| {
-    //         let input = [0isize, 1, 2, 3, 4, 5, 6, 7];
-    //         let buffer = ctx.create_read_write_buffer(input.len());
-    //         let output: Vec<isize> = queue.get(&buffer, ());
-    //         expect!(&input[..], &output[..]);
-    //     })
-    // }
+    #[test]
+    fn memory_read_vec_test() {
+        test_all(&mut |_, context, queue| {
+            let input = vec![0isize, 1, 2, 3, 4, 5, 6, 7];
+            let buffer: DeviceMem<isize> = DeviceMem::create_read_write(context, input.len())
+                .expect("failed to create_read_write");
 
-    //     #[test]
-    //     fn memory_read_owned()
-    //     {
-    //         ::test_all_platforms_devices(&mut |_, ctx, queue| {
-    //             let input = vec!(0isize, 1, 2, 3, 4, 5, 6, 7);
-    //             let buffer = ctx.create_buffer_from(&input, CL_MEM_READ_WRITE);
-    //             let output: Vec<isize> = queue.get(&buffer, ());
-    //             expect!(input, output);
-    //         })
-    //     }
+            let mut output = utils::vec_filled_with(0, input.len());
+            
+            let _write_event = queue.write_buffer(&buffer, &input)
+                .expect("failed to write_buffer");
 
-        // #[test]
-        // fn memory_read_owned_clone()
-        // {
-        //     test_all(&mut |_, ctx, queue| {
-        //         let input = vec!(0isize, 1, 2, 3, 4, 5, 6, 7);
-        //         let buffer = DeviceMem::create_read_write_from(ctx, &input)
-        //             .expect("create_read_write_from failed");
-        //         let mut output = utils::vec_filled_with(0, input.len());
-        //         let _e1 = queue.read_buffer(&buffer, &mut output)
-        //             .expect("read_buffer failed");
-        //         expect!(input, output);
-        //     })
-        // }
+            let _read_event = queue.read_buffer(&buffer, &mut output)
+                .expect("failed to read_buffer");
+    
+            expect!(&input[..], &output[..]);
+        })
+    }
+
+    #[test]
+    fn memory_read_owned_clone()
+    {
+        test_all(&mut |_, ctx, queue| {
+            let input = vec![0isize, 1, 2];
+            let buffer = DeviceMem::create_read_write_from(ctx, &input[..])
+                .expect("create_read_write_from failed");
+            let mut output = utils::vec_filled_with(0, input.len());
+            let _e1 = queue.read_buffer(&buffer, &mut output)
+                .expect("read_buffer failed");
+            expect!(input, output);
+        })
+    }
 
     //     #[test]
     //     fn event_get_times() {

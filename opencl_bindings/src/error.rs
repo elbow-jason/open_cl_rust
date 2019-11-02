@@ -2,7 +2,7 @@ use crate::kernel::KernelError;
 use crate::event::EventError;
 use crate::device::DeviceError;
 use crate::program::ProgramError;
-
+use crate::utils::ClError;
 // use crate::utils::StatusCode;
 
 
@@ -16,8 +16,8 @@ pub enum Error {
     EventError(EventError),
     #[fail(display = "{:?}", _0)]
     DeviceError(DeviceError),
-    #[fail(display = "OpenCL returned an error status code {:?}", _0)]
-    StatusCode(i32),
+    #[fail(display = "OpenCL returned an error status code {:?} {:?}", _0, _1)]
+    StatusCode(isize, ClError),
 }
 
 // impl fmt::Display for Error {

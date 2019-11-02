@@ -245,4 +245,13 @@ macro_rules! __release_retain {
 }
 
 
+#[macro_export]
+macro_rules! inspect_var {
+    ($item:ident) => {
+        #[cfg(not(prod))]
+        println!("INSPECT: {}:{}:{}
+            {}: {:?}
+        ", file!(), line!(), column!(), stringify!($item), $item);
+    }
+}
 

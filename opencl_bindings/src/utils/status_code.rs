@@ -1,5 +1,3 @@
-use std::fmt;
-
 use crate::ffi::cl_int;
 use crate::{Error, Output};
 
@@ -8,45 +6,141 @@ use crate::{Error, Output};
 #[derive(Eq, PartialEq, Clone, Copy)]
 pub enum StatusCode {
     Success,
-    Failure(i32),
+    Failure(isize, ClError)
 }
 
 use StatusCode::*;
 
 impl From<cl_int> for StatusCode {
-    fn from(code: cl_int) -> StatusCode {
-        match code {
+    fn from(number: cl_int) -> StatusCode {
+        match number {
             0 => Success,
-            fail => Failure(fail as i32),
+            _ => Failure(number as isize, number.into())
         }
     }
 }
 
-impl From<StatusCode> for cl_int {
-    fn from(status_code: StatusCode) -> cl_int {
-        match status_code {
-            StatusCode::Success => 0,
-            Failure(fail) => fail,
+#[allow(non_camel_case_types)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+pub enum ClError {
+    CL_DEVICE_NOT_FOUND,
+    CL_DEVICE_NOT_AVAILABLE,
+    CL_COMPILER_NOT_AVAILABLE,
+    CL_MEM_OBJECT_ALLOCATION_FAILURE,
+    CL_OUT_OF_RESOURCES,
+    CL_OUT_OF_HOST_MEMORY,
+    CL_PROFILING_INFO_NOT_AVAILABLE,
+    CL_MEM_COPY_OVERLAP,
+    CL_IMAGE_FORMAT_MISMATCH,
+    CL_IMAGE_FORMAT_NOT_SUPPORTED,
+    CL_BUILD_PROGRAM_FAILURE,
+    CL_MAP_FAILURE,
+    CL_MISALIGNED_SUB_BUFFER_OFFSET,
+    CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST,
+    CL_COMPILE_PROGRAM_FAILURE,
+    CL_LINKER_NOT_AVAILABLE,
+    CL_LINK_PROGRAM_FAILURE,
+    CL_DEVICE_PARTITION_FAILED,
+    CL_KERNEL_ARG_INFO_NOT_AVAILABLE,
+    CL_INVALID_VALUE,
+    CL_INVALID_DEVICE_TYPE,
+    CL_INVALID_PLATFORM,
+    CL_INVALID_DEVICE,
+    CL_INVALID_CONTEXT,
+    CL_INVALID_QUEUE_PROPERTIES,
+    CL_INVALID_COMMAND_QUEUE,
+    CL_INVALID_HOST_PTR,
+    CL_INVALID_MEM_OBJECT,
+    CL_INVALID_IMAGE_FORMAT_DESCRIPTOR,
+    CL_INVALID_IMAGE_SIZE,
+    CL_INVALID_SAMPLER,
+    CL_INVALID_BINARY,
+    CL_INVALID_BUILD_OPTIONS,
+    CL_INVALID_PROGRAM,
+    CL_INVALID_PROGRAM_EXECUTABLE,
+    CL_INVALID_KERNEL_NAME,
+    CL_INVALID_KERNEL_DEFINITION,
+    CL_INVALID_KERNEL,
+    CL_INVALID_ARG_INDEX,
+    CL_INVALID_ARG_VALUE,
+    CL_INVALID_ARG_SIZE,
+    CL_INVALID_KERNEL_ARGS,
+    CL_INVALID_WORK_DIMENSION,
+    CL_INVALID_WORK_GROUP_SIZE,
+    CL_INVALID_WORK_ITEM_SIZE,
+    CL_INVALID_GLOBAL_OFFSET,
+    CL_INVALID_EVENT_WAIT_LIST,
+    CL_INVALID_EVENT,
+    CL_INVALID_OPERATION,
+    CL_INVALID_GL_OBJECT,
+    CL_INVALID_BUFFER_SIZE,
+    CL_INVALID_MIP_LEVEL,
+    CL_INVALID_GLOBAL_WORK_SIZE,
+    CL_INVALID_PROPERTY,
+}
+
+impl From<cl_int> for ClError {
+    fn from(raw_err_code: cl_int) -> ClError {
+        use ClError::*;
+        match raw_err_code as isize {
+            -1 => CL_DEVICE_NOT_FOUND,
+            -2 => CL_DEVICE_NOT_AVAILABLE,
+            -3 => CL_COMPILER_NOT_AVAILABLE,
+            -4 => CL_MEM_OBJECT_ALLOCATION_FAILURE,
+            -5 => CL_OUT_OF_RESOURCES,
+            -6 => CL_OUT_OF_HOST_MEMORY,
+            -7 => CL_PROFILING_INFO_NOT_AVAILABLE,
+            -8 => CL_MEM_COPY_OVERLAP,
+            -9 => CL_IMAGE_FORMAT_MISMATCH,
+            -10 => CL_IMAGE_FORMAT_NOT_SUPPORTED,
+            -11 => CL_BUILD_PROGRAM_FAILURE,
+            -12 => CL_MAP_FAILURE,
+            -13 => CL_MISALIGNED_SUB_BUFFER_OFFSET,
+            -14 => CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST,
+            -15 => CL_COMPILE_PROGRAM_FAILURE,
+            -16 => CL_LINKER_NOT_AVAILABLE,
+            -17 => CL_LINK_PROGRAM_FAILURE,
+            -18 => CL_DEVICE_PARTITION_FAILED,
+            -19 => CL_KERNEL_ARG_INFO_NOT_AVAILABLE,
+            -30 => CL_INVALID_VALUE,
+            -31 => CL_INVALID_DEVICE_TYPE,
+            -32 => CL_INVALID_PLATFORM,
+            -33 => CL_INVALID_DEVICE,
+            -34 => CL_INVALID_CONTEXT,
+            -35 => CL_INVALID_QUEUE_PROPERTIES,
+            -36 => CL_INVALID_COMMAND_QUEUE,
+            -37 => CL_INVALID_HOST_PTR,
+            -38 => CL_INVALID_MEM_OBJECT,
+            -39 => CL_INVALID_IMAGE_FORMAT_DESCRIPTOR,
+            -40 => CL_INVALID_IMAGE_SIZE,
+            -41 => CL_INVALID_SAMPLER,
+            -42 => CL_INVALID_BINARY,
+            -43 => CL_INVALID_BUILD_OPTIONS,
+            -44 => CL_INVALID_PROGRAM,
+            -45 => CL_INVALID_PROGRAM_EXECUTABLE,
+            -46 => CL_INVALID_KERNEL_NAME,
+            -47 => CL_INVALID_KERNEL_DEFINITION,
+            -48 => CL_INVALID_KERNEL,
+            -49 => CL_INVALID_ARG_INDEX,
+            -50 => CL_INVALID_ARG_VALUE,
+            -51 => CL_INVALID_ARG_SIZE,
+            -52 => CL_INVALID_KERNEL_ARGS,
+            -53 => CL_INVALID_WORK_DIMENSION,
+            -54 => CL_INVALID_WORK_GROUP_SIZE,
+            -55 => CL_INVALID_WORK_ITEM_SIZE,
+            -56 => CL_INVALID_GLOBAL_OFFSET,
+            -57 => CL_INVALID_EVENT_WAIT_LIST,
+            -58 => CL_INVALID_EVENT,
+            -59 => CL_INVALID_OPERATION,
+            -60 => CL_INVALID_GL_OBJECT,
+            -61 => CL_INVALID_BUFFER_SIZE,
+            -62 => CL_INVALID_MIP_LEVEL,
+            -63 => CL_INVALID_GLOBAL_WORK_SIZE,
+            -64 => CL_INVALID_PROPERTY,
+            x => panic!("OpenCL returned an unexpected status code: {:?}", x),
         }
     }
 }
-
-impl From<&StatusCode> for cl_int {
-    fn from(status_code: &StatusCode) -> cl_int {
-        match status_code {
-            StatusCode::Success => 0,
-            Failure(fail) => *fail as cl_int,
-        }
-    }
-}
-
-// struct ErrorCode(isize);
-
-// impl From<StatusCode> for ErrorCode {
-//     fn (status_code: StatusCode) -> ErrorCode {
-
-//     }
-// }
 
 
 impl StatusCode {
@@ -54,91 +148,7 @@ impl StatusCode {
     pub fn into_output<T>(err_code: cl_int, result: T) -> Output<T> {
         match StatusCode::from(err_code) {
             StatusCode::Success => Ok(result),
-            StatusCode::Failure(not_success) => Err(Error::StatusCode(not_success)),
+            StatusCode::Failure(num, cl_error) => Err(Error::StatusCode(num, cl_error)),
         }
-    }
-
-    fn to_cl_name(&self) -> String {
-        match &self {
-            Success => "CL_SUCCESS".to_string(),
-            Failure(-1) => "CL_DEVICE_NOT_FOUND".to_string(),
-            Failure(-2) => "CL_DEVICE_NOT_AVAILABLE".to_string(),
-            Failure(-3) => "CL_COMPILER_NOT_AVAILABLE".to_string(),
-            Failure(-4) => "CL_MEM_OBJECT_ALLOCATION_FAILURE".to_string(),
-            Failure(-5) => "CL_OUT_OF_RESOURCES".to_string(),
-            Failure(-6) => "CL_OUT_OF_HOST_MEMORY".to_string(),
-            Failure(-7) => "CL_PROFILING_INFO_NOT_AVAILABLE".to_string(),
-            Failure(-8) => "CL_MEM_COPY_OVERLAP".to_string(),
-            Failure(-9) => "CL_IMAGE_FORMAT_MISMATCH".to_string(),
-            Failure(-10) => "CL_IMAGE_FORMAT_NOT_SUPPORTED".to_string(),
-            Failure(-11) => "CL_BUILD_PROGRAM_FAILURE".to_string(),
-            Failure(-12) => "CL_MAP_FAILURE".to_string(),
-            Failure(-13) => "CL_MISALIGNED_SUB_BUFFER_OFFSET".to_string(),
-            Failure(-14) => "CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST".to_string(),
-            Failure(-15) => "CL_COMPILE_PROGRAM_FAILURE".to_string(),
-            Failure(-16) => "CL_LINKER_NOT_AVAILABLE".to_string(),
-            Failure(-17) => "CL_LINK_PROGRAM_FAILURE".to_string(),
-            Failure(-18) => "CL_DEVICE_PARTITION_FAILED".to_string(),
-            Failure(-19) => "CL_KERNEL_ARG_INFO_NOT_AVAILABLE".to_string(),
-            Failure(-30) => "CL_INVALID_VALUE".to_string(),
-            Failure(-31) => "CL_INVALID_DEVICE_TYPE".to_string(),
-            Failure(-32) => "CL_INVALID_PLATFORM".to_string(),
-            Failure(-33) => "CL_INVALID_DEVICE".to_string(),
-            Failure(-34) => "CL_INVALID_CONTEXT".to_string(),
-            Failure(-35) => "CL_INVALID_QUEUE_PROPERTIES".to_string(),
-            Failure(-36) => "CL_INVALID_COMMAND_QUEUE".to_string(),
-            Failure(-37) => "CL_INVALID_HOST_PTR".to_string(),
-            Failure(-38) => "CL_INVALID_MEM_OBJECT".to_string(),
-            Failure(-39) => "CL_INVALID_IMAGE_FORMAT_DESCRIPTOR".to_string(),
-            Failure(-40) => "CL_INVALID_IMAGE_SIZE".to_string(),
-            Failure(-41) => "CL_INVALID_SAMPLER".to_string(),
-            Failure(-42) => "CL_INVALID_BINARY".to_string(),
-            Failure(-43) => "CL_INVALID_BUILD_OPTIONS".to_string(),
-            Failure(-44) => "CL_INVALID_PROGRAM".to_string(),
-            Failure(-45) => "CL_INVALID_PROGRAM_EXECUTABLE".to_string(),
-            Failure(-46) => "CL_INVALID_KERNEL_NAME".to_string(),
-            Failure(-47) => "CL_INVALID_KERNEL_DEFINITION".to_string(),
-            Failure(-48) => "CL_INVALID_KERNEL".to_string(),
-            Failure(-49) => "CL_INVALID_ARG_INDEX".to_string(),
-            Failure(-50) => "CL_INVALID_ARG_VALUE".to_string(),
-            Failure(-51) => "CL_INVALID_ARG_SIZE".to_string(),
-            Failure(-52) => "CL_INVALID_KERNEL_ARGS".to_string(),
-            Failure(-53) => "CL_INVALID_WORK_DIMENSION".to_string(),
-            Failure(-54) => "CL_INVALID_WORK_GROUP_SIZE".to_string(),
-            Failure(-55) => "CL_INVALID_WORK_ITEM_SIZE".to_string(),
-            Failure(-56) => "CL_INVALID_GLOBAL_OFFSET".to_string(),
-            Failure(-57) => "CL_INVALID_EVENT_WAIT_LIST".to_string(),
-            Failure(-58) => "CL_INVALID_EVENT".to_string(),
-            Failure(-59) => "CL_INVALID_OPERATION".to_string(),
-            Failure(-60) => "CL_INVALID_GL_OBJECT".to_string(),
-            Failure(-61) => "CL_INVALID_BUFFER_SIZE".to_string(),
-            Failure(-62) => "CL_INVALID_MIP_LEVEL".to_string(),
-            Failure(-63) => "CL_INVALID_GLOBAL_WORK_SIZE".to_string(),
-            Failure(-64) => "CL_INVALID_PROPERTY".to_string(),
-            Failure(1) => "CL_PLATFORM_NOT_FOUND_KHR".to_string(),
-            Failure(unk_code) => format!("UNKNOWN_ERROR_CODE_{:?}", unk_code),
-        }
-    }
-}
-
-impl fmt::Display for StatusCode {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "StatusCode({}, {:?})",
-            self.to_cl_name(),
-            cl_int::from(self) as i32
-        )
-    }
-}
-
-impl fmt::Debug for StatusCode {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "StatusCode({:?}, {:?})",
-            self.to_cl_name(),
-            cl_int::from(self) as i32
-        )
     }
 }

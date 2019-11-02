@@ -53,9 +53,15 @@ impl<T: Debug> DeviceMem<T> {
 
     pub fn len(&self) -> Output<usize> {
         let mem_size_in_bytes = self.size()?;
+        inspect_var!(mem_size_in_bytes);
+        
         Ok(mem_size_in_bytes / std::mem::size_of::<T>())
     }
 
+    /// Docs say bytes... but I'll be darned if this is
+    /// bytes; sometimes it returns 8X the size.... IDK what it's doing.
+    /// 
+    /// https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clGetMemObjectInfo.html
     pub fn size(&self) -> Output<usize> {
         self.info(MemInfo::Size)
     }
@@ -139,15 +145,27 @@ impl<T: Debug> DeviceMem<T> {
     }
 
     pub fn create_read_write_from(context: &Context, data: &[T]) -> Output<DeviceMem<T>> where T: Debug {
-        DeviceMem::create_from(context, MemFlags::READ_WRITE_ALLOC_HOST_PTR, data)
+        DeviceMem::create_from(
+            context,
+            MemFlags::COPY_HOST_PTR | MemFlags::READ_WRITE_ALLOC_HOST_PTR,
+            data
+        )
     }
 
     pub fn create_read_only_from(context: &Context, data: &[T]) -> Output<DeviceMem<T>> where T: Debug {
-        DeviceMem::create_from(context, MemFlags::READ_ONLY_ALLOC_HOST_PTR, data)
+        DeviceMem::create_from(
+            context,
+            MemFlags::COPY_HOST_PTR | MemFlags::READ_ONLY_ALLOC_HOST_PTR,
+            data
+        )
     }
 
     pub fn create_write_only_from(context: &Context, data: &[T]) -> Output<DeviceMem<T>> where T: Debug {
-        DeviceMem::create_from(context, MemFlags::WRITE_ONLY_ALLOC_HOST_PTR, data)
+        DeviceMem::create_from(
+            context,
+            MemFlags::COPY_HOST_PTR | MemFlags::WRITE_ONLY_ALLOC_HOST_PTR,
+            data
+        )
     }
 }
 
