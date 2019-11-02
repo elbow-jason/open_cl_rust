@@ -123,8 +123,7 @@ where
         let (wait_list_len, wait_list_ptr_ptr) = command_queue_opts.wait_list.len_and_ptr_ptr();
 
         let (buffer_mem_size, buffer_ptr) = buffer_mem_size_and_ptr(buffer);
-        inspect_var!(buffer);
-        inspect_var!(device_mem);
+
         debug_assert!(buffer.len() == device_mem.len().unwrap());
 
         clEnqueueReadBuffer(
