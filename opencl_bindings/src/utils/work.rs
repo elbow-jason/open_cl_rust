@@ -1,4 +1,4 @@
-use crate::open_cl::Volume;
+use crate::utils::Volume;
 use std::marker::PhantomData;
 
 #[derive(Debug, Fail, Clone, Eq, PartialEq)]

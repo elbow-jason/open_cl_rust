@@ -1,12 +1,21 @@
-use crate::ffi::{cl_event, cl_uint};
-use crate::event::{Event};
-
-use crate::open_cl::cl_object::CopyClObject;
-use crate::open_cl::{
-    Output,
-    cl_release_event,
-    cl_wait_for_events
+use crate::ffi::{
+    cl_event,
+    cl_uint,
+    clWaitForEvents,
 };
+use crate::event::{Event};
+use crate::event::low_level::cl_release_event;
+use crate::utils::{StatusCode, CopyClObject};
+use crate::error::Output;
+
+pub fn cl_wait_for_events(wait_list: WaitList) -> Output<()> {
+    let err_code = unsafe {
+        let (wait_list_len, wait_list_ptr_ptr) = wait_list.len_and_ptr_ptr();
+
+        clWaitForEvents(wait_list_len, wait_list_ptr_ptr)
+    };
+    StatusCode::into_output(err_code, ())
+}
 
 /// WaitList is a holder for `cl_event`s that are to be awaited before
 /// the enqueue job that they are passed with is run.

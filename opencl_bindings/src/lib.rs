@@ -19,13 +19,16 @@ extern crate failure;
 
 // macros are in there keep it first. order matters.
 #[macro_use]
-pub mod macros;
+mod macros;
+
+// pub mod utils;
+
 
 pub extern crate opencl_sys as ffi;
 
 extern crate num;
 
-pub mod open_cl;
+// pub mod open_cl;
 
 pub mod command_queue;
 pub mod context;
@@ -36,18 +39,20 @@ pub mod kernel;
 pub mod platform;
 pub mod program;
 pub mod utils;
-pub mod work;
+pub mod error;
 
-pub use command_queue::*;
-pub use context::*;
-pub use device::*;
-pub use device_mem::*;
-pub use event::*;
-pub use kernel::*;
-pub use open_cl::*;
-pub use platform::*;
-pub use program::*;
-pub use work::*;
+pub use command_queue::CommandQueue;
+pub use context::Context;
+pub use device::Device;
+pub use device_mem::DeviceMem;
+pub use error::{Error, Output};
+pub use event::Event;
+pub use kernel::Kernel;
+pub use platform::Platform;
+pub use program::Program;
+pub use utils::work::Work;
+pub use utils::cl_object::ClObject;
+pub use utils::status_code::StatusCode;
 
 #[cfg(test)]
 mod tests;

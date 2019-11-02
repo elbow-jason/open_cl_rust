@@ -12,7 +12,7 @@ fn main() {
     // println!("cargo:rustc-link-lib=framework=OpenCL");
 
     // Tell cargo to invalidate the built crate whenever the wrapper changes
-    // println!("cargo:rerun-if-changed=wrapper.h");
+    println!("cargo:rerun-if-changed=wrapper.h");
 
     let bindings = bindgen::Builder::default()
         .header("opencl_headers/wrapper.h")

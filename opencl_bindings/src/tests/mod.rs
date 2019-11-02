@@ -22,7 +22,9 @@ pub fn test_all<F>(test: &mut F)
 where
     F: FnMut(&Device, &Context, &CommandQueue),
 {
+    println!("Starting test all");
     let platforms = Platform::all().unwrap();
+    println!("Got platforms: {:?}", platforms);
     for p in platforms.iter() {
         let devices: Vec<Device> = p
             .all_devices()
@@ -36,16 +38,21 @@ where
                 is_usable
             })
             .collect();
+        println!("Got devices: {:?}", devices);
+
         assert!(devices.len() > 0, "No usable devices found");
         // println!("Number of devices: {:?}", devices.len());
         // println!("Devices: {:?}", devices);
         for device in devices.iter() {
+            println!("Using device: {:?}", device);
             // println!("starting device: {:?}", i);
             // println!("creating context: {:?}", i);
             let context = Context::create(device).unwrap();
+            println!("created context : {:?}", context);
             // println!("created context: {:?}", i);
             // println!("creating command queue: {:?}", i);
             let queue = CommandQueue::create(&context, device, None).unwrap();
+            println!("created queue : {:?}", queue);
             // println!("created command queue: {:?}", i);
             test(device, &context, &queue);
         }
@@ -151,11 +158,11 @@ mod testing {
     use super::test_all;
     use crate::*;
     #[test]
-    fn program_build() {
+    fn program_build_mid_level() {
         let src = "__kernel void test(__global int *i) { \
                    *i += 1; \
                    }";
-        super::test_all(&mut |device, context, _| {
+        test_all(&mut |device, context, _| {
             let prog = Program::create_with_source(context, src.to_string()).unwrap();
             prog.build_on_one_device(&device).unwrap();
         })
@@ -167,13 +174,15 @@ mod testing {
         __kernel void test(__global int *i) {
             *i += 1;
         }";
+        use event::event_info::CommandExecutionStatus;
+
         test_all(&mut |device, context, queue| {
             println!("here 0");
-            let prog = Program::create_with_source(context, src.to_string()).unwrap();
+            let program = Program::create_with_source(context, src.to_string()).unwrap();
             println!("here 1");
-            prog.build_on_one_device(&device).unwrap();
+            program.build_on_one_device(&device).unwrap();
             println!("here 2");
-            let k = prog.fetch_kernel("test").unwrap();
+            let k = Kernel::create(&program, "test").unwrap();
             println!("here 3");
             let mut v1: Vec<isize> = vec![1];
             println!("here 4");
@@ -183,9 +192,7 @@ mod testing {
             println!("here 6");
             let work: Work = Work::new(work_size);
             println!("here 7");
-            let write_event = queue
-                .write_buffer(&mem1, &v1, WaitList::empty(), None)
-                .unwrap();
+            let write_event = queue.write_buffer(&mem1, &v1).unwrap();
 
             assert!(write_event.command_execution_status() == Ok(CommandExecutionStatus::Complete));
 
@@ -193,14 +200,12 @@ mod testing {
             let () = k.set_arg(0, &mem1).unwrap();
             println!("here 9");
             let _queue_event: Event = queue
-                .sync_enqueue_kernel(&k, work, WaitList::empty())
+                .sync_enqueue_kernel(&k, work)
                 .unwrap_or_else(|error| {
                     panic!("Failed to unwrap sync_enqueue_kernel result: {:?}", error);
                 });
 
-            let _read_event = queue
-                .read_buffer(&mem1, &mut v1, WaitList::empty(), None)
-                .unwrap();
+            let _read_event = queue.read_buffer(&mem1, &mut v1).unwrap();
 
             expect!(v1.len(), 1);
             expect!(v1[0], 2);
@@ -218,12 +223,10 @@ mod testing {
             let program = Program::create_with_source(context, src.to_string()).unwrap();
             program.build_on_one_device(device).unwrap();
 
-            let add_scalar_var: Kernel = program.fetch_kernel("test").unwrap();
+            let add_scalar_var: Kernel = Kernel::create(&program, "test").unwrap();
             let initial_values = vec![1i32];
             let mem1 = DeviceMem::create_write_only(context, initial_values.len()).unwrap();
-            let _write_event = queue
-                .write_buffer(&mem1, &initial_values[..], WaitList::empty(), None)
-                .unwrap();
+            let _write_event = queue.write_buffer(&mem1, &initial_values[..]).unwrap();
 
             let () = add_scalar_var.set_arg(0, &mem1).unwrap();
 
@@ -232,15 +235,12 @@ mod testing {
 
             let work_size = initial_values.len();
             let work: Work = Work::new(work_size);
-            let _queue_event: Event = queue
-                .sync_enqueue_kernel(&add_scalar_var, work, WaitList::empty())
+            let _queue_event: Event = queue.sync_enqueue_kernel(&add_scalar_var, work)
                 .unwrap_or_else(|error| {
                     panic!("Failed to unwrap sync_enqueue_kernel result: {:?}", error);
                 });
             let mut result = vec![0i32];
-            let _write_event = queue
-                .read_buffer(&mem1, &mut result[..], WaitList::empty(), None)
-                .unwrap();
+            let _write_event = queue.read_buffer(&mem1, &mut result[..]).unwrap();
 
             expect!(initial_values[0], 1);
             expect!(result[0], 43);
@@ -316,37 +316,37 @@ mod testing {
     //         })
     //     }
 
-    #[test]
-    fn kernel_2d() {
-        let src = "__kernel void test(__global long int *N) {
-                   int i = get_global_id(0);
-                   int j = get_global_id(1);
-                   int s = get_global_size(0);
-                   N[i * s + j] = i * j;
-        }";
-        test_all(&mut |device, context, queue| {
-            let prog = Program::create_with_source(context, src.to_string()).unwrap();
+    // #[test]
+    // fn kernel_2d() {
+    //     let src = "__kernel void test(__global long int *N) {
+    //                int i = get_global_id(0);
+    //                int j = get_global_id(1);
+    //                int s = get_global_size(0);
+    //                N[i * s + j] = i * j;
+    //     }";
+    //     test_all(&mut |device, context, queue| {
+    //         let prog = Program::create_with_source(context, src.to_string()).unwrap();
 
-            let () = prog.build_on_one_device(device).unwrap();
+    //         let () = prog.build_on_one_device(device).unwrap();
 
-            let k = prog.fetch_kernel("test").unwrap();
-            let v1 = vec![1isize, 2, 3, 4, 5, 6, 7, 8, 9];
-            let b1 = DeviceMem::create_read_only(context, v1.len()).unwrap();
-            let work = Work::new((3, 3));
-            let () = k.set_arg(0, &b1).unwrap();
+    //         let k = prog.fetch_kernel("test").unwrap();
+    //         let v1 = vec![1isize, 2, 3, 4, 5, 6, 7, 8, 9];
+    //         let b1 = DeviceMem::create_read_only(context, v1.len()).unwrap();
+    //         let work = Work::new((3, 3));
+    //         let () = k.set_arg(0, &b1).unwrap();
 
-            let _kernel_event = queue
-                .sync_enqueue_kernel(&k, work, WaitList::empty())
-                .unwrap();
+    //         let _kernel_event = queue
+    //             .sync_enqueue_kernel(&k, work, WaitList::empty())
+    //             .unwrap();
 
-            let mut v2 = vec![0; v1.len()]; // utils::vec_filled_with(0, v1.len());
-            let _event: Event = queue
-                .read_buffer(&b1, &mut v2, WaitList::empty(), None)
-                .unwrap();
+    //         let mut v2 = vec![0; v1.len()]; // utils::vec_filled_with(0, v1.len());
+    //         let _event: Event = queue
+    //             .read_buffer(&b1, &mut v2, WaitList::empty(), None)
+    //             .unwrap();
 
-            expect!(v2, vec!(0, 0, 0, 0, 1, 2, 0, 2, 4));
-        })
-    }
+    //         expect!(v2, vec!(0, 0, 0, 0, 1, 2, 0, 2, 4));
+    //     })
+    // }
 
     #[test]
     fn memory_read_write_test() {
@@ -356,12 +356,8 @@ mod testing {
             let input = [0isize, 1, 2, 3, 4, 5, 6, 7];
             let mut output = [0isize, 0, 0, 0, 0, 0, 0, 0];
 
-            let _write_event = queue
-                .write_buffer(&buffer, &input[..], WaitList::empty(), None)
-                .unwrap();
-            let _read_event = queue
-                .read_buffer(&buffer, &mut output[..], WaitList::empty(), None)
-                .unwrap();
+            let _write_event = queue.write_buffer(&buffer, &input[..]).unwrap();
+            let _read_event = queue.read_buffer(&buffer, &mut output[..]).unwrap();
 
             expect!(input, output);
         })
@@ -388,16 +384,19 @@ mod testing {
     //         })
     //     }
 
-    //     #[test]
-    //     fn memory_read_owned_clone()
-    //     {
-    //         ::test_all_platforms_devices(&mut |_, ctx, queue| {
-    //             let input = vec!(0isize, 1, 2, 3, 4, 5, 6, 7);
-    //             let buffer = ctx.create_buffer_from(input.clone(), CL_MEM_READ_WRITE);
-    //             let output: Vec<isize> = queue.get(&buffer, ());
-    //             expect!(input, output);
-    //         })
-    //     }
+        // #[test]
+        // fn memory_read_owned_clone()
+        // {
+        //     test_all(&mut |_, ctx, queue| {
+        //         let input = vec!(0isize, 1, 2, 3, 4, 5, 6, 7);
+        //         let buffer = DeviceMem::create_read_write_from(ctx, &input)
+        //             .expect("create_read_write_from failed");
+        //         let mut output = utils::vec_filled_with(0, input.len());
+        //         let _e1 = queue.read_buffer(&buffer, &mut output)
+        //             .expect("read_buffer failed");
+        //         expect!(input, output);
+        //     })
+        // }
 
     //     #[test]
     //     fn event_get_times() {

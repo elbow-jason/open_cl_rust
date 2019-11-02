@@ -1,5 +1,8 @@
-use crate::ffi::cl_int;
 use std::fmt;
+
+use crate::ffi::cl_int;
+use crate::{Error, Output};
+
 
 #[repr(C)]
 #[derive(Eq, PartialEq, Clone, Copy)]
@@ -37,7 +40,24 @@ impl From<&StatusCode> for cl_int {
     }
 }
 
+// struct ErrorCode(isize);
+
+// impl From<StatusCode> for ErrorCode {
+//     fn (status_code: StatusCode) -> ErrorCode {
+
+//     }
+// }
+
+
 impl StatusCode {
+    #[inline]
+    pub fn into_output<T>(err_code: cl_int, result: T) -> Output<T> {
+        match StatusCode::from(err_code) {
+            StatusCode::Success => Ok(result),
+            StatusCode::Failure(not_success) => Err(Error::StatusCode(not_success)),
+        }
+    }
+
     fn to_cl_name(&self) -> String {
         match &self {
             Success => "CL_SUCCESS".to_string(),

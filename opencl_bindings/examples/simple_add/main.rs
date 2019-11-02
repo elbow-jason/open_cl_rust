@@ -51,13 +51,13 @@ fn run() -> Result<(), Error> {
     let mem_c = DeviceMem::create_read_write(&context, len)?;
 &
     println!("fetching_kernel simple_add");
-    let simple_add: Kernel = program.fetch_kernel("simple_add")?;
+    let simple_add = Kernel::create(&program, "simple_add")?;
 
     println!("writing buffer a...");
-    let _write_event_a = command_queue.write_buffer(&mem_a, &vec_a, WaitList::empty(), None)?;
+    let _write_event_a = command_queue.write_buffer(&mem_a, &vec_a)?;
 
     println!("writing buffer b...");
-    let _write_event_b = command_queue.write_buffer(&mem_b, &vec_b, WaitList::empty(), None)?;
+    let _write_event_b = command_queue.write_buffer(&mem_b, &vec_b)?;
 
     println!("mem_a {:?}", mem_a);
 
@@ -71,12 +71,12 @@ fn run() -> Result<(), Error> {
     simple_add.set_arg(2, &mem_c)?;
 
     println!("calling sync_enqueue_kernel on simple_add");
-    let _exec_event = command_queue.sync_enqueue_kernel(&simple_add, work, WaitList::empty())?;
+    let _exec_event = command_queue.sync_enqueue_kernel(&simple_add, work)?;
     
     println!("done putting event into WaitList...");
     let mut vec_c: Vec<isize> = vec![0; len];
 
-    let _read_event = command_queue.read_buffer(&mem_c, &mut vec_c, WaitList::empty(), None)?;
+    let _read_event = command_queue.read_buffer(&mem_c, &mut vec_c)?;
 
     println!("  {}", string_from_slice(&vec_a[..]));
     println!("+ {}", string_from_slice(&vec_b[..]));

@@ -13,3 +13,6 @@ pub trait CopyClObject<T>: ClObject<T> {
 pub trait MutClObject<T> {
     unsafe fn raw_mut_cl_object(&mut self) -> T;
 }
+
+
+

@@ -18,7 +18,25 @@ failure = "0.1.6"
 colored = "1.8.0"
 num = "0.2"
 
+[features]
+# hack of the year.
+custom_debug_for_wrapper_t = []
+# v1.0.0 will not be supported. It's not thread-safe and I dont' want to even
+# see the can opener for that can of worms.
+# opencl_version_1_0_0 = []
+
+opencl_version_1_1_0 = []
+opencl_version_1_2_0 = []
+
+default = [
+    "custom_debug_for_wrapper_t",
+    "opencl_version_1_1_0",
+    "opencl_version_1_2_0",
+]
+
 
 [[example]]
 name = "simple_add"
 path = "examples/simple_add/main.rs"
+
+
