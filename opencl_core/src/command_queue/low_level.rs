@@ -11,12 +11,14 @@ use crate::ffi::{
     cl_int,
     cl_event,
     cl_command_queue,
+    cl_command_queue_info,
     cl_command_queue_properties,
     clFinish,
     clEnqueueNDRangeKernel,
     clEnqueueReadBuffer,
     clEnqueueWriteBuffer,
     clCreateCommandQueue,
+    clGetCommandQueueInfo,
 };
 use crate::event::{Event, WaitList};
 use crate::{
@@ -30,6 +32,7 @@ use crate::{
 
 use crate::utils::StatusCode;
 use super::{CommandQueue, CommandQueueOptions};
+use super::flags::{CommandQueueInfo, CommandQueueInfoFlag};
 
 __release_retain!(command_queue, CommandQueue);
 
@@ -169,4 +172,28 @@ where
         )
     };
     into_event(err_code, tracking_event)
+}
+
+pub fn cl_get_command_queue_info(
+    command_queue: &CommandQueue,
+    flag: CommandQueueInfoFlag,
+) -> Output<CommandQueueInfo> {
+    let output = std::ptr::null_mut();
+    let mut output_size = 0usize;
+    let err_code = unsafe { 
+        clGetCommandQueueInfo(
+            command_queue.raw_cl_object(),
+            flag as cl_command_queue_info,
+            flag.size_t(),
+            output,
+            &mut output_size,
+        )
+    };
+    let () = StatusCode::into_output(err_code, ())?;
+    let info_out = unsafe {
+        CommandQueueInfo::from_raw_parts(flag, output)
+    };
+    Ok(info_out)
+    
+
 }

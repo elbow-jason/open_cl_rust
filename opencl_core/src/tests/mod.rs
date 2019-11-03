@@ -200,7 +200,7 @@ mod testing {
             let () = k.set_arg(0, &mem1).unwrap();
             println!("here 9");
             let _queue_event: Event = queue
-                .sync_enqueue_kernel(&k, work)
+                .sync_enqueue_kernel(&k, &work)
                 .unwrap_or_else(|error| {
                     panic!("Failed to unwrap sync_enqueue_kernel result: {:?}", error);
                 });
@@ -235,7 +235,7 @@ mod testing {
 
             let work_size = initial_values.len();
             let work: Work = Work::new(work_size);
-            let _queue_event: Event = queue.sync_enqueue_kernel(&add_scalar_var, work)
+            let _queue_event: Event = queue.sync_enqueue_kernel(&add_scalar_var, &work)
                 .unwrap_or_else(|error| {
                     panic!("Failed to unwrap sync_enqueue_kernel result: {:?}", error);
                 });
@@ -316,37 +316,37 @@ mod testing {
     //         })
     //     }
 
-    // #[test]
-    // fn kernel_2d() {
-    //     let src = "__kernel void test(__global long int *N) {
-    //                int i = get_global_id(0);
-    //                int j = get_global_id(1);
-    //                int s = get_global_size(0);
-    //                N[i * s + j] = i * j;
-    //     }";
-    //     test_all(&mut |device, context, queue| {
-    //         let prog = Program::create_with_source(context, src.to_string()).unwrap();
+    #[test]
+    fn kernel_2d() {
+        let src = "__kernel void test(__global long int *N) {
+                   int i = get_global_id(0);
+                   int j = get_global_id(1);
+                   int s = get_global_size(0);
+                   N[i * s + j] = i * j;
+        }";
+        test_all(&mut |device, context, queue| {
+            let program = Program::create_with_source(context, src.to_string()).unwrap();
 
-    //         let () = prog.build_on_one_device(device).unwrap();
+            let () = program.build_on_one_device(device).expect("failed to build_one_on_device");
 
-    //         let k = prog.fetch_kernel("test").unwrap();
-    //         let v1 = vec![1isize, 2, 3, 4, 5, 6, 7, 8, 9];
-    //         let b1 = DeviceMem::create_read_only(context, v1.len()).unwrap();
-    //         let work = Work::new((3, 3));
-    //         let () = k.set_arg(0, &b1).unwrap();
+            let k = Kernel::create(&program, "test").expect("failed to create 'test' kernel");
+            let v1 = vec![1isize, 2, 3, 4, 5, 6, 7, 8, 9];
+            let b1 = DeviceMem::create_read_only_from(context, &v1).unwrap();
+            let work = Work::new((3, 3));
+            let () = k.set_arg(0, &b1).expect("failed to set_arg(0, &b1)");
 
-    //         let _kernel_event = queue
-    //             .sync_enqueue_kernel(&k, work, WaitList::empty())
-    //             .unwrap();
+            let _kernel_event = queue
+                .sync_enqueue_kernel(&k, &work)
+                .expect("failed to sync_enqueue_kernel");
 
-    //         let mut v2 = vec![0; v1.len()]; // utils::vec_filled_with(0, v1.len());
-    //         let _event: Event = queue
-    //             .read_buffer(&b1, &mut v2, WaitList::empty(), None)
-    //             .unwrap();
+            let mut v2 = vec![0; v1.len()]; // utils::vec_filled_with(0, v1.len());
+            let _event: Event = queue
+                .read_buffer(&b1, &mut v2)
+                .expect("failed to read_buffer");
 
-    //         expect!(v2, vec!(0, 0, 0, 0, 1, 2, 0, 2, 4));
-    //     })
-    // }
+            expect!(v2, vec!(0, 0, 0, 0, 1, 2, 0, 2, 4));
+        })
+    }
 
     #[test]
     fn memory_read_write_test() {
@@ -395,54 +395,62 @@ mod testing {
             expect!(input, output);
         })
     }
-
-    //     #[test]
-    //     fn event_get_times() {
-    //         let src = "__kernel void test(__global int *i) { \
-    //                    *i += 1; \
-    //                    }";
-
-    //         let (device, ctx, queue) = util::create_compute_context().unwrap();
-    //         let prog = ctx.create_program_from_source(src);
-    //         prog.build(&device).unwrap();
-
-    //         let k = prog.create_kernel("test");
-    //         let v = ctx.create_buffer_from(vec![1isize], CL_MEM_READ_WRITE);
-
-    //         k.set_arg(0, &v);
-
-    //         let e = queue.enqueue_async_kernel(&ctx, &k, 1isize, None, ());
-    //         e.wait();
-
-    //         // the that are returned are not useful for unit test, this test
-    //         // is mostly testing that opencl returns no error
-    //         e.queue_time();
-    //         e.submit_time();
-    //         e.start_time();
-    //         e.end_time();
-    //     }
 }
 
-// #[cfg(test)]
-// mod array {
-//     use opencl::array::*;
-//     use opencl::cl::CL_MEM_READ_WRITE;
+#[cfg(test)]
+mod array {
+    // use opencl::array::*;
+    // use opencl::cl::CL_MEM_READ_WRITE;
+    use crate::*;
+    use super::test_all;
 
-//     #[test]
-//     fn put_get_2d()
-//     {
-//         ::test_all_platforms_devices(&mut |_, ctx, queue| {
-//             let arr_in = Array2D::new(8, 8, |x, y| {(x+y) as isize});
-//             let arr_cl = ctx.create_buffer_from(&arr_in, CL_MEM_READ_WRITE);
-//             let arr_out: Array2D<isize> = queue.get(&arr_cl, ());
 
-//             for x in 0usize.. 8usize {
-//                 for y in 0usize..8usize {
-//                     expect!(arr_in.get(x, y), arr_out.get(x, y));
-//                 }
-//             }
-//         })
-//     }
+    #[test]
+    fn transpose_tensor_2d_test()
+    {
+
+        let src = "
+        __kernel void transpose_2d(__global const ulong *a,
+                                   __global ulong *b,
+                                   const ulong rows,
+                                   const ulong cols) {
+                ulong i = get_global_id(0);
+                ulong j = get_global_id(1);
+                b[j*rows + i] = a[i*cols + j];
+            }
+        ";
+        test_all(&mut |device, context, queue| {
+            let data: Vec<usize> = vec![1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4];
+            let rows = 4;
+            let columns = 3;
+            let dims = Dims::from((rows, columns));
+            let mem_in = DeviceMem::create_read_write_from(context, &data)
+                .expect("Failed to create_read_write_from data");
+            let mem_result: DeviceMem<usize> = DeviceMem::create_read_write(context, data.len())
+                .expect("Failed to create_read_write with len");
+
+            let program = Program::create_with_source(context, src.to_string()).unwrap();
+
+            let () = program.build_on_one_device(device).expect("failed to build_one_on_device");
+
+            let k = Kernel::create(&program, "transpose_2d").expect("failed to create 'transpose_2d' kernel");
+            let () = k.set_arg(0, &mem_in).expect("failed to set mem_in on transpose_2d");
+            let () = k.set_arg(1, &mem_result).expect("failed to set mem_result on transpose_2d");
+            let () = k.set_arg(2, &rows).expect("failed to set rows on transpose_2d");
+            let () = k.set_arg(3, &columns).expect("failed to set columns on transpose_2d");
+            let work = Work::new(dims);
+            assert_eq!(work.n_items(), data.len());
+            let mut output: Vec<usize> = utils::vec_filled_with(0, work.n_items());
+            let _queue_event = queue.sync_enqueue_kernel(&k, &work).expect("failed to sync_enqueue_kernel");
+            let _read_event = queue.read_buffer(&mem_result, &mut output).expect("failed to read transpose_2d mem_out buffer");
+            let expected: Vec<usize> = vec![
+                1, 2, 3, 4,
+                1, 2, 3, 4,
+                1, 2, 3, 4,
+            ];
+            assert_eq!(output, expected);
+        })
+    }
 
 //     #[test]
 //     fn read_write_2d()
@@ -631,7 +639,7 @@ mod testing {
 //             }
 //         })
 //     }
-// }
+}
 
 // #[cfg(test)]
 // mod ext {

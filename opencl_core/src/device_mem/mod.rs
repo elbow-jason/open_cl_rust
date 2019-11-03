@@ -5,22 +5,59 @@ use std::marker::PhantomData;
 use crate::ffi::cl_mem;
 use crate::context::Context;
 use crate::error::Output;
+use crate::utils::ClObject;
+
 
 pub mod low_level;
 pub mod flags;
 use low_level::{cl_retain_mem, cl_release_mem};
 
-__impl_unconstructable_cl_wrapper!(DeviceMem<T>, cl_mem);
-__impl_cl_object_for_wrapper!(DeviceMem<T>, cl_mem);
-__impl_clone_for_cl_object_wrapper!(DeviceMem<T>, cl_retain_mem);
-__impl_drop_for_cl_object_wrapper!(DeviceMem<T>, cl_release_mem);
+#[repr(C)]
+#[derive(Eq, PartialEq, Hash)]
+pub struct DeviceMem<T> where T: Debug {
+    handle: cl_mem,
+    _phantom: PhantomData<T>,
+}
+
+impl<T: Debug> DeviceMem<T> {
+    pub(crate) unsafe fn new(handle: cl_mem) -> DeviceMem<T> {
+        DeviceMem {
+            handle,
+            _phantom: PhantomData
+        }
+    }
+}
+ 
+impl<T: Debug> Drop for DeviceMem<T> {
+    fn drop(&mut self) {
+        unsafe {
+            cl_release_mem(&self.raw_cl_object());
+        }
+    }
+}
+
+impl<T: Debug> Clone for DeviceMem<T> {
+    fn clone(&self) -> DeviceMem<T> {
+        unsafe {
+            let new_device_mem = DeviceMem::new(self.raw_cl_object());
+            cl_retain_mem(&new_device_mem.handle);
+            new_device_mem
+        }
+    }
+}
+
+impl<T: Debug> ClObject<cl_mem> for DeviceMem<T> {
+    unsafe fn raw_cl_object(&self) -> cl_mem {
+        self.handle
+    }
+}
 
 impl<T> DeviceMem<T>
 where
     T: Debug,
 {
     pub unsafe fn ptr_to_cl_object(&self) -> *const cl_mem {
-        &self.inner as *const cl_mem
+        &self.handle as *const cl_mem
     }
 }
 
@@ -28,8 +65,8 @@ impl<T: Debug> fmt::Debug for DeviceMem<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "DeviceMem<[inner: {:?}, mem_type: {:?}, size: {:?}, type_size: {:?}]>",
-            self.inner,
+            "DeviceMem<[handle: {:?}, mem_type: {:?}, size: {:?}, type_size: {:?}]>",
+            self.handle,
             self.mem_type().unwrap(),
             self.size().unwrap(),
             std::mem::size_of::<T>(),

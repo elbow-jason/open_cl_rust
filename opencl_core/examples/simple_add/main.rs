@@ -1,8 +1,8 @@
-extern crate opencl_bindings;
+extern crate opencl_core;
 
 use std::fmt;
 
-use opencl_bindings::*;
+use opencl_core::*;
 
 fn main() {
     match run() {
@@ -71,7 +71,7 @@ fn run() -> Result<(), Error> {
     simple_add.set_arg(2, &mem_c)?;
 
     println!("calling sync_enqueue_kernel on simple_add");
-    let _exec_event = command_queue.sync_enqueue_kernel(&simple_add, work)?;
+    let _exec_event = command_queue.sync_enqueue_kernel(&simple_add, &work)?;
     
     println!("done putting event into WaitList...");
     let mut vec_c: Vec<isize> = vec![0; len];

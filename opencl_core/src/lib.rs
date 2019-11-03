@@ -53,6 +53,8 @@ pub use program::Program;
 pub use utils::work::Work;
 pub use utils::cl_object::ClObject;
 pub use utils::status_code::StatusCode;
+pub use utils::Volumetric;
+pub use utils::Dims;
 
 #[cfg(test)]
 mod tests;

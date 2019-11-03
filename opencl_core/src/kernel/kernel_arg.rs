@@ -37,10 +37,14 @@ macro_rules! sized_scalar_kernel_arg {
 }
 
 sized_scalar_kernel_arg!(isize);
+sized_scalar_kernel_arg!(i8);
+sized_scalar_kernel_arg!(i16);
 sized_scalar_kernel_arg!(i32);
 sized_scalar_kernel_arg!(i64);
 
 sized_scalar_kernel_arg!(usize);
+sized_scalar_kernel_arg!(u8);
+sized_scalar_kernel_arg!(u16);
 sized_scalar_kernel_arg!(u32);
 sized_scalar_kernel_arg!(u64);
 

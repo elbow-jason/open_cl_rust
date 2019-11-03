@@ -4,17 +4,16 @@ pub mod flags;
 pub mod status_code;
 pub mod volume;
 pub mod work;
+pub mod dims;
 
 pub use {
-    volume::{
-        Volume
-    },
+    volume::Volume,
     work::{
         Work,
         Volumetric,
-        VolumetricError,
-        Dims,
+        VolumetricError
     },
+    dims::Dims,
     cl_object::{
         ClObject,
         CopyClObject

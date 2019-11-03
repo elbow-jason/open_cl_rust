@@ -107,18 +107,6 @@ macro_rules! __impl_clone_for_cl_object_wrapper {
             }
         }
     };
-
-    ($wrapper:ident<T>, $retain_func:ident) => {
-        impl<T: Debug> Clone for $wrapper<T> {
-            fn clone(&self) -> $wrapper<T> {
-                unsafe {
-                    let new_wrapper = $wrapper::new(self.raw_cl_object());
-                    $retain_func(&new_wrapper.inner);
-                    new_wrapper 
-                }
-            }
-        }
-    };
 }
 
 #[doc(hidden)]
@@ -126,15 +114,6 @@ macro_rules! __impl_clone_for_cl_object_wrapper {
 macro_rules! __impl_drop_for_cl_object_wrapper {
     ($wrapper:ident, $release_func:ident) => {
         impl Drop for $wrapper {
-            fn drop(&mut self) {
-                unsafe {
-                    $release_func(&self.raw_cl_object());
-                }
-            }
-        }
-    };
-    ($wrapper:ident<T>, $release_func:ident) => {
-        impl<T: Debug> Drop for $wrapper<T> {
             fn drop(&mut self) {
                 unsafe {
                     $release_func(&self.raw_cl_object());
@@ -150,14 +129,6 @@ macro_rules! __impl_cl_object_for_wrapper {
     ($wrapper:ident, $cl_object_type:ty) => {
         use crate::utils::ClObject;
         impl ClObject<$cl_object_type> for $wrapper {
-            unsafe fn raw_cl_object(&self) -> $cl_object_type {
-                self.inner
-            }
-        }
-    };
-    ($wrapper:ident<T>, $cl_object_type:ty) => {
-        use crate::utils::ClObject;
-        impl<T: Debug> ClObject<$cl_object_type> for $wrapper<T> {
             unsafe fn raw_cl_object(&self) -> $cl_object_type {
                 self.inner
             }
@@ -182,24 +153,6 @@ macro_rules! __impl_unconstructable_cl_wrapper {
                 $wrapper {
                     inner: cl_object,
                     _unconstructable: (),
-                }
-            }
-        }
-    };
-    ($wrapper:ident<T>, $cl_object_type:ty) => {
-        #[repr(C)]
-        #[cfg_attr(not(feature = "custom_debug_for_wrapper_t"), derive(Debug))]
-        #[derive(Eq, PartialEq, Hash)]
-        pub struct $wrapper<T> where T: Debug {
-            inner: $cl_object_type,
-            _phantom: PhantomData<T>,
-        }
-
-        impl<T: Debug> $wrapper<T> {
-            pub(crate) unsafe fn new(cl_object: $cl_object_type) -> $wrapper<T> {
-                $wrapper {
-                    inner: cl_object,
-                    _phantom: PhantomData
                 }
             }
         }

@@ -1,5 +1,6 @@
-use crate::utils::Volume;
 use std::marker::PhantomData;
+use super::dims::Dims;
+use super::volume::Volume;
 
 #[derive(Debug, Fail, Clone, Eq, PartialEq)]
 pub enum VolumetricError {
@@ -7,48 +8,6 @@ pub enum VolumetricError {
     DimCannotBeZero,
 }
 
-#[repr(C)]
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub enum Dims {
-    One(usize),
-    Two(usize, usize),
-    Three(usize, usize, usize),
-}
-
-use Dims::*;
-
-impl Dims {
-    pub fn as_size_volume(&self) -> Volume {
-        match *self {
-            One(x) => [x, 1, 1],
-            Two(x, y) => [x, y, 1],
-            Three(x, y, z) => [x, y, z],
-        }
-    }
-    pub fn as_offset_volume(&self) -> Volume {
-        match *self {
-            One(x) => [x, 0, 0],
-            Two(x, y) => [x, y, 0],
-            Three(x, y, z) => [x, y, z],
-        }
-    }
-
-    pub fn count(&self) -> usize {
-        match *self {
-            One(x) => x,
-            Two(x, y) => x * y,
-            Three(x, y, z) => x * y * z,
-        }
-    }
-
-    pub fn n_dimensions(&self) -> u8 {
-        match *self {
-            One(..) => 1,
-            Two(..) => 2,
-            Three(..) => 3,
-        }
-    }
-}
 
 /// Volumetric is a representation of 1, 2, or 3 dimensions.
 ///
@@ -112,14 +71,25 @@ impl Volumetric {
         self.dims.as_offset_volume()
     }
 
-    pub fn count(&self) -> usize {
-        self.dims.count()
+    pub fn n_items(&self) -> usize {
+        self.dims.n_items()
     }
 
     pub fn n_dimensions(&self) -> u8 {
         self.dims.n_dimensions()
     }
 }
+
+impl From<Dims> for Volumetric {
+    fn from(dims: Dims) -> Volumetric {
+        let v_result = match dims {
+            Dims::One(x) => Volumetric::one_dim(x),
+            Dims::Two(x, y) => Volumetric::two_dim(x, y),
+            Dims::Three(x, y, z) => Volumetric::three_dim(x, y, z),
+        };
+        v_result.expect("Failed to convert from Dims to Volumetric")
+    }
+} 
 
 impl From<usize> for Volumetric {
     fn from(num: usize) -> Volumetric {
@@ -221,5 +191,15 @@ impl Work {
 
     pub fn local_work_size(&self) -> Option<Volume> {
         self.local_size.clone().map(|v| v.as_size_volume())
+    }
+
+    pub fn n_items(&self) -> usize {
+        self.size.n_items()
+    }
+}
+
+impl From<Volumetric> for Work {
+    fn from(v: Volumetric) -> Work {
+        Work::new(v)
     }
 }

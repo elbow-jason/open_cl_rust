@@ -1,7 +1,12 @@
+
 pub mod low_level;
 pub mod flags;
 pub mod event_info;
 pub mod wait_list;
+
+
+#[cfg(test)]
+mod tests;
 
 use low_level::{cl_retain_event, cl_release_event};
 

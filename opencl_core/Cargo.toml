@@ -1,14 +1,14 @@
 [package]
-name = "opencl_bindings"
+name = "opencl_core"
 version = "0.1.0"
 authors = ["Jason Goldberger <jasongoldberger@gmail.com>"]
 edition = "2018"
 
 [lib]
-name = "opencl_bindings"
+name = "opencl_core"
 
 [dependencies]
-opencl-sys = { version = "0.1.0", path = "../opencl-sys" }
+opencl_sys = { version = "0.1.0", path = "../opencl_sys" }
 paste = "0.1.6"
 libc = "0.2.65"
 # log = "0.4.8"
@@ -19,18 +19,11 @@ colored = "1.8.0"
 num = "0.2"
 
 [features]
-# hack of the year.
-custom_debug_for_wrapper_t = []
 # v1.0.0 will not be supported. It's not thread-safe and I dont' want to even
 # see the can opener for that can of worms.
-# opencl_version_1_0_0 = []
-
-opencl_version_1_1_0 = []
 opencl_version_1_2_0 = []
 
 default = [
-    "custom_debug_for_wrapper_t",
-    "opencl_version_1_1_0",
     "opencl_version_1_2_0",
 ]
 

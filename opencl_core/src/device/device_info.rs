@@ -297,8 +297,7 @@ impl Device {
         self.get_info(Extensions)
     }
     pub fn platform_info(&self) -> Output<String> {
-        // Platform was a struct in scope so DeviceInfo must be fully qualified.
-        self.get_info(DeviceInfo::Platform)
+        self.get_info(Platform)
     }
     pub fn double_fp_config_info(&self) -> Output<String> {
         self.get_info(DoubleFpConfig)

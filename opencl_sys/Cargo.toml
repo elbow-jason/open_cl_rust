@@ -1,5 +1,5 @@
 [package]
-name = "opencl-sys"
+name = "opencl_sys"
 version = "0.1.0"
 authors = ["Jason Goldberger <jlgoldb2@asu.edu>"]
 edition = "2018"

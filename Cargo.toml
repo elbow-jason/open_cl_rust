@@ -1,5 +1,5 @@
 [workspace]
 members = [
-    "opencl_bindings",
-    "opencl-sys"
+    "opencl_core",
+    "opencl_sys"
 ]

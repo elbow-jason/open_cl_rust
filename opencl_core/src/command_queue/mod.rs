@@ -7,6 +7,11 @@ use std::fmt::Debug;
 
 use num::Num;
 
+use flags::{
+    CommandQueueInfo,
+    CommandQueueInfoFlag,
+};
+
 use crate::ffi::{
     cl_command_queue,
     cl_command_queue_properties,
@@ -107,7 +112,7 @@ impl CommandQueue {
     pub fn sync_enqueue_kernel_with_opts(
         &self,
         kernel: &Kernel,
-        work: Work,
+        work: &Work,
         command_queue_opts: CommandQueueOptions,
     ) -> Output<Event> {
         let event = self.async_enqueue_kernel_with_opts(kernel, work, command_queue_opts)?;
@@ -118,7 +123,7 @@ impl CommandQueue {
     pub fn sync_enqueue_kernel(
         &self,
         kernel: &Kernel,
-        work: Work,
+        work: &Work,
         
     ) -> Output<Event> {
         let command_queue_opts = CommandQueueOptions::default();
@@ -130,7 +135,7 @@ impl CommandQueue {
     pub fn async_enqueue_kernel(
         &self,
         kernel: &Kernel,
-        work: Work,
+        work: &Work,
     ) -> Output<Event> {
         let command_queue_opts = CommandQueueOptions::default();
         self.async_enqueue_kernel_with_opts(kernel, work, command_queue_opts)
@@ -139,7 +144,7 @@ impl CommandQueue {
     pub fn async_enqueue_kernel_with_opts(
         &self,
         kernel: &Kernel,
-        work: Work,
+        work: &Work,
         command_queue_opts: CommandQueueOptions,
     ) -> Output<Event> {
         low_level::cl_enqueue_nd_range_kernel(
@@ -151,6 +156,9 @@ impl CommandQueue {
             work.local_work_size(),
             command_queue_opts.wait_list,
         )
+    }
+    pub fn info(&self, flag: CommandQueueInfoFlag) -> Output<CommandQueueInfo> {
+        low_level::cl_get_command_queue_info(self, flag)
     }
 }
 
