@@ -16,3 +16,7 @@ NOTE: All functions that return a raw pointer are unsafe.
 
 
 NOTE: Investigate OpenCL restrictions around numbers and safety for num crate
+NOTE: Implement Sampler
+NOTE: Implement UserEvent for (clCreateUserEvent, clSetUserEventStatus)
+NOTE: Implement Markers
+NOTE: Implement Barriers

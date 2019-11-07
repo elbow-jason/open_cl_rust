@@ -4,30 +4,14 @@ use crate::ffi::{
     cl_device_local_mem_type,
     cl_device_mem_cache_type,
     cl_device_type,
+    cl_device_partition_property,
+    cl_device_affinity_domain,
     // v2.0+ ?
-    // cl_device_partition_property,
-    // cl_device_affinity_domain,
     // cl_device_svm,
 };
 
-// https://github.com/KhronosGroup/OpenCL-Headers/blob/master/CL/cl.h#L412-L414
-// /* cl_device_exec_capabilities - bitfield */
-crate::__codes_enum!(DeviceExecCapabilities, cl_device_exec_capabilities, {
-    Kernel => 1,
-    NativeKernel => 2
-});
 
-// https://github.com/KhronosGroup/OpenCL-Headers/blob/master/CL/cl.h#L389-L401
-crate::__codes_enum!(DeviceFPConfig, cl_device_fp_config, {
-    Denorm => 1,
-    InfNan => 2,
-    RoundToNearest => 4,
-    RoundToZero => 8,
-    RoundToInf => 16,
-    Fma => 32,
-    SoftFloat => 64,
-    CorrectlyRoundedDivideSqrt => 128
-});
+
 
 crate::__codes_enum!(DeviceLocalMemType,  cl_device_local_mem_type, {
     Local => 0x1,
@@ -51,13 +35,49 @@ bitflags! {
     }
 }
 
-// NOTE: Version for cl_device_partition_property?
-// crate::__codes_enum!(DevicePartitionPropertery, cl_device_partition_property, {
-//     Equally => 0x1086,
-//     ByCounts => 0x1087,
-//     ByCountsListEnd => 0x0,
-//     ByAffinityDomain => 0x1088
-// });
+// https://github.com/KhronosGroup/OpenCL-Headers/blob/master/CL/cl.h#L389-L401
+bitflags! {
+    pub struct DeviceFpConfig: cl_device_fp_config {
+        const DENORM = 1;
+        const INF_NAN = 2;
+        const ROUND_TO_NEAREST = 4;
+        const ROUND_TO_ZERO = 8;
+        const ROUND_TO_INF = 16;
+        const FMA = 32;
+        const SOFT_FLOAT = 64;
+        const CORRECTLY_ROUNDED_DIVIDE_SQRT = 128;
+    }
+}
+
+crate::__codes_enum!(DevicePartitionProperty, cl_device_partition_property, {
+    Equally => 0x1086,
+    ByCounts => 0x1087,
+    // This is not a valid property. The 0 is used as a signal that the
+    // list of cl_device_partition_propertys is at an end.
+    // ByCountsListEnd => 0x0,
+    ByAffinityDomain => 0x1088
+});
+
+bitflags! {
+    pub struct DeviceAffinityDomain: cl_device_affinity_domain {
+        const NUMA = 1;
+        const L4_CACHE = 2;
+        const L3_CACHE = 4;
+        const L2_CACHE = 8;
+        const L1_CACHE =16;
+        const NEXT_PARTITIONABLE = 3;
+    }
+}
+
+// https://github.com/KhronosGroup/OpenCL-Headers/blob/master/CL/cl.h#L412-L414
+// /* cl_device_exec_capabilities - bitfield */
+bitflags! {
+    pub struct DeviceExecCapabilities: cl_device_exec_capabilities {
+        const KERNEL = 1;
+        const NATIVE_KERNEL = 2;
+    }
+}
+
 
 // NOTE: Version for cl_device_svm?
 // crate::__codes_enum!(DeviceSvm, cl_device_svm, {
@@ -65,14 +85,4 @@ bitflags! {
 //     FineGrainBuffer => 2,
 //     FineGrainSystem => 4,
 //     Atomics => 8
-// });
-
-// NOTE: Version for cl_device_affinity_domain?
-// crate::__codes_enum!(DeviceAffinityDomain, cl_device_affinity_domain, {
-//     Numa => 1,
-//     L4Cache => 2,
-//     L3Cache => 4,
-//     L2Cache => 8,
-//     L1Cache => 16,
-//     NextPartitionable => 32
 // });

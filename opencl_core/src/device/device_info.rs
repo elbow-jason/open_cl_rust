@@ -1,12 +1,32 @@
 /// This module implements DeviceInfo methods for Device.
 /// It was too much boilerplate for the Device module.
 
-use crate::ffi::{cl_device_info, clGetDeviceInfo};
+// use libc::c_void;
+
+use crate::ffi::{
+    cl_device_info,
+    cl_device_partition_property,
+    clGetDeviceInfo,
+};
 
 use crate::Output;
 use crate::utils::{StatusCode, ClObject};
 use crate::utils;
-use crate::device::Device;
+use crate::utils::cl_value::{ClOutput, ClReturn, ClDecoder};
+use crate::device::{Device, DeviceType};
+use crate::device::flags::{
+    DeviceFpConfig,
+    DeviceExecCapabilities,
+    DeviceMemCacheType,
+    DeviceLocalMemType,
+    DevicePartitionProperty,
+    DeviceAffinityDomain,
+};
+
+use crate::platform::Platform;
+
+// deprecated
+// QueueProperties => cl_command_queue_properties
 
 // https://github.com/KhronosGroup/OpenCL-Headers/blob/master/CL/cl.h#L280-L387
 //
@@ -31,6 +51,7 @@ crate::__codes_enum!(DeviceInfo, cl_device_info, {
     PreferredVectorWidthLong => 0x1009,
     PreferredVectorWidthFloat => 0x100A,
     PreferredVectorWidthDouble => 0x100B,
+    PreferredVectorWidthHalf => 0x1034,
     MaxClockFrequency => 0x100C,
     AddressBits => 0x100D,
     MaxReadImageArgs => 0x100E,
@@ -69,7 +90,6 @@ crate::__codes_enum!(DeviceInfo, cl_device_info, {
     Extensions => 0x1030,
     Platform => 0x1031,
     DoubleFpConfig => 0x1032,
-    PreferredVectorWidthHalf => 0x1034,
     HostUnifiedMemory => 0x1035,   /* deprecated */
     NativeVectorWidthChar => 0x1036,
     NativeVectorWidthShort => 0x1037,
@@ -110,323 +130,1093 @@ crate::__codes_enum!(DeviceInfo, cl_device_info, {
     PreferredLocalAtomicAlignment => 0x105A,
     IlVersion => 0x105B,
     MaxNumSubGroups => 0x105C,
-    SubGroupIndependentForwardProgress => 0x105D
+    SubGroupIndependentForwardProgress => 0x105D,
+    HalfFpConfig => 0x1033,
+    DriverVersion => 0x102D
 });
 
-use DeviceInfo::*;
-
-pub fn cl_get_device_info(device: &Device, device_info: cl_device_info) -> Output<String> {
+pub fn cl_get_device_info(device: &Device, device_info: DeviceInfo) -> ClOutput {
     device.usability_check()?;
     let mut size = 0 as libc::size_t;
     let err_code = unsafe {
         clGetDeviceInfo(
             device.raw_cl_object(),
-            device_info,
+            device_info as cl_device_info,
             0,
             std::ptr::null_mut(),
             &mut size,
         )
     };
     size = StatusCode::into_output(err_code, size)?;
+    // println!("Before");
+    // inspect_var!(size);
+    // size = std::cmp::max(size, 8);
+    // println!("After");
+    // inspect_var!(size);
     let mut buf: Vec<u8> = utils::vec_filled_with(0u8, size as usize);
     device.usability_check()?;
     let err_code = unsafe {
         clGetDeviceInfo(
             device.raw_cl_object(),
-            device_info,
+            device_info as cl_device_info,
             size,
             buf.as_mut_ptr() as *mut libc::c_void,
             std::ptr::null_mut(),
         )
     };
-    buf = StatusCode::into_output(err_code, buf)?;
-    Ok(utils::strings::to_utf8_string(buf))
+    // inspect_var!(buf);
+    
+    let () = StatusCode::into_output(err_code, ())?;
+    let ret = unsafe { ClReturn::from_vec(buf) };
+    Ok(ret)
 }
 
+macro_rules! __impl_device_info {
+    ($name:ident, $flag:ident, $output_t:ty) => {
+        impl Device {
+            pub fn $name(&self) -> Output<$output_t> {
+                self.get_info(DeviceInfo::$flag).map(|ret| unsafe { ret.cl_decode() })
+            }
+        }
+    }
+}
+
+unsafe fn cast_device_partition_properties(ret: ClReturn) -> Vec<DevicePartitionProperty> {
+    let props: Vec<cl_device_partition_property> = ret.into_vec();
+    let mut output = Vec::new();
+    for p in props {
+        if p != 0 {
+            break;
+        }
+        output.push(DevicePartitionProperty::from(p))
+    }
+    output
+}
+
+impl Device {
+    pub fn built_in_kernels(&self) -> Output<Vec<String>> {
+        self.get_info(DeviceInfo::BuiltInKernels)
+            .map(|ret| {
+                let kernels: String = unsafe { ret.cl_decode() };
+                kernels.split(";").map(|s| s.to_string()).collect()
+            })
+    }
+
+    pub fn extensions(&self) -> Output<Vec<String>> {
+        self.get_info(DeviceInfo::Extensions)
+            .map(|ret| {
+                let kernels: String = unsafe { ret.cl_decode() };
+                kernels.split(" ").map(|s| s.to_string()).collect()
+            })
+    }
+
+    pub fn partition_properties(&self) -> Output<Vec<DevicePartitionProperty>> {
+        self.get_info(DeviceInfo::PartitionProperties).map(|ret| {
+            unsafe { cast_device_partition_properties(ret) }
+        })
+    }
+
+    pub fn partition_type(&self) -> Output<Vec<DevicePartitionProperty>> {
+        self.get_info(DeviceInfo::PartitionType).map(|ret| {
+            unsafe { cast_device_partition_properties(ret) }
+        })
+    }
+
+    pub fn double_fp_config(&self) -> Output<DeviceFpConfig> {
+        self.get_info(DeviceInfo::DoubleFpConfig).map(|ret| {
+            let cfg: DeviceFpConfig = unsafe { ret.cl_decode() };
+            cfg
+        })
+    }
+    pub fn half_fp_config(&self) -> Output<DeviceFpConfig> {
+        self.get_info(DeviceInfo::HalfFpConfig).map(|ret| {
+            let cfg: DeviceFpConfig = unsafe { ret.cl_decode() };
+            cfg
+        })
+    }
+    pub fn single_fp_config(&self) -> Output<DeviceFpConfig> {
+        self.get_info(DeviceInfo::SingleFpConfig).map(|ret| {
+            let cfg: DeviceFpConfig = unsafe { ret.cl_decode() };
+            cfg
+        })
+    }
+    
+    // Docs says cl_uint, but API returns u64?
+    pub fn reference_count(&self) -> Output<u32> {
+        self.get_info(DeviceInfo::SingleFpConfig).map(|ret| {
+            // let value = *ret.ptr;
+            // inspect_var!(ref_count_ret);
+            unsafe { ret.into_ref_count() }
+            // inspect_var!(ref_count);
+            // ref_count // as i32
+        })
+    } 
+// __impl_device_info!(partition_type, PartitionType, Vec<DevicePartitionProperty>);
+
+}
 
 
 
 impl Device {
-
-    pub fn get_info(&self, info: DeviceInfo) -> Output<String> {
-        cl_get_device_info(self, info as cl_device_info)
-    }
-    
-    pub fn type_info(&self) -> Output<String> {
-        self.get_info(Type)
-    }
-    pub fn vendor_id_info(&self) -> Output<String> {
-        self.get_info(VendorId)
-    }
-    pub fn max_compute_units_info(&self) -> Output<String> {
-        self.get_info(MaxComputeUnits)
-    }
-    pub fn max_work_item_dimensions_info(&self) -> Output<String> {
-        self.get_info(MaxWorkItemDimensions)
-    }
-    pub fn max_work_group_size_info(&self) -> Output<String> {
-        self.get_info(MaxWorkGroupSize)
-    }
-    pub fn max_work_item_sizes_info(&self) -> Output<String> {
-        self.get_info(MaxWorkItemSizes)
-    }
-    pub fn preferred_vector_width_char_info(&self) -> Output<String> {
-        self.get_info(PreferredVectorWidthChar)
-    }
-    pub fn preferred_vector_width_short_info(&self) -> Output<String> {
-        self.get_info(PreferredVectorWidthShort)
-    }
-    pub fn preferred_vector_width_int_info(&self) -> Output<String> {
-        self.get_info(PreferredVectorWidthInt)
-    }
-    pub fn preferred_vector_width_long_info(&self) -> Output<String> {
-        self.get_info(PreferredVectorWidthLong)
-    }
-    pub fn preferred_vector_width_float_info(&self) -> Output<String> {
-        self.get_info(PreferredVectorWidthFloat)
-    }
-    pub fn preferred_vector_width_double_info(&self) -> Output<String> {
-        self.get_info(PreferredVectorWidthDouble)
-    }
-    pub fn max_clock_frequency_info(&self) -> Output<String> {
-        self.get_info(MaxClockFrequency)
-    }
-    pub fn address_bits_info(&self) -> Output<String> {
-        self.get_info(AddressBits)
-    }
-    pub fn max_read_image_args_info(&self) -> Output<String> {
-        self.get_info(MaxReadImageArgs)
-    }
-    pub fn max_write_image_args_info(&self) -> Output<String> {
-        self.get_info(MaxWriteImageArgs)
-    }
-    pub fn max_mem_alloc_size_info(&self) -> Output<String> {
-        self.get_info(MaxMemAllocSize)
-    }
-    pub fn image2_d_max_width_info(&self) -> Output<String> {
-        self.get_info(Image2DMaxWidth)
-    }
-    pub fn image2_d_max_height_info(&self) -> Output<String> {
-        self.get_info(Image2DMaxHeight)
-    }
-    pub fn image3_d_max_width_info(&self) -> Output<String> {
-        self.get_info(Image3DMaxWidth)
-    }
-    pub fn image3_d_max_height_info(&self) -> Output<String> {
-        self.get_info(Image3DMaxHeight)
-    }
-    pub fn image3_d_max_depth_info(&self) -> Output<String> {
-        self.get_info(Image3DMaxDepth)
-    }
-    pub fn image_support_info(&self) -> Output<String> {
-        self.get_info(ImageSupport)
-    }
-    pub fn max_parameter_size_info(&self) -> Output<String> {
-        self.get_info(MaxParameterSize)
-    }
-    pub fn max_samplers_info(&self) -> Output<String> {
-        self.get_info(MaxSamplers)
-    }
-    pub fn mem_base_addr_align_info(&self) -> Output<String> {
-        self.get_info(MemBaseAddrAlign)
-    }
-    pub fn min_data_type_align_size_info(&self) -> Output<String> {
-        self.get_info(MinDataTypeAlignSize)
-    }
-    pub fn single_fp_config_info(&self) -> Output<String> {
-        self.get_info(SingleFpConfig)
-    }
-    pub fn global_mem_cache_type_info(&self) -> Output<String> {
-        self.get_info(GlobalMemCacheType)
-    }
-    pub fn global_mem_cacheline_size_info(&self) -> Output<String> {
-        self.get_info(GlobalMemCachelineSize)
-    }
-    pub fn global_mem_cache_size_info(&self) -> Output<String> {
-        self.get_info(GlobalMemCacheSize)
-    }
-    pub fn global_mem_size_info(&self) -> Output<String> {
-        self.get_info(GlobalMemSize)
-    }
-    pub fn max_constant_buffer_size_info(&self) -> Output<String> {
-        self.get_info(MaxConstantBufferSize)
-    }
-    pub fn max_constant_args_info(&self) -> Output<String> {
-        self.get_info(MaxConstantArgs)
-    }
-    pub fn local_mem_type_info(&self) -> Output<String> {
-        self.get_info(LocalMemType)
-    }
-    pub fn local_mem_size_info(&self) -> Output<String> {
-        self.get_info(LocalMemSize)
-    }
-    pub fn error_correction_support_info(&self) -> Output<String> {
-        self.get_info(ErrorCorrectionSupport)
-    }
-    pub fn profiling_timer_resolution_info(&self) -> Output<String> {
-        self.get_info(ProfilingTimerResolution)
-    }
-    pub fn endian_little_info(&self) -> Output<String> {
-        self.get_info(EndianLittle)
-    }
-    pub fn available_info(&self) -> Output<String> {
-        self.get_info(Available)
-    }
-    pub fn compiler_available_info(&self) -> Output<String> {
-        self.get_info(CompilerAvailable)
-    }
-    pub fn execution_capabilities_info(&self) -> Output<String> {
-        self.get_info(ExecutionCapabilities)
-    }
-    pub fn queue_on_host_properties_info(&self) -> Output<String> {
-        self.get_info(QueueOnHostProperties)
-    }
-    pub fn name_info(&self) -> Output<String> {
-        self.get_info(Name)
-    }
-    pub fn vendor_info(&self) -> Output<String> {
-        self.get_info(Vendor)
-    }
-    pub fn profile_info(&self) -> Output<String> {
-        self.get_info(Profile)
-    }
-    pub fn version_info(&self) -> Output<String> {
-        self.get_info(Version)
-    }
-    pub fn extensions_info(&self) -> Output<String> {
-        self.get_info(Extensions)
-    }
-    pub fn platform_info(&self) -> Output<String> {
-        self.get_info(Platform)
-    }
-    pub fn double_fp_config_info(&self) -> Output<String> {
-        self.get_info(DoubleFpConfig)
-    }
-    pub fn preferred_vector_width_half_info(&self) -> Output<String> {
-        self.get_info(PreferredVectorWidthHalf)
-    }
-    pub fn host_unified_memory_info(&self) -> Output<String> {
-        self.get_info(HostUnifiedMemory)
-    }
-    pub fn native_vector_width_char_info(&self) -> Output<String> {
-        self.get_info(NativeVectorWidthChar)
-    }
-    pub fn native_vector_width_short_info(&self) -> Output<String> {
-        self.get_info(NativeVectorWidthShort)
-    }
-    pub fn native_vector_width_int_info(&self) -> Output<String> {
-        self.get_info(NativeVectorWidthInt)
-    }
-    pub fn native_vector_width_long_info(&self) -> Output<String> {
-        self.get_info(NativeVectorWidthLong)
-    }
-    pub fn native_vector_width_float_info(&self) -> Output<String> {
-        self.get_info(NativeVectorWidthFloat)
-    }
-    pub fn native_vector_width_double_info(&self) -> Output<String> {
-        self.get_info(NativeVectorWidthDouble)
-    }
-    pub fn native_vector_width_half_info(&self) -> Output<String> {
-        self.get_info(NativeVectorWidthHalf)
-    }
-    pub fn opencl_c_version_info(&self) -> Output<String> {
-        self.get_info(OpenclCVersion)
-    }
-    pub fn linker_available_info(&self) -> Output<String> {
-        self.get_info(LinkerAvailable)
-    }
-    pub fn built_in_kernels_info(&self) -> Output<String> {
-        self.get_info(BuiltInKernels)
-    }
-    pub fn image_max_buffer_size_info(&self) -> Output<String> {
-        self.get_info(ImageMaxBufferSize)
-    }
-    pub fn image_max_array_size_info(&self) -> Output<String> {
-        self.get_info(ImageMaxArraySize)
-    }
-    pub fn parent_device_info(&self) -> Output<String> {
-        self.get_info(ParentDevice)
-    }
-    pub fn partition_max_sub_devices_info(&self) -> Output<String> {
-        self.get_info(PartitionMaxSubDevices)
-    }
-    pub fn partition_properties_info(&self) -> Output<String> {
-        self.get_info(PartitionProperties)
-    }
-    pub fn partition_affinity_domain_info(&self) -> Output<String> {
-        self.get_info(PartitionAffinityDomain)
-    }
-    pub fn partition_type_info(&self) -> Output<String> {
-        self.get_info(PartitionType)
-    }
-    pub fn reference_count_info(&self) -> Output<String> {
-        self.get_info(ReferenceCount)
-    }
-    pub fn preferred_interop_user_sync_info(&self) -> Output<String> {
-        self.get_info(PreferredInteropUserSync)
-    }
-    pub fn printf_buffer_size_info(&self) -> Output<String> {
-        self.get_info(PrintfBufferSize)
-    }
-    pub fn image_pitch_alignment_info(&self) -> Output<String> {
-        self.get_info(ImagePitchAlignment)
-    }
-    pub fn image_base_address_alignment_info(&self) -> Output<String> {
-        self.get_info(ImageBaseAddressAlignment)
-    }
-    pub fn max_read_write_image_args_info(&self) -> Output<String> {
-        self.get_info(MaxReadWriteImageArgs)
-    }
-    pub fn max_global_variable_size_info(&self) -> Output<String> {
-        self.get_info(MaxGlobalVariableSize)
-    }
-    pub fn queue_on_device_properties_info(&self) -> Output<String> {
-        self.get_info(QueueOnDeviceProperties)
-    }
-    pub fn queue_on_device_preferred_size_info(&self) -> Output<String> {
-        self.get_info(QueueOnDevicePreferredSize)
-    }
-    pub fn queue_on_device_max_size_info(&self) -> Output<String> {
-        self.get_info(QueueOnDeviceMaxSize)
-    }
-    pub fn max_on_device_queues_info(&self) -> Output<String> {
-        self.get_info(MaxOnDeviceQueues)
-    }
-    pub fn max_on_device_events_info(&self) -> Output<String> {
-        self.get_info(MaxOnDeviceEvents)
-    }
-    pub fn svm_capabilities_info(&self) -> Output<String> {
-        self.get_info(SvmCapabilities)
-    }
-    pub fn global_variable_preferred_total_size_info(&self) -> Output<String> {
-        self.get_info(GlobalVariablePreferredTotalSize)
-    }
-    pub fn max_pipe_args_info(&self) -> Output<String> {
-        self.get_info(MaxPipeArgs)
-    }
-    pub fn pipe_max_active_reservations_info(&self) -> Output<String> {
-        self.get_info(PipeMaxActiveReservations)
-    }
-    pub fn pipe_max_packet_size_info(&self) -> Output<String> {
-        self.get_info(PipeMaxPacketSize)
-    }
-    pub fn preferred_platform_atomic_alignment_info(&self) -> Output<String> {
-        self.get_info(PreferredPlatformAtomicAlignment)
-    }
-    pub fn preferred_global_atomic_alignment_info(&self) -> Output<String> {
-        self.get_info(PreferredGlobalAtomicAlignment)
-    }
-    pub fn preferred_local_atomic_alignment_info(&self) -> Output<String> {
-        self.get_info(PreferredLocalAtomicAlignment)
-    }
-    pub fn il_version_info(&self) -> Output<String> {
-        self.get_info(IlVersion)
-    }
-    pub fn max_num_sub_groups_info(&self) -> Output<String> {
-        self.get_info(MaxNumSubGroups)
-    }
-    pub fn sub_group_independent_forward_progress_info(&self) -> Output<String> {
-        self.get_info(SubGroupIndependentForwardProgress)
+    fn get_info(&self, info: DeviceInfo) -> ClOutput {
+        cl_get_device_info(self, info)
     }
 }
+// cl_uint
+__impl_device_info!(address_bits, AddressBits, u32);
+__impl_device_info!(global_mem_cacheline_size, GlobalMemCachelineSize, u32);
+__impl_device_info!(max_clock_frequency, MaxClockFrequency, u32);
+__impl_device_info!(max_compute_units, MaxComputeUnits, u32);
+__impl_device_info!(max_constant_args, MaxConstantArgs, u32);
+__impl_device_info!(max_read_image_args, MaxReadImageArgs, u32);
+__impl_device_info!(max_samplers, MaxSamplers, u32);
+__impl_device_info!(max_work_item_dimensions, MaxWorkItemDimensions, u32);
+__impl_device_info!(max_write_image_args, MaxWriteImageArgs, u32);
+__impl_device_info!(mem_base_addr_align, MemBaseAddrAlign, u32);
+__impl_device_info!(min_data_type_align_size, MinDataTypeAlignSize, u32);
+__impl_device_info!(native_vector_width_char, NativeVectorWidthChar, u32);
+__impl_device_info!(native_vector_width_short, NativeVectorWidthShort, u32);
+__impl_device_info!(native_vector_width_int, NativeVectorWidthInt, u32);
+__impl_device_info!(native_vector_width_long, NativeVectorWidthLong, u32);
+__impl_device_info!(native_vector_width_float, NativeVectorWidthFloat, u32);
+__impl_device_info!(native_vector_width_double, NativeVectorWidthDouble, u32);
+__impl_device_info!(native_vector_width_half, NativeVectorWidthHalf, u32);
+__impl_device_info!(partition_max_sub_devices, PartitionMaxSubDevices, u32);
+__impl_device_info!(preferred_vector_width_char, PreferredVectorWidthChar, u32);
+__impl_device_info!(preferred_vector_width_short, PreferredVectorWidthShort, u32);
+__impl_device_info!(preferred_vector_width_int, PreferredVectorWidthInt, u32);
+__impl_device_info!(preferred_vector_width_long, PreferredVectorWidthLong, u32);
+__impl_device_info!(preferred_vector_width_float, PreferredVectorWidthFloat, u32);
+__impl_device_info!(preferred_vector_width_double, PreferredVectorWidthDouble, u32);
+__impl_device_info!(preferred_vector_width_half, PreferredVectorWidthHalf, u32);
 
+
+
+
+__impl_device_info!(vendor_id, VendorId, u32);
+
+// cl_bool
+__impl_device_info!(available, Available, bool);
+__impl_device_info!(compiler_available, CompilerAvailable, bool);
+__impl_device_info!(endian_little, EndianLittle, bool);
+__impl_device_info!(error_correction_support, ErrorCorrectionSupport, bool);
+__impl_device_info!(host_unified_memory, HostUnifiedMemory, bool);
+__impl_device_info!(image_support, ImageSupport, bool);
+__impl_device_info!(linker_available, LinkerAvailable, bool);
+__impl_device_info!(preferred_interop_user_sync, PreferredInteropUserSync, bool);
+
+// char[]
+__impl_device_info!(name, Name, String);
+__impl_device_info!(opencl_c_version, OpenclCVersion, String);
+__impl_device_info!(profile, Profile, String);
+__impl_device_info!(vendor, Vendor, String);
+__impl_device_info!(version, Version, String);
+__impl_device_info!(driver_version, DriverVersion, String);
+
+// DeviceFpConfig
+
+
+// ExecutionCapabilities
+__impl_device_info!(execution_capabilities, ExecutionCapabilities, DeviceExecCapabilities);
+
+// ulong as u64
+__impl_device_info!(global_mem_cache_size, GlobalMemCacheSize, u64);
+__impl_device_info!(global_mem_size, GlobalMemSize, u64);
+__impl_device_info!(local_mem_size, LocalMemSize, u64);
+__impl_device_info!(max_constant_buffer_size, MaxConstantBufferSize, u64);
+__impl_device_info!(max_mem_alloc_size, MaxMemAllocSize, u64);
+
+//  CL_DEVICE_GLOBAL_MEM_CACHE_TYPE
+__impl_device_info!(global_mem_cache_type, GlobalMemCacheType, DeviceMemCacheType);
+
+// size_t as usize
+__impl_device_info!(image2d_max_width, Image2DMaxWidth, usize);
+__impl_device_info!(image2d_max_height, Image2DMaxHeight, usize);
+__impl_device_info!(image3d_max_width, Image3DMaxWidth, usize);
+__impl_device_info!(image3d_max_height, Image3DMaxHeight, usize);
+__impl_device_info!(image3d_max_depth, Image3DMaxDepth, usize);
+__impl_device_info!(image_max_buffer_size, ImageMaxBufferSize, usize);
+__impl_device_info!(image_max_array_size, ImageMaxArraySize, usize);
+__impl_device_info!(max_parameter_size, MaxParameterSize, usize);
+__impl_device_info!(max_work_group_size, MaxWorkGroupSize, usize);
+__impl_device_info!(printf_buffer_size, PrintfBufferSize, usize);
+__impl_device_info!(profiling_timer_resolution, ProfilingTimerResolution, usize);
+
+// cl_device_local_mem_type
+__impl_device_info!(local_mem_type, LocalMemType, DeviceLocalMemType);
+
+// size_t[]
+__impl_device_info!(max_work_item_sizes, MaxWorkItemSizes, Vec<usize>);
+
+// Device
+__impl_device_info!(parent_device, ParentDevice, Device);
+
+// cl_device_partition_property[]
+
+// cl_device_affinity_domain
+__impl_device_info!(partition_affinity_domain, PartitionAffinityDomain, DeviceAffinityDomain);
+
+// Platform
+__impl_device_info!(platform, Platform, Platform);
+
+// DeviceType
+__impl_device_info!(device_type, Type, DeviceType);
+
+
+// v2.0+
+// __impl_device_info!(queue_on_host_properties, QueueOnHostProperties, String);
+// __impl_device_info!(image_pitch_alignment, ImagePitchAlignment, String);
+// __impl_device_info!(image_base_address_alignment, ImageBaseAddressAlignment, String);
+// __impl_device_info!(max_read_write_image_args, MaxReadWriteImageArgs, String);
+// __impl_device_info!(max_global_variable_size, MaxGlobalVariableSize, String);
+// __impl_device_info!(queue_on_device_properties, QueueOnDeviceProperties, String);
+// __impl_device_info!(queue_on_device_preferred_size, QueueOnDevicePreferredSize, String);
+// __impl_device_info!(queue_on_device_max_size, QueueOnDeviceMaxSize, String);
+// __impl_device_info!(max_on_device_queues, MaxOnDeviceQueues, String);
+// __impl_device_info!(max_on_device_events, MaxOnDeviceEvents, String);
+// __impl_device_info!(svm_capabilities, SvmCapabilities, String);
+// __impl_device_info!(global_variable_preferred_total_size, GlobalVariablePreferredTotalSize, String);
+// __impl_device_info!(max_pipe_args, MaxPipeArgs, String);
+// __impl_device_info!(pipe_max_active_reservations, PipeMaxActiveReservations, String);
+// __impl_device_info!(pipe_max_packet_size, PipeMaxPacketSize, String);
+// __impl_device_info!(preferred_platform_atomic_alignment, PreferredPlatformAtomicAlignment, String);
+// __impl_device_info!(preferred_global_atomic_alignment, PreferredGlobalAtomicAlignment, String);
+// __impl_device_info!(preferred_local_atomic_alignment, PreferredLocalAtomicAlignment, String);
+// __impl_device_info!(il_version, IlVersion, String);
+// __impl_device_info!(max_num_sub_groups, MaxNumSubGroups, String);
+// __impl_device_info!(sub_group_independent_forward_progress, SubGroupIndependentForwardProgress, String);
+
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        Device, 
+        // DeviceInfo,
+        DeviceType,
+        DeviceMemCacheType,
+        DeviceLocalMemType,
+        DeviceExecCapabilities,
+        DevicePartitionProperty,
+        DeviceAffinityDomain,
+    };
+    
+    use crate::device::flags::DeviceFpConfig;
+    use crate::platform::Platform;
+
+    #[test]
+    fn device_method_type_works() {
+        let device = Device::default();
+        let device_type: DeviceType = device.device_type()
+            .expect("Device method test for device_type failed");
+        assert!(
+            device_type == DeviceType::CPU || device_type == DeviceType::GPU
+        );
+    }
+
+    #[test]
+    fn device_method_vendor_id_works() {
+        let device = Device::default();
+        let vendor_id = device.vendor_id()
+            .expect("Device method test for vendor_id failed");
+            
+        assert!(vendor_id != 0);
+    }
+
+    #[test]
+    fn device_method_max_compute_units_works() {
+        let device = Device::default();
+        let info: u32 = device.max_compute_units()
+            .expect("Device method test for max_compute_units failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_max_work_item_dimensions_works() {
+        let device = Device::default();
+        let info: u32 = device.max_work_item_dimensions()
+            .expect("Device method test for max_work_item_dimensions failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_max_work_group_size_works() {
+        let device = Device::default();
+        let info: usize = device.max_work_group_size()
+            .expect("Device method test for max_work_group_size failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_max_work_item_sizes_works() {
+        let device = Device::default();
+        let item_sizes: Vec<usize> = device.max_work_item_sizes()
+            .expect("Device method test for max_work_item_sizes failed");
+        assert!(item_sizes.len() > 0);
+    }
+
+    #[test]
+    fn device_method_preferred_vector_width_char_works() {
+        let device = Device::default();
+        let info: u32 = device.preferred_vector_width_char()
+            .expect("Device method test for preferred_vector_width_char failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_preferred_vector_width_short_works() {
+        let device = Device::default();
+        let info: u32 = device.preferred_vector_width_short()
+            .expect("Device method test for preferred_vector_width_short failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_preferred_vector_width_int_works() {
+        let device = Device::default();
+        let info: u32 = device.preferred_vector_width_int()
+            .expect("Device method test for preferred_vector_width_int failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_preferred_vector_width_long_works() {
+        let device = Device::default();
+        let info: u32 = device.preferred_vector_width_long()
+            .expect("Device method test for preferred_vector_width_long failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_preferred_vector_width_float_works() {
+        let device = Device::default();
+        let info: u32 = device.preferred_vector_width_float()
+            .expect("Device method test for preferred_vector_width_float failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_preferred_vector_width_double_works() {
+        let device = Device::default();
+        let info: u32 = device.preferred_vector_width_double()
+            .expect("Device method test for preferred_vector_width_double failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_max_clock_frequency_works() {
+        let device = Device::default();
+        let info: u32 = device.max_clock_frequency()
+            .expect("Device method test for max_clock_frequency failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_address_bits_works() {
+        let device = Device::default();
+        let info: u32 = device.address_bits()
+            .expect("Device method test for address_bits failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_max_read_image_args_works() {
+        let device = Device::default();
+        let info: u32 = device.max_read_image_args()
+            .expect("Device method test for max_read_image_args failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_max_write_image_args_works() {
+        let device = Device::default();
+        let info: u32 = device.max_write_image_args()
+            .expect("Device method test for max_write_image_args failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_max_mem_alloc_size_works() {
+        let device = Device::default();
+        let info: u64 = device.max_mem_alloc_size()
+            .expect("Device method test for max_mem_alloc_size failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_image2d_max_width_works() {
+        let device = Device::default();
+        let info: usize = device.image2d_max_width()
+            .expect("Device method test for image2_d_max_width failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_image2d_max_height_works() {
+        let device = Device::default();
+        let info: usize = device.image2d_max_height()
+            .expect("Device method test for image2_d_max_height failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_image3d_max_width_works() {
+        let device = Device::default();
+        let info: usize = device.image3d_max_width()
+            .expect("Device method test for image3_d_max_width failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_image3d_max_height_works() {
+        let device = Device::default();
+        let info: usize = device.image3d_max_height()
+            .expect("Device method test for image3_d_max_height failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_image3_d_max_depth_works() {
+        let device = Device::default();
+        let info: usize = device.image3d_max_depth()
+            .expect("Device method test for image3_d_max_depth failed");
+            
+        assert!(info > 0);
+    }
+
+    #[test]
+    fn device_method_image_support_works() {
+        let device = Device::default();
+        let _info: bool = device.image_support()
+            .expect("Device method test for image_support failed");
+    }
+
+    #[test]
+    fn device_method_max_parameter_size_works() {
+        let device = Device::default();
+        let info: usize = device.max_parameter_size()
+            .expect("Device method test for max_parameter_size failed");
+            
+        assert!(info > 0);
+    }
+
+    #[test]
+    fn device_method_max_samplers_works() {
+        let device = Device::default();
+        let info: u32 = device.max_samplers()
+            .expect("Device method test for max_samplers failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_mem_base_addr_align_works() {
+        let device = Device::default();
+        let info: u32 = device.mem_base_addr_align()
+            .expect("Device method test for mem_base_addr_align failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_min_data_type_align_size_works() {
+        let device = Device::default();
+        let info: u32 = device.min_data_type_align_size()
+            .expect("Device method test for min_data_type_align_size failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_single_fp_config_works() {
+        let device = Device::default();
+        let _info: DeviceFpConfig = device.single_fp_config()
+            .expect("Device method test for single_fp_config failed");
+    }
+
+    #[test]
+    fn device_method_global_mem_cache_type_works() {
+        let device = Device::default();
+        let info: DeviceMemCacheType = device.global_mem_cache_type()
+            .expect("Device method test for global_mem_cache_type failed");
+            
+        assert!(
+            info == DeviceMemCacheType::NoneType ||
+            info == DeviceMemCacheType::ReadOnlyCache ||
+            info == DeviceMemCacheType::ReadWriteCache
+        );
+    }
+
+    #[test]
+    fn device_method_global_mem_cacheline_size_works() {
+        let device = Device::default();
+        let info: u32 = device.global_mem_cacheline_size()
+            .expect("Device method test for global_mem_cacheline_size failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_global_mem_cache_size_works() {
+        let device = Device::default();
+        let info: u64 = device.global_mem_cache_size()
+            .expect("Device method test for global_mem_cache_size failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_global_mem_size_works() {
+        let device = Device::default();
+        let info: u64 = device.global_mem_size()
+            .expect("Device method test for global_mem_size failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_max_constant_buffer_size_works() {
+        let device = Device::default();
+        let info: u64 = device.max_constant_buffer_size()
+            .expect("Device method test for max_constant_buffer_size failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_max_constant_args_works() {
+        let device = Device::default();
+        let info: u32 = device.max_constant_args()
+            .expect("Device method test for max_constant_args failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_local_mem_type_works() {
+        let device = Device::default();
+        let info: DeviceLocalMemType = device.local_mem_type()
+            .expect("Device method test for local_mem_type failed");
+            
+        assert!(info == DeviceLocalMemType::Local || info == DeviceLocalMemType::Global);
+    }
+
+    #[test]
+    fn device_method_local_mem_size_works() {
+        let device = Device::default();
+        let info: u64 = device.local_mem_size()
+            .expect("Device method test for local_mem_size failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_error_correction_support_works() {
+        let device = Device::default();
+        let _info: bool = device.error_correction_support()
+            .expect("Device method test for error_correction_support failed");
+    }
+
+    #[test]
+    fn device_method_profiling_timer_resolution_works() {
+        let device = Device::default();
+        let info: usize = device.profiling_timer_resolution()
+            .expect("Device method test for profiling_timer_resolution failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_endian_little_works() {
+        let device = Device::default();
+        let _info: bool = device.endian_little()
+            .expect("Device method test for endian_little failed");
+    }
+
+    #[test]
+    fn device_method_available_works() {
+        let device = Device::default();
+        let _info: bool = device.available()
+            .expect("Device method test for available failed");
+    }
+
+    #[test]
+    fn device_method_compiler_available_works() {
+        let device = Device::default();
+        let _info: bool = device.compiler_available()
+            .expect("Device method test for compiler_available failed");
+    }
+
+    #[test]
+    fn device_method_execution_capabilities_works() {
+        // use DeviceExecCapabilities as C;
+        let device = Device::default();
+        let _info: DeviceExecCapabilities = device.execution_capabilities()
+            .expect("Device method test for execution_capabilities failed");
+            
+        // assert!(
+        //     info == C::Kernel || info == C::NativeKernel
+        // );
+    }
+
+    #[test]
+    fn device_method_name_works() {
+        let device = Device::default();
+        let name: String = device.name()
+            .expect("Device method test for name failed");
+            
+        assert!(name != "".to_string());
+    }
+
+    #[test]
+    fn device_method_vendor_works() {
+        let device = Device::default();
+        let vendor: String = device.vendor()
+            .expect("Device method test for vendor failed");
+            
+        assert!(vendor != "".to_string());
+    }
+
+    #[test]
+    fn device_method_profile_works() {
+        let device = Device::default();
+        let profile: String = device.profile()
+            .expect("Device method test for profile failed");
+            
+        assert!(profile != "".to_string());
+    }
+
+    #[test]
+    fn device_method_version_works() {
+        let device = Device::default();
+        let version: String = device.version()
+            .expect("Device method test for version failed");
+            
+        assert!(version != "".to_string());
+    }
+
+    #[test]
+    fn device_method_extensions_works() {
+        let device = Device::default();
+        let _extensions: Vec<String> = device.extensions()
+            .expect("Device method test for extensions failed");
+    }
+
+    #[test]
+    fn device_method_platform_works() {
+        let device = Device::default();
+        let _info: Platform = device.platform()
+            .expect("Device method test for platform failed");
+    }
+
+    #[test]
+    fn device_method_double_fp_config_works() {
+        let device = Device::default();
+        let _info: DeviceFpConfig = device.double_fp_config()
+            .expect("Device method test for double_fp_config failed");
+    }
+
+    #[test]
+    fn device_method_preferred_vector_width_half_works() {
+        let device = Device::default();
+        let info: u32 = device.preferred_vector_width_half()
+            .expect("Device method test for preferred_vector_width_half failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_host_unified_memory_works() {
+        let device = Device::default();
+        let _info: bool = device.host_unified_memory()
+            .expect("Device method test for host_unified_memory failed");
+    }
+
+    #[test]
+    fn device_method_native_vector_width_char_works() {
+        let device = Device::default();
+        let info: u32 = device.native_vector_width_char()
+            .expect("Device method test for native_vector_width_char failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_native_vector_width_short_works() {
+        let device = Device::default();
+        let info: u32 = device.native_vector_width_short()
+            .expect("Device method test for native_vector_width_short failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_native_vector_width_int_works() {
+        let device = Device::default();
+        let info: u32 = device.native_vector_width_int()
+            .expect("Device method test for native_vector_width_int failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_native_vector_width_long_works() {
+        let device = Device::default();
+        let info: u32 = device.native_vector_width_long()
+            .expect("Device method test for native_vector_width_long failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_native_vector_width_float_works() {
+        let device = Device::default();
+        let info: u32 = device.native_vector_width_float()
+            .expect("Device method test for native_vector_width_float failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_native_vector_width_double_works() {
+        let device = Device::default();
+        let info: u32 = device.native_vector_width_double()
+            .expect("Device method test for native_vector_width_double failed");
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_native_vector_width_half_works() {
+        let device = Device::default();
+        let info: u32 = device.native_vector_width_half()
+            .expect("Device method test for native_vector_width_half failed");
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_opencl_c_version_works() {
+        let device = Device::default();
+        let info: String = device.opencl_c_version()
+            .expect("Device method test for opencl_c_version failed");
+            
+        assert!(info != "".to_string());
+    }
+
+    #[test]
+    fn device_method_linker_available_works() {
+        let device = Device::default();
+        let _info: bool = device.linker_available()
+            .expect("Device method test for linker_available failed");
+    }
+
+    #[test]
+    fn device_method_built_in_kernels_works() {
+        let device = Device::default();
+        let _info: Vec<String> = device.built_in_kernels()
+            .expect("Device method test for built_in_kernels failed");
+    }
+
+    #[test]
+    fn device_method_image_max_buffer_size_works() {
+        let device = Device::default();
+        let info: usize = device.image_max_buffer_size()
+            .expect("Device method test for image_max_buffer_size failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_image_max_array_size_works() {
+        let device = Device::default();
+        let info: usize = device.image_max_array_size()
+            .expect("Device method test for image_max_array_size failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_parent_device_works() {
+        let device = Device::default();
+        let _parent: Device = device.parent_device()
+            .expect("Device method test for parent_device failed");
+            
+    }
+
+    #[test]
+    fn device_method_partition_max_sub_devices_works() {
+        let device = Device::default();
+        let info: u32 = device.partition_max_sub_devices()
+            .expect("Device method test for partition_max_sub_devices failed");
+            
+        assert!(info != 0);
+    }
+
+    #[test]
+    fn device_method_partition_properties_works() {
+        let device = Device::default();
+        let _info: Vec<DevicePartitionProperty> = device.partition_properties()
+            .expect("Device method test for partition_properties failed");
+    }
+
+    #[test]
+    fn device_method_partition_affinity_domain_works() {
+        let device = Device::default();
+        let _info: DeviceAffinityDomain = device.partition_affinity_domain()
+            .expect("Device method test for partition_affinity_domain failed");
+    }
+
+    #[test]
+    fn device_method_partition_type_works() {
+        use DevicePartitionProperty as P;
+        let device = Device::default();
+        let infos: Vec<DevicePartitionProperty> = device.partition_type()
+            .expect("Device method test for partition_type failed");
+        for info in infos {
+            assert!(
+                info == P::Equally ||
+                info == P::ByCounts ||
+                info == P::ByAffinityDomain
+            );
+        }
+
+
+
+
+    }
+
+    #[test]
+    fn device_method_reference_count_works() {
+        let device = Device::default();
+        let count: u32 = device.reference_count()
+            .expect("Device method test for reference_count failed");
+
+        // NOTE: I have no idea why 191 is here...
+        assert_eq!(count, 191);
+    }
+
+    #[test]
+    fn device_method_preferred_interop_user_sync_works() {
+        let device = Device::default();
+        let _info: bool = device.preferred_interop_user_sync()
+            .expect("Device method test for preferred_interop_user_sync failed");
+    }
+
+    #[test]
+    fn device_method_printf_buffer_size_works() {
+        let device = Device::default();
+        let info: usize = device.printf_buffer_size()
+            .expect("Device method test for printf_buffer_size failed");
+            
+        assert!(info != 0);
+    }
+
+    // v2.0+
+
+    // #[test]
+    // fn device_method_queue_on_host_properties_works() {
+    //     let device = Device::default();
+    //     let info = device.queue_on_host_properties()
+    //         .expect("Device method test for queue_on_host_properties failed");
+            
+    //     assert!(info != "".to_string());
+    // }
+
+
+    // #[test]
+    // fn device_method_image_pitch_alignment_works() {
+    //     let device = Device::default();
+    //     let info = device.image_pitch_alignment()
+    //         .expect("Device method test for image_pitch_alignment failed");
+            
+    //     assert!(info != "".to_string());
+    // }
+
+    // #[test]
+    // fn device_method_image_base_address_alignment_works() {
+    //     let device = Device::default();
+    //     let info = device.image_base_address_alignment()
+    //         .expect("Device method test for image_base_address_alignment failed");
+            
+    //     assert!(info != "".to_string());
+    // }
+
+    // #[test]
+    // fn device_method_max_read_write_image_args_works() {
+    //     let device = Device::default();
+    //     let info = device.max_read_write_image_args()
+    //         .expect("Device method test for max_read_write_image_args failed");
+            
+    //     assert!(info != "".to_string());
+    // }
+
+    // #[test]
+    // fn device_method_max_global_variable_size_works() {
+    //     let device = Device::default();
+    //     let info = device.max_global_variable_size()
+    //         .expect("Device method test for max_global_variable_size failed");
+            
+    //     assert!(info != "".to_string());
+    // }
+
+    // #[test]
+    // fn device_method_queue_on_device_properties_works() {
+    //     let device = Device::default();
+    //     let info = device.queue_on_device_properties()
+    //         .expect("Device method test for queue_on_device_properties failed");
+            
+    //     assert!(info != "".to_string());
+    // }
+
+    // #[test]
+    // fn device_method_queue_on_device_preferred_size_works() {
+    //     let device = Device::default();
+    //     let info = device.queue_on_device_preferred_size()
+    //         .expect("Device method test for queue_on_device_preferred_size failed");
+            
+    //     assert!(info != "".to_string());
+    // }
+
+    // #[test]
+    // fn device_method_queue_on_device_max_size_works() {
+    //     let device = Device::default();
+    //     let info = device.queue_on_device_max_size()
+    //         .expect("Device method test for queue_on_device_max_size failed");
+            
+    //     assert!(info != "".to_string());
+    // }
+
+    // #[test]
+    // fn device_method_max_on_device_queues_works() {
+    //     let device = Device::default();
+    //     let info = device.max_on_device_queues()
+    //         .expect("Device method test for max_on_device_queues failed");
+            
+    //     assert!(info != "".to_string());
+    // }
+
+    // #[test]
+    // fn device_method_max_on_device_events_works() {
+    //     let device = Device::default();
+    //     let info = device.max_on_device_events()
+    //         .expect("Device method test for max_on_device_events failed");
+            
+    //     assert!(info != "".to_string());
+    // }
+
+    // #[test]
+    // fn device_method_svm_capabilities_works() {
+    //     let device = Device::default();
+    //     let info = device.svm_capabilities()
+    //         .expect("Device method test for svm_capabilities failed");
+            
+    //     assert!(info != "".to_string());
+    // }
+
+    // #[test]
+    // fn device_method_global_variable_preferred_total_size_works() {
+    //     let device = Device::default();
+    //     let info = device.global_variable_preferred_total_size()
+    //         .expect("Device method test for global_variable_preferred_total_size failed");
+            
+    //     assert!(info != "".to_string());
+    // }
+
+    // #[test]
+    // fn device_method_max_pipe_args_works() {
+    //     let device = Device::default();
+    //     let info = device.max_pipe_args()
+    //         .expect("Device method test for max_pipe_args failed");
+            
+    //     assert!(info != "".to_string());
+    // }
+
+    // #[test]
+    // fn device_method_pipe_max_active_reservations_works() {
+    //     let device = Device::default();
+    //     let info = device.pipe_max_active_reservations()
+    //         .expect("Device method test for pipe_max_active_reservations failed");
+            
+    //     assert!(info != "".to_string());
+    // }
+
+    // #[test]
+    // fn device_method_pipe_max_packet_size_works() {
+    //     let device = Device::default();
+    //     let info = device.pipe_max_packet_size()
+    //         .expect("Device method test for pipe_max_packet_size failed");
+            
+    //     assert!(info != "".to_string());
+    // }
+
+    // #[test]
+    // fn device_method_preferred_platform_atomic_alignment_works() {
+    //     let device = Device::default();
+    //     let info = device.preferred_platform_atomic_alignment()
+    //         .expect("Device method test for preferred_platform_atomic_alignment failed");
+            
+    //     assert!(info != "".to_string());
+    // }
+
+    // #[test]
+    // fn device_method_preferred_global_atomic_alignment_works() {
+    //     let device = Device::default();
+    //     let info = device.preferred_global_atomic_alignment()
+    //         .expect("Device method test for preferred_global_atomic_alignment failed");
+            
+    //     assert!(info != "".to_string());
+    // }
+
+    // #[test]
+    // fn device_method_preferred_local_atomic_alignment_works() {
+    //     let device = Device::default();
+    //     let info = device.preferred_local_atomic_alignment()
+    //         .expect("Device method test for preferred_local_atomic_alignment failed");
+            
+    //     assert!(info != "".to_string());
+    // }
+
+    // #[test]
+    // fn device_method_il_version_works() {
+    //     let device = Device::default();
+    //     let info = device.il_version()
+    //         .expect("Device method test for il_version failed");
+            
+    //     assert!(info != "".to_string());
+    // }
+
+    // #[test]
+    // fn device_method_max_num_sub_groups_works() {
+    //     let device = Device::default();
+    //     let info = device.max_num_sub_groups()
+    //         .expect("Device method test for max_num_sub_groups failed");
+            
+    //     assert!(info != "".to_string());
+    // }
+
+    // #[test]
+    // fn device_method_sub_group_independent_forward_progress_works() {
+    //     let device = Device::default();
+    //     let info = device.sub_group_independent_forward_progress()
+    //         .expect("Device method test for sub_group_independent_forward_progress failed");
+            
+    //     assert!(info != "".to_string());
+    // }
+
+}

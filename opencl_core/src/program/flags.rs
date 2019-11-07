@@ -1,8 +1,9 @@
 use crate::ffi::{
     cl_program_build_info,
     cl_program_info,
-    // v2.0+
-    // cl_program_binary_type,
+    cl_build_status,
+    // v2.0?
+    cl_program_binary_type,
 };
 
 crate::__codes_enum!(ProgramBuildInfo, cl_program_build_info, {
@@ -30,10 +31,19 @@ crate::__codes_enum!(ProgramInfo, cl_program_info, {
 
 });
 
+/* cl_build_status */
+crate::__codes_enum!(BuildStatus, cl_build_status, {
+    Success => 0,
+    NoneType => -1,
+    Error => -2,
+    InProgress => -3
+});
+
+
 // NOTE: Version for cl_program_binary_type?
-// crate::__codes_enum!(ProgramBinaryType, cl_program_binary_type, {
-//     NONE => 0x0,
-//     COMPILED_OBJECT => 0x1,
-//     LIBRARY => 0x2,
-//     EXECUTABLE => 0x4
-// });
+crate::__codes_enum!(ProgramBinaryType, cl_program_binary_type, {
+    NoneType => 0x0,
+    CompiledObject => 0x1,
+    Library => 0x2,
+    Executable => 0x4
+});

@@ -45,11 +45,14 @@ macro_rules! __enum_two_way_from {
                         return $source_type::$source_value
                     }
                 )*
-                let source_str = stringify!($source_type);
-                let dest_str = stringify!($right_type);
 
                 // Note: replace this with a TryFrom some day....
-                panic!("From failed for {:?} to {:?} for value {:?}", dest_str, source_str, dest_value);
+                panic!(
+                    "From failed for {:?} to {:?} for value {:?}",
+                    stringify!($right_type),
+                    stringify!($source_type),
+                    dest_value
+                );
             }
         }
     };
@@ -83,7 +86,7 @@ macro_rules! __test_enum_converter {
             $(
                 #[allow(non_snake_case)]
                 #[test]
-                fn [<type_ $enum_type $enum_value _converts_to_and_from_ $other_type>]() {
+                fn [<type_ $enum_type __ $enum_value _converts_to_and_from_ $other_type>]() {
                     assert_eq!($enum_type::from($other_value), $enum_type::$enum_value);
                     assert_eq!($other_type::from($enum_type::$enum_value), $other_value);
                 }
@@ -132,6 +135,12 @@ macro_rules! __impl_cl_object_for_wrapper {
             unsafe fn raw_cl_object(&self) -> $cl_object_type {
                 self.inner
             }
+             unsafe fn new(cl_object: $cl_object_type) -> $wrapper {
+                $wrapper {
+                    inner: cl_object,
+                    _unconstructable: (),
+                }
+            }
         }
     };
 }
@@ -149,12 +158,7 @@ macro_rules! __impl_unconstructable_cl_wrapper {
         }
 
         impl $wrapper {
-            pub(crate) unsafe fn new(cl_object: $cl_object_type) -> $wrapper {
-                $wrapper {
-                    inner: cl_object,
-                    _unconstructable: (),
-                }
-            }
+            
         }
     };
 }

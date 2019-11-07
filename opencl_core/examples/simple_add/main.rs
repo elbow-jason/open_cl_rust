@@ -29,7 +29,7 @@ fn run() -> Result<(), Error> {
     let device = devices.remove(1);
     let context = Context::create(&device)?;
     let command_queue: CommandQueue = CommandQueue::create(&context, &device, None)?;
-    let name = device.name_info()?;
+    let name = device.name()?;
 
     println!("creating program...");
     let program: Program = Program::create_with_source(&context, src)?;

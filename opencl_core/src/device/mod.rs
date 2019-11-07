@@ -1,13 +1,19 @@
+
+use std::default::Default;
+
 pub mod device_info;
 pub mod low_level;
 pub mod flags;
 
+pub use flags::DeviceType;
+
 use low_level::{cl_retain_device_id, cl_release_device_id};
-use flags::DeviceType;
 
 use crate::ffi::cl_device_id;
 use crate::error::{Error, Output};
 use crate::platform::Platform;
+use crate::utils::cl_value::ClDecoder;
+
 
 
 /// NOTE: UNUSABLE_DEVICE_ID might be osx specific? or OpenCL
@@ -24,6 +30,9 @@ const UNUSABLE_DEVICE_ID: cl_device_id = 0xFFFF_FFFF as *mut usize as cl_device_
 pub enum DeviceError {
     #[fail(display = "Device is not in a usable state")]
     UnusableDevice,
+
+    #[fail(display = "The given platform had no default Device")]
+    NoDefaultDevice,
 }
 
 impl From<DeviceError> for Error {
@@ -34,9 +43,7 @@ impl From<DeviceError> for Error {
 
 __impl_unconstructable_cl_wrapper!(Device, cl_device_id);
 __impl_cl_object_for_wrapper!(Device, cl_device_id);
-#[cfg(feature = "opencl_version_1_2_0")]
 __impl_clone_for_cl_object_wrapper!(Device, cl_retain_device_id);
-#[cfg(feature = "opencl_version_1_2_0")]
 __impl_drop_for_cl_object_wrapper!(Device, cl_release_device_id);
 
 
@@ -54,20 +61,120 @@ impl Device {
         }
     }
 
+  
+    pub fn count_by_type(platform: &Platform, device_type: DeviceType) -> Output<u32> {
+        low_level::cl_get_device_count(platform, device_type).map(|ret| unsafe{ ret.cl_decode() })
+    }
+
+    pub fn all_by_type(platform: &Platform, device_type: DeviceType) -> Output<Vec<Device>> {
+        low_level::cl_get_device_ids(platform, device_type).map(|ret| unsafe { ret.cl_decode() })
+    }
+
+    pub fn default_devices(platform: &Platform) -> Output<Vec<Device>> {
+        let ret = low_level::cl_get_device_ids(platform, DeviceType::DEFAULT)?;
+        let devices: Vec<Device> = unsafe { ret.cl_decode() };
+        match devices.len() {
+            0 => Err(DeviceError::NoDefaultDevice.into()),
+            _ => Ok(devices),
+        }
+    }
+
     pub fn all(platform: &Platform) -> Output<Vec<Device>> {
         Device::all_by_type(platform, DeviceType::ALL)
     }
 
-    pub fn count_by_type(platform: &Platform, device_type: DeviceType) -> Output<u32> {
-        low_level::cl_get_device_count(platform, device_type.bits())
+    pub fn cpu_devices(platform: &Platform) -> Output<Vec<Device>> {
+        Device::all_by_type(platform, DeviceType::CPU)
     }
 
-    pub fn all_by_type(platform: &Platform, device_type: DeviceType) -> Output<Vec<Device>> {
-        low_level::cl_get_device_ids(platform, device_type.bits())
+    pub fn gpu_devices(platform: &Platform) -> Output<Vec<Device>> {
+        Device::all_by_type(platform, DeviceType::GPU)
+    }
+
+    pub fn accelerator_devices(platform: &Platform) -> Output<Vec<Device>> {
+        Device::all_by_type(platform, DeviceType::ACCELERATOR)
+    }
+
+    pub fn custom_devices(platform: &Platform) -> Output<Vec<Device>> {
+        Device::all_by_type(platform, DeviceType::CUSTOM)
     }
 }
 
+impl Default for Device {
+    fn default() -> Device {
+        let mut platforms = Platform::all().expect("Failed to list platforms for Device::default()");
+        let platform = platforms.remove(0);
+        platform.default_device().expect("Failed to find default device")
+    }
+}
 
+#[cfg(test)]
+mod tests {
+    use crate::ffi::{
+        cl_device_id
+    };
 
-// #[cfg(feature = "opencl_version_1_2_0")]
-// clCreateSubDevices clRetainDevice
+    use super::{Device, DeviceError, DeviceType};
+    use crate::error::Error;
+    use crate::platform::Platform;
+    use crate::utils::cl_object::ClObject;
+
+    #[test]
+    fn unusable_device_id_is_unusable() {
+        let unusable_device_id = 0xFFFF_FFFF as cl_device_id;
+        let device = unsafe{ Device::new(unusable_device_id) };
+        assert_eq!(device.is_usable(), false);
+    }
+
+    #[test]
+    fn unusable_device_check_errors_for_unusable_device_id() {
+        let unusable_device_id = 0xFFFF_FFFF as cl_device_id;
+        let device = unsafe{ Device::new(unusable_device_id) };
+        assert_eq!(device.usability_check(), Err(Error::DeviceError(DeviceError::UnusableDevice)));
+    }
+
+    #[test]
+    fn device_all_lists_all_devices() {
+        let platform = Platform::default();
+        let devices = Device::all(&platform).expect("Failed to list all devices");
+        assert!(devices.len() > 0);
+    }
+
+    #[test]
+    fn device_has_a_default_that_is_usable() {
+        let device = Device::default();
+        assert!(device.is_usable() == true);
+        let _name = device.name().expect("Failed to get name of device");
+    }
+
+    #[test]
+    fn devices_of_many_types_can_be_listed_for_a_platform() {
+        let platform = Platform::default();
+        let _ = Device::default_devices(&platform).expect("Failed to list devices with Device::default_devices/1");
+        let _ = Device::cpu_devices(&platform).expect("Failed to list devices with Device::cpu_devices/1");
+        let _ = Device::gpu_devices(&platform);
+        let _ = Device::accelerator_devices(&platform);
+        let _ = Device::custom_devices(&platform);
+    }
+
+    #[test]
+    fn devices_of_many_types_can_be_listed_for_a_platform_via_flags() {
+        let platform = Platform::default();
+            
+        let _ = Device::all_by_type(&platform, DeviceType::ALL)
+            .expect("Call to Device::all_by_type for DeviceType::ALL failed");
+
+        let _ = Device::all_by_type(&platform, DeviceType::CPU)
+            .expect("Call to Device::all_by_type for DeviceType::CPU failed");
+
+        let _ = Device::all_by_type(&platform, DeviceType::GPU);
+            // .expect("Call to Device::all_by_type for DeviceType::GPU failed");
+
+        let _ = Device::all_by_type(&platform, DeviceType::ACCELERATOR);
+            // .expect("Call to Device::all_by_type for DeviceType::ACCELERATOR failed");
+
+        let _ = Device::all_by_type(&platform, DeviceType::CUSTOM);
+            // .expect("Call to Device::all_by_type for DeviceType::CUSTOM failed");
+
+    }
+}

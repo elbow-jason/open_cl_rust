@@ -19,14 +19,6 @@ pub struct DeviceMem<T> where T: Debug {
     _phantom: PhantomData<T>,
 }
 
-impl<T: Debug> DeviceMem<T> {
-    pub(crate) unsafe fn new(handle: cl_mem) -> DeviceMem<T> {
-        DeviceMem {
-            handle,
-            _phantom: PhantomData
-        }
-    }
-}
  
 impl<T: Debug> Drop for DeviceMem<T> {
     fn drop(&mut self) {
@@ -49,6 +41,13 @@ impl<T: Debug> Clone for DeviceMem<T> {
 impl<T: Debug> ClObject<cl_mem> for DeviceMem<T> {
     unsafe fn raw_cl_object(&self) -> cl_mem {
         self.handle
+    }
+    
+    unsafe fn new(handle: cl_mem) -> DeviceMem<T> {
+        DeviceMem {
+            handle,
+            _phantom: PhantomData
+        }
     }
 }
 

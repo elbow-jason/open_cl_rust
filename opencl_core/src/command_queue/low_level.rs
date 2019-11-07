@@ -5,6 +5,8 @@ use crate::utils::{
     volume,
 };
 
+use crate::utils::cl_value::ClReturn;
+
 use crate::ffi::{
     cl_bool,
     cl_uint,
@@ -32,7 +34,7 @@ use crate::{
 
 use crate::utils::StatusCode;
 use super::{CommandQueue, CommandQueueOptions};
-use super::flags::{CommandQueueInfo, CommandQueueInfoFlag};
+use super::flags::CommandQueueInfo;
 
 __release_retain!(command_queue, CommandQueue);
 
@@ -176,8 +178,8 @@ where
 
 pub fn cl_get_command_queue_info(
     command_queue: &CommandQueue,
-    flag: CommandQueueInfoFlag,
-) -> Output<CommandQueueInfo> {
+    flag: CommandQueueInfo,
+) -> Output<ClReturn> {
     let output = std::ptr::null_mut();
     let mut output_size = 0usize;
     let err_code = unsafe { 
@@ -190,10 +192,5 @@ pub fn cl_get_command_queue_info(
         )
     };
     let () = StatusCode::into_output(err_code, ())?;
-    let info_out = unsafe {
-        CommandQueueInfo::from_raw_parts(flag, output)
-    };
-    Ok(info_out)
-    
-
+    Ok(unsafe { ClReturn::new(output_size, output) })
 }

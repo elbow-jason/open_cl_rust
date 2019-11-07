@@ -9,7 +9,7 @@ use num::Num;
 
 use flags::{
     CommandQueueInfo,
-    CommandQueueInfoFlag,
+    CommandQueueProperties
 };
 
 use crate::ffi::{
@@ -26,6 +26,8 @@ use crate::{
     Output,
     Work,
 };
+
+use crate::utils::cl_value::{ClDecoder, ClReturn};
 
 use low_level::{cl_release_command_queue, cl_retain_command_queue};
 use helpers::CommandQueueOptions;
@@ -157,8 +159,37 @@ impl CommandQueue {
             command_queue_opts.wait_list,
         )
     }
-    pub fn info(&self, flag: CommandQueueInfoFlag) -> Output<CommandQueueInfo> {
+    fn info(&self, flag: CommandQueueInfo) -> Output<ClReturn> {
         low_level::cl_get_command_queue_info(self, flag)
     }
+
+    pub fn context(&self) -> Output<Context> {
+        let cl_ret = self.info(CommandQueueInfo::Context)?;
+        Ok(unsafe { cl_ret.cl_decode() })
+    }
+
+    pub fn device(&self) -> Output<Device> {
+        let cl_ret = self.info(CommandQueueInfo::Device)?;
+        Ok(unsafe { cl_ret.cl_decode() })
+        
+    }
+
+    pub fn reference_count(&self) -> Output<usize> {
+        let cl_ret = self.info(CommandQueueInfo::ReferenceCount)?;
+        Ok(unsafe { cl_ret.cl_decode() })
+    }
+
+    pub fn properties(&self) -> Output<CommandQueueProperties> {
+        let cl_ret = self.info(CommandQueueInfo::Properties)?;
+        Ok(unsafe { cl_ret.cl_decode() })
+    }
+    
 }
 
+#[cfg(test)]
+mod tests {
+    // #[test]
+    // fn command_queue_can_be_created_test() {
+    //     unimplemented!()
+    // }
+}

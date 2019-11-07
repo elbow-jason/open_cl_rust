@@ -2,6 +2,7 @@ pub trait ClObject<T> {
     // For internal access only
     // NOTE: Does not increase the cl_object's reference count.
     unsafe fn raw_cl_object(&self) -> T;
+    unsafe fn new(t: T) -> Self;
 }
 
 pub trait CopyClObject<T>: ClObject<T> {
