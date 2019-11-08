@@ -4,16 +4,16 @@
 // use libc::c_void;
 
 use crate::ffi::{
+    cl_device_id,
     cl_device_info,
     cl_device_partition_property,
     clGetDeviceInfo,
 };
-
-use crate::Output;
+use crate::error::{Error, Output};
 use crate::utils::{StatusCode};
 use crate::utils;
 use crate::cl::{ClOutput, ClReturn, ClDecoder, ClObject};
-use crate::device::{Device, DeviceType};
+use crate::device::{Device, DeviceType, DeviceError};
 use crate::device::flags::{
     DeviceFpConfig,
     DeviceExecCapabilities,
@@ -252,9 +252,26 @@ impl Device {
             // inspect_var!(ref_count);
             // ref_count // as i32
         })
-    } 
-// __impl_device_info!(partition_type, PartitionType, Vec<DevicePartitionProperty>);
+    }
 
+    pub fn parent_device(&self) -> Output<Device> {
+        match self.get_info(DeviceInfo::ParentDevice) {
+            Ok(ret) => {
+                let cl_device_id_ptr = ret.ptr as *mut cl_device_id;
+                let pointed_at = unsafe { *cl_device_id_ptr };
+                if pointed_at.is_null() {
+                    Err(Error::DeviceError(DeviceError::NoParentDevice))
+                } else {
+                    println!("What {:?}", ret);
+                    let device: Device = unsafe { ret.cl_decode() };
+                    println!("Why");
+                    unsafe { device.retain_cl_object(); }
+                    Ok(device)
+                }
+            }
+            Err(e) => Err(e)
+        }
+    }
 }
 
 
@@ -351,7 +368,7 @@ __impl_device_info!(local_mem_type, LocalMemType, DeviceLocalMemType);
 __impl_device_info!(max_work_item_sizes, MaxWorkItemSizes, Vec<usize>);
 
 // Device
-__impl_device_info!(parent_device, ParentDevice, Device);
+
 
 // cl_device_partition_property[]
 
@@ -400,8 +417,10 @@ mod tests {
         DeviceExecCapabilities,
         DevicePartitionProperty,
         DeviceAffinityDomain,
+        DeviceError,
     };
     
+    use crate::error::Error;
     use crate::device::flags::DeviceFpConfig;
     use crate::platform::Platform;
 
@@ -956,9 +975,18 @@ mod tests {
     #[test]
     fn device_method_parent_device_works() {
         let device = Device::default();
-        let _parent: Device = device.parent_device()
-            .expect("Device method test for parent_device failed");
-            
+        match device.parent_device() {
+            Ok(parent_device) => {
+                assert!(device != parent_device);
+                let name = device.name().expect("Failed to get device name");
+                let p_name = parent_device.name().expect("Failed to get parent_device name");
+                assert!(name != p_name);
+            },
+            Err(e) => {
+                let expected = Error::DeviceError(DeviceError::NoParentDevice);
+                assert_eq!(e, expected);
+            }
+        }   
     }
 
     #[test]

@@ -109,6 +109,16 @@ macro_rules! __impl_clone_for_cl_object_wrapper {
                 }
             }
         }
+
+        impl $wrapper {
+
+            // Increments the reference count of the underlying cl object.
+            // Incorrect usage of this function can cause a memory leak.
+            pub unsafe fn retain_cl_object(&self) {
+                // println!("retain_cl_object called for {:?}", self);
+                $retain_func(&self.inner);
+            }
+        }    
     };
 }
 
@@ -118,11 +128,21 @@ macro_rules! __impl_drop_for_cl_object_wrapper {
     ($wrapper:ident, $release_func:ident) => {
         impl Drop for $wrapper {
             fn drop(&mut self) {
+                // println!("Dropping {:?}", self);
                 unsafe {
                     $release_func(&self.raw_cl_object());
                 }
             }
         }
+
+        impl $wrapper {
+
+            // Decrements the reference count of the underlying cl object.
+            // Incorrect usage of this function can cause a SEGFAULT.
+            pub unsafe fn release_cl_object(&self) {
+                $release_func(&self.inner);
+            }
+        }    
     };
 }
 
@@ -135,7 +155,9 @@ macro_rules! __impl_cl_object_for_wrapper {
             unsafe fn raw_cl_object(&self) -> $cl_object_type {
                 self.inner
             }
-             unsafe fn new(cl_object: $cl_object_type) -> $wrapper {
+
+            unsafe fn new(cl_object: $cl_object_type) -> $wrapper {
+                assert!(cl_object.is_null() == false);
                 $wrapper {
                     inner: cl_object,
                     _unconstructable: (),

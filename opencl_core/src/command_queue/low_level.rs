@@ -33,6 +33,10 @@ use crate::{
 };
 
 use crate::utils::StatusCode;
+use crate::utils;
+use crate::error::Error;
+use crate::cl::ClValueError;
+
 use super::{CommandQueue, CommandQueueOptions};
 use super::flags::CommandQueueInfo;
 
@@ -180,17 +184,38 @@ pub fn cl_get_command_queue_info(
     command_queue: &CommandQueue,
     flag: CommandQueueInfo,
 ) -> Output<ClReturn> {
-    let output = std::ptr::null_mut();
-    let mut output_size = 0usize;
+    
+    let mut output_size = std::mem::size_of::<usize>();
     let err_code = unsafe { 
         clGetCommandQueueInfo(
             command_queue.raw_cl_object(),
             flag as cl_command_queue_info,
-            flag.size_t(),
-            output,
-            &mut output_size,
+            0 as libc::size_t,
+            std::ptr::null_mut(),
+            &mut output_size as *mut libc::size_t,
         )
     };
+
     let () = StatusCode::into_output(err_code, ())?;
-    Ok(unsafe { ClReturn::new(output_size, output) })
+
+    if output_size == 0 {
+        let name = format!("clGetCommandQueueInfo {:?}", flag).to_string();
+        return Err(Error::ClValueError(ClValueError::ClNullPointer(name)))
+    }
+
+    let mut output = utils::vec_filled_with(0u8, output_size);
+
+    let err_code2 = unsafe { 
+        clGetCommandQueueInfo(
+            command_queue.raw_cl_object(),
+            flag as cl_command_queue_info,
+            output_size,
+            output.as_mut_ptr() as *mut _ as *mut libc::c_void,
+            std::ptr::null_mut(),
+        )
+    };
+
+    let () = StatusCode::into_output(err_code2, ())?;
+
+    Ok(unsafe{ ClReturn::from_vec(output) })
 }

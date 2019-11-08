@@ -85,6 +85,9 @@ pub enum ClValueError {
 
     #[fail(display = "Decoder failed to decode type {}", _0)]
     ClDecoderFailed(String),
+
+    #[fail(display = "OpenCL would have returned a null pointer from {}", _0)]
+    ClNullPointer(String)
 }
 
 impl From<ClValueError> for Error {
@@ -108,8 +111,8 @@ pub trait ClEncoder<T> {
 #[repr(C)]
 #[derive(Debug)]
 pub struct ClReturn {
-    size: size_t,
-    ptr: *const c_void,
+    pub size: size_t,
+    pub ptr: *mut c_void,
 }
 
 
@@ -129,7 +132,7 @@ impl ClReturn {
     pub unsafe fn from_vec<T: Debug>(mut vector: Vec<T>) -> ClReturn {
         &mut vector.shrink_to_fit(); // ensure capacity == size
         let size = vector.len();
-        let ptr = vector.as_ptr() as *const c_void;
+        let ptr = vector.as_ptr() as *mut c_void;
         std::mem::forget(vector);
 
         ClReturn {
@@ -222,17 +225,21 @@ macro_rules! __impl_cl_decoder_for_handle_wrapper {
         impl ClDecoder<$wrapper> for ClReturn {
 
             unsafe fn cl_decode(self) -> $wrapper {
-                $wrapper::new(self.ptr as $cl_type)
+                println!("WTFDUDE? {:?}", self);
+                debug_assert!(self.ptr.is_null() == false);
+                let casted_ptr = self.ptr as *mut $cl_type;
+                println!("CSTESED?? {:?}", casted_ptr);
+
+                let new_wrapper = $wrapper::new(*casted_ptr);
+                new_wrapper 
             }
         }
     }
 }
 
-
-
+__impl_cl_decoder_for_handle_wrapper!(cl_platform_id, Platform);
 __impl_cl_decoder_for_handle_wrapper!(cl_event, Event);
 __impl_cl_decoder_for_handle_wrapper!(cl_device_id, Device);
-__impl_cl_decoder_for_handle_wrapper!(cl_platform_id, Platform);
 __impl_cl_decoder_for_handle_wrapper!(cl_command_queue, CommandQueue);
 __impl_cl_decoder_for_handle_wrapper!(cl_context, Context);
 __impl_cl_decoder_for_handle_wrapper!(cl_program, Program);

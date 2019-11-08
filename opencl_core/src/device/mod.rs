@@ -33,6 +33,9 @@ pub enum DeviceError {
 
     #[fail(display = "The given platform had no default Device")]
     NoDefaultDevice,
+
+    #[fail(display = "The given device did not have a parent Device")]
+    NoParentDevice,
 }
 
 impl From<DeviceError> for Error {
@@ -110,10 +113,7 @@ impl Default for Device {
 
 #[cfg(test)]
 mod tests {
-    use crate::ffi::{
-        cl_device_id
-    };
-
+    use crate::ffi::cl_device_id;
     use super::{Device, DeviceError, DeviceType};
     use crate::error::Error;
     use crate::platform::Platform;
