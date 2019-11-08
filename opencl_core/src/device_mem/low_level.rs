@@ -1,6 +1,5 @@
 use std::fmt::Debug;
 
-
 use crate::ffi::{
     cl_int,
     cl_mem,
@@ -15,7 +14,8 @@ use super::flags::MemFlags;
 
 use crate::context::Context;
 use crate::error::Output;
-use crate::utils::{StatusCode, ClObject};
+use crate::utils::StatusCode;
+use crate::cl::ClObject;
 
 __release_retain!(mem, MemObject);
 

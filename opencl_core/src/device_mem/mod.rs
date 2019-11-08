@@ -5,8 +5,7 @@ use std::marker::PhantomData;
 use crate::ffi::cl_mem;
 use crate::context::Context;
 use crate::error::Output;
-use crate::utils::ClObject;
-
+use crate::cl::ClObject;
 
 pub mod low_level;
 pub mod flags;
@@ -42,7 +41,7 @@ impl<T: Debug> ClObject<cl_mem> for DeviceMem<T> {
     unsafe fn raw_cl_object(&self) -> cl_mem {
         self.handle
     }
-    
+
     unsafe fn new(handle: cl_mem) -> DeviceMem<T> {
         DeviceMem {
             handle,

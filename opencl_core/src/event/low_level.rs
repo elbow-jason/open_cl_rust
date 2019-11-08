@@ -8,7 +8,8 @@ use crate::ffi::{
 };
 
 use crate::error::Output;
-use crate::utils::{ClObject, StatusCode};
+use crate::utils::StatusCode;
+use crate::cl::ClObject;
 
 use super::Event;
 use super::event_info::{EventInfo, EventInfoFlag};

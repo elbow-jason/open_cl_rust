@@ -5,7 +5,8 @@ use crate::ffi::{
 };
 use crate::event::{Event};
 use crate::event::low_level::cl_release_event;
-use crate::utils::{StatusCode, CopyClObject};
+use crate::utils::StatusCode;
+use crate::cl::CopyClObject;
 use crate::error::Output;
 
 pub fn cl_wait_for_events(wait_list: WaitList) -> Output<()> {

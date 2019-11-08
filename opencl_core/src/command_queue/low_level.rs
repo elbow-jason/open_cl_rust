@@ -1,11 +1,11 @@
 use std::fmt::Debug;
 
-use crate::utils::{
-    ClObject,
-    volume,
-};
+use crate::utils::volume;
 
-use crate::utils::cl_value::ClReturn;
+use crate::cl::{
+    ClObject,
+    ClReturn,
+};
 
 use crate::ffi::{
     cl_bool,

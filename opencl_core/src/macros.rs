@@ -130,7 +130,7 @@ macro_rules! __impl_drop_for_cl_object_wrapper {
 #[macro_export]
 macro_rules! __impl_cl_object_for_wrapper {
     ($wrapper:ident, $cl_object_type:ty) => {
-        use crate::utils::ClObject;
+        use crate::cl::ClObject;
         impl ClObject<$cl_object_type> for $wrapper {
             unsafe fn raw_cl_object(&self) -> $cl_object_type {
                 self.inner

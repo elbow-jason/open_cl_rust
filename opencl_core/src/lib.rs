@@ -40,6 +40,7 @@ pub mod platform;
 pub mod program;
 pub mod utils;
 pub mod error;
+pub mod cl;
 
 pub use command_queue::CommandQueue;
 pub use context::Context;
@@ -51,7 +52,6 @@ pub use kernel::Kernel;
 pub use platform::Platform;
 pub use program::Program;
 pub use utils::work::Work;
-pub use utils::cl_object::ClObject;
 pub use utils::status_code::StatusCode;
 pub use utils::Volumetric;
 pub use utils::Dims;

@@ -9,7 +9,8 @@ use crate::ffi::{
     clCreateProgramWithSource,
 };
 
-use crate::utils::{ClObject, StatusCode};
+use crate::cl::ClObject;
+use crate::utils::StatusCode;
 use crate::device::Device;
 use crate::error::Output; 
 use crate::context::Context;

@@ -8,7 +8,8 @@ use crate::ffi::{
 };
 
 use crate::error::Output;
-use crate::utils::{StatusCode, ClObject};
+use crate::utils::StatusCode;
+use crate::cl::ClObject;
 use crate::program::Program;
 use crate::utils::strings;
 

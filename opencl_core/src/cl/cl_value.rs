@@ -44,7 +44,7 @@ use crate::command_queue::CommandQueue;
 use crate::context::Context;
 use crate::device_mem::DeviceMem;
 use crate::event::Event;
-use crate::utils::cl_object::ClObject;
+
 
 // flags
 use crate::context::flags::{ContextProperties};
@@ -71,6 +71,7 @@ use crate::device_mem::flags::{
     BufferCreateType,
 };
 
+use super::cl_object::ClObject;
 
 
 /// An error related to an Event or WaitList.

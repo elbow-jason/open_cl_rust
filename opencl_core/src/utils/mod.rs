@@ -1,8 +1,3 @@
-
-pub mod cl_object;
-pub mod cl_value;
-
-
 pub mod flags;
 pub mod status_code;
 pub mod volume;
@@ -10,7 +5,6 @@ pub mod work;
 pub mod dims;
 
 pub use {
-    cl_value::ClReturn,
     volume::Volume,
     work::{
         Work,
@@ -18,10 +12,6 @@ pub use {
         VolumetricError
     },
     dims::Dims,
-    cl_object::{
-        ClObject,
-        CopyClObject
-    },
     status_code::{
         StatusCode,
         ClError,

@@ -11,14 +11,13 @@ use crate::ffi::{
 };
 
 
-use crate::utils::{ClObject, StatusCode};
+use crate::utils::StatusCode;
 use crate::error::Output;
 use crate::utils;
-use crate::utils::cl_value::{
+use crate::cl::{
     ClReturn,
     ClOutput,
-    
-    // VecClPlatform,
+    ClObject, 
 };
 
 use super::Platform;
@@ -90,7 +89,7 @@ pub fn cl_get_platform_info(
 
 #[cfg(test)]
 mod tests {
-    use crate::utils::cl_value::ClDecoder;
+    use crate::cl::ClDecoder;
     use super::*;
 
     #[test]

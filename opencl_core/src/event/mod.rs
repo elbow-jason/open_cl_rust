@@ -24,7 +24,7 @@ use event_info::{
 pub use wait_list::WaitList;
 
 use crate::command_queue::CommandQueue;
-use crate::utils::CopyClObject;
+use crate::cl::CopyClObject;
 use crate::context::Context;
 use crate::error::{Error, Output};
 

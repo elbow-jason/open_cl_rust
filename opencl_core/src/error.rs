@@ -4,7 +4,7 @@ use crate::device::DeviceError;
 use crate::program::ProgramError;
 use crate::platform::PlatformError;
 use crate::utils::ClError;
-use crate::utils::cl_value::ClValueError;
+use crate::cl::ClValueError;
 // use crate::utils::StatusCode;
 
 

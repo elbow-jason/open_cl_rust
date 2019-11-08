@@ -27,7 +27,7 @@ use crate::{
     Work,
 };
 
-use crate::utils::cl_value::{ClDecoder, ClReturn};
+use crate::cl::{ClDecoder, ClReturn};
 
 use low_level::{cl_release_command_queue, cl_retain_command_queue};
 use helpers::CommandQueueOptions;

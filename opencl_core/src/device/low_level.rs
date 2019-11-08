@@ -6,11 +6,15 @@ use crate::ffi::{
 
 use libc::c_void;
 
-use crate::utils::{ClObject, StatusCode};
+use crate::utils::StatusCode;
 use crate::platform::Platform;
 use crate::error::Output;
 use crate::utils;
-use crate::utils::cl_value::{ ClReturn, ClDecoder };
+use crate::cl::{
+    ClReturn,
+    ClDecoder,
+    ClObject,
+};
 use super::flags::DeviceType;
 
 #[cfg(feature = "opencl_version_1_2_0")]

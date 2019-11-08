@@ -10,9 +10,9 @@ use crate::ffi::{
 };
 
 use crate::Output;
-use crate::utils::{StatusCode, ClObject};
+use crate::utils::{StatusCode};
 use crate::utils;
-use crate::utils::cl_value::{ClOutput, ClReturn, ClDecoder};
+use crate::cl::{ClOutput, ClReturn, ClDecoder, ClObject};
 use crate::device::{Device, DeviceType};
 use crate::device::flags::{
     DeviceFpConfig,
@@ -185,8 +185,10 @@ unsafe fn cast_device_partition_properties(ret: ClReturn) -> Vec<DevicePartition
     let props: Vec<cl_device_partition_property> = ret.into_vec();
     let mut output = Vec::new();
     for p in props {
-        if p != 0 {
-            break;
+        // Zero here is an indication that the list of  device partition properties is
+        // at an end. So we immediately return.
+        if p == 0 {
+            return output;
         }
         output.push(DevicePartitionProperty::from(p))
     }

@@ -12,7 +12,7 @@ use low_level::{cl_retain_device_id, cl_release_device_id};
 use crate::ffi::cl_device_id;
 use crate::error::{Error, Output};
 use crate::platform::Platform;
-use crate::utils::cl_value::ClDecoder;
+use crate::cl::ClDecoder;
 
 
 
@@ -117,7 +117,7 @@ mod tests {
     use super::{Device, DeviceError, DeviceType};
     use crate::error::Error;
     use crate::platform::Platform;
-    use crate::utils::cl_object::ClObject;
+    use crate::cl::ClObject;
 
     #[test]
     fn unusable_device_id_is_unusable() {

@@ -9,7 +9,7 @@ use crate::ffi::{
 
 use crate::command_queue::CommandQueue;
 use crate::context::Context;
-use crate::utils::cl_object::ClObject;
+use crate::cl::ClObject;
 
 #[derive(Debug)]
 pub enum EventInfo {

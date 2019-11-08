@@ -1,7 +1,8 @@
 use crate::ffi::{cl_context, cl_device_id, clCreateContext};
 use crate::device::Device;
 use crate::error::Output;
-use crate::utils::{StatusCode, ClObject};
+use crate::utils::StatusCode;
+use crate::cl::ClObject;
 
 use super::Context;
 

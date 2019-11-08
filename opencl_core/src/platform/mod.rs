@@ -16,8 +16,7 @@ pub mod flags;
 use crate::ffi::cl_platform_id;
 use crate::device::{Device, DeviceType};
 use crate::error::{Output, Error};
-
-use crate::utils::cl_value::{ClDecoder};
+use crate::cl::ClDecoder;
 
 /// An error related to an Event or WaitList.
 #[derive(Debug, Fail, PartialEq, Eq, Clone)]
