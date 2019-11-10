@@ -24,8 +24,7 @@ use crate::command_queue::CommandQueue;
 use crate::cl::{
     ClObject,
     ClPointer,
-    CopyClObject,
-    ClRetain
+    // CopyClObject,
 };
 
 use crate::context::Context;
@@ -45,18 +44,18 @@ impl From<EventError> for Error {
 }
 
 __impl_unconstructable_cl_wrapper!(Event, cl_event);
-__impl_cl_object_for_wrapper!(Event, cl_event);
+__impl_cl_object_for_wrapper!(Event, cl_event, cl_retain_event, cl_release_event);
 __impl_clone_for_cl_object_wrapper!(Event, cl_retain_event);
 __impl_drop_for_cl_object_wrapper!(Event, cl_release_event);
 
 
-impl CopyClObject<cl_event> for Event {
-    // Super duper unsafe
-    unsafe fn copy_cl_object_ref(&self) -> cl_event {
-        cl_retain_event(&self.inner);
-        self.inner
-    }
-}
+// impl CopyClObject<cl_event> for Event {
+//     // Super duper unsafe
+//     unsafe fn copy_cl_object_ref(&self) -> cl_event {
+//         cl_retain_event(&self.inner)
+//         self.inner
+//     }
+// }
 
 use flags::ProfilingInfo;
 use EventInfo as Info;
@@ -100,15 +99,11 @@ impl Event {
         })
     }
     pub fn command_queue(&self) -> Output<CommandQueue> {
-        self.info::<cl_command_queue>(Info::CommandQueue).map(|ret| {
-            unsafe { ret.into_one_wrapper::<CommandQueue>().cl_retain() }
-        })
+        self.info::<cl_command_queue>(Info::CommandQueue).and_then(|ret| unsafe { ret.into_retained_wrapper::<CommandQueue>() })
     }
 
     pub fn context(&self) -> Output<Context> {
-        self.info::<cl_context>(Info::Context).map(|ret| {
-            unsafe { ret.into_one_wrapper::<Context>().cl_retain() }
-        })
+        self.info::<cl_context>(Info::Context).and_then(|ret| unsafe { ret.into_retained_wrapper::<Context>() })
     }
 
     pub fn command_execution_status(&self) -> Output<CommandExecutionStatus> {

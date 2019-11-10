@@ -3,24 +3,20 @@
 
 // use libc::c_void;
 
-use crate::ffi::{
-    cl_device_info,
-    cl_device_partition_property,
-    clGetDeviceInfo,
-};
-use crate::error::Output;
+use crate::ffi::*;
+use crate::error::{Output, Error};
 
 use crate::cl::{
     // ClOutput,
     // ClReturn,
     // ClDecoder,
+    ClObjectError,
     ClObject,
-    ClRetain,
     ClPointer,
     cl_get_info5
 };
 
-use crate::device::{Device, DeviceType};
+use crate::device::{Device, DeviceType, DeviceError};
 use crate::device::flags::{
     DeviceFpConfig,
     DeviceExecCapabilities,
@@ -194,27 +190,28 @@ pub fn cl_get_device_info<T: Copy>(device: &Device, flag: DeviceInfo) -> Output<
 
 
 
-macro_rules! __impl_info_for_one_wrapper {
-    ($impl_struct:ident, $func_name:ident, $flag:expr, $wrapper_struct:ident) => {
-        impl $impl_struct {
-            pub fn $func_name(&self) -> Output<$wrapper_struct> {
-                self.get_info($flag).map(|ret| unsafe { ret.into_one_wrapper() })
-            }
-        }
-    }
-}
+// macro_rules! __impl_info_for_one_wrapper {
+//     ($impl_struct:ident, $func_name:ident, $flag:expr, $wrapper_struct:ident) => {
+//         impl $impl_struct {
+//             pub fn $func_name(&self) -> Output<$wrapper_struct> {
+//                 self.get_info($flag).and_then(|ret| unsafe { ret.into_retained_wrapper() })
+//             }
+//         }
+//     }
+// }
 
-macro_rules! __impl_info_for_one_wrapper_retained {
-    ($impl_struct:ident, $func_name:ident, $flag:expr, $wrapper_struct:ident) => {
-        impl $impl_struct {
-            pub fn $func_name(&self) -> Output<$wrapper_struct> {
-                self.get_info($flag).map(|ret| unsafe { ret.into_one_wrapper().cl_retain() })
-            }
-        }
-    }
-}
 
-__impl_info_for_one_wrapper!(Device, platform, DeviceInfo::Platform, Platform);
+// macro_rules! __impl_info_for_one_wrapper_retained {
+//     ($impl_struct:ident, $func_name:ident, $flag:expr, $wrapper_struct:ident) => {
+//         impl $impl_struct {
+//             pub fn $func_name(&self) -> Output<$wrapper_struct> {
+//                 self.get_info($flag).map(|ret| unsafe { ret.into_one_wrapper().cl_retain() })
+//             }
+//         }
+//     }
+// }
+
+
 
 
 macro_rules! __impl_device_info_one {
@@ -222,6 +219,15 @@ macro_rules! __impl_device_info_one {
         impl Device {
             pub fn $name(&self) -> Output<String> {
                 self.get_info(DeviceInfo::$flag).map(|ret| unsafe { ret.into_string() })
+            }
+        }
+    };
+
+    ($name:ident, $flag:ident, bool) => {
+        impl Device {
+            pub fn $name(&self) -> Output<bool> {
+                use crate::ffi::cl_bool;
+                self.get_info::<cl_bool>(DeviceInfo::$flag).map(|ret| unsafe { ret.into_bool() })
             }
         }
     };
@@ -236,6 +242,13 @@ macro_rules! __impl_device_info_one {
         impl Device {
             pub fn $name(&self) -> Output<$output_t> {
                 self.get_info(DeviceInfo::$flag).map(|ret| unsafe { ret.into_one() })
+            }
+        }
+    };
+    ($name:ident, $flag:ident, $cl_type:ty, $output_t:ty) => {
+        impl Device {
+            pub fn $name(&self) -> Output<$output_t> {
+                self.get_info::<$cl_type>(DeviceInfo::$flag).map(|ret| unsafe { ret.into_one() })
             }
         }
     };
@@ -305,25 +318,29 @@ impl Device {
     }
     
     // Docs says cl_uint, but API returns u64?
-    pub fn reference_count(&self) -> Output<u32> {
-        self.get_info(DeviceInfo::SingleFpConfig).map(|ret| {
+    pub fn reference_count(&self) -> Output<u64> {
+        self.get_info::<cl_ulong>(DeviceInfo::SingleFpConfig).map(|ret| {
             unsafe { ret.into_one() }
         })
     }
 
-    pub fn parent_device(&self) -> Output<Option<Device>> {
-        self.get_info(DeviceInfo::ParentDevice).map(|ret| {    
-            if ret.is_null() {
-                None
-            } else {
-                let device = unsafe { 
-                    ret.into_one_wrapper::<Device>().cl_retain()
-                };
-                Some(device)
-            }
-        })
+    pub fn parent_device(&self) -> Output<Device> {
+        self.get_info(DeviceInfo::ParentDevice)
+            .and_then(|ret| unsafe { ret.into_retained_wrapper::<Device>() })
+            .map_err(|e| {
+                match e {
+                    Error::ClObjectError(ClObjectError::ClObjectCannotBeNull(..)) => {
+                        DeviceError::NoParentDevice.into()
+                    },
+                    _ => e,
+                }
+            })
+    }
+    pub fn platform(&self) -> Output<Platform> {
+        self.get_info(DeviceInfo::Platform).and_then(|ret| unsafe { ret.into_created_wrapper() })
     }
 }
+
 
 impl Device {
     fn get_info<T: Copy>(&self, info: DeviceInfo) -> Output<ClPointer<T>> {
@@ -331,8 +348,12 @@ impl Device {
     }
 }
 // cl_uint
+__impl_device_info_one!(global_mem_cacheline_size, GlobalMemCachelineSize, cl_uint, u32);
+__impl_device_info_one!(native_vector_width_double, NativeVectorWidthDouble, cl_uint, u32);
+__impl_device_info_one!(native_vector_width_half, NativeVectorWidthHalf, cl_uint, u32);
+
+
 __impl_device_info_one!(address_bits, AddressBits, u32);
-__impl_device_info_one!(global_mem_cacheline_size, GlobalMemCachelineSize, u32);
 __impl_device_info_one!(max_clock_frequency, MaxClockFrequency, u32);
 __impl_device_info_one!(max_compute_units, MaxComputeUnits, u32);
 __impl_device_info_one!(max_constant_args, MaxConstantArgs, u32);
@@ -347,9 +368,10 @@ __impl_device_info_one!(native_vector_width_short, NativeVectorWidthShort, u32);
 __impl_device_info_one!(native_vector_width_int, NativeVectorWidthInt, u32);
 __impl_device_info_one!(native_vector_width_long, NativeVectorWidthLong, u32);
 __impl_device_info_one!(native_vector_width_float, NativeVectorWidthFloat, u32);
-__impl_device_info_one!(native_vector_width_double, NativeVectorWidthDouble, u32);
-__impl_device_info_one!(native_vector_width_half, NativeVectorWidthHalf, u32);
-__impl_device_info_one!(partition_max_sub_devices, PartitionMaxSubDevices, u32);
+
+
+
+__impl_device_info_one!(partition_max_sub_devices, PartitionMaxSubDevices, cl_uint, u32);
 __impl_device_info_one!(preferred_vector_width_char, PreferredVectorWidthChar, u32);
 __impl_device_info_one!(preferred_vector_width_short, PreferredVectorWidthShort, u32);
 __impl_device_info_one!(preferred_vector_width_int, PreferredVectorWidthInt, u32);
@@ -388,7 +410,9 @@ __impl_device_info_one!(driver_version, DriverVersion, String);
 __impl_device_info_one!(execution_capabilities, ExecutionCapabilities, DeviceExecCapabilities);
 
 // ulong as u64
-__impl_device_info_one!(global_mem_cache_size, GlobalMemCacheSize, u64);
+__impl_device_info_one!(global_mem_cache_size, GlobalMemCacheSize, cl_ulong, u64);
+
+
 __impl_device_info_one!(global_mem_size, GlobalMemSize, u64);
 __impl_device_info_one!(local_mem_size, LocalMemSize, u64);
 __impl_device_info_one!(max_constant_buffer_size, MaxConstantBufferSize, u64);
@@ -467,6 +491,8 @@ mod tests {
     };
 
     use crate::device::flags::DeviceFpConfig;
+    use crate::device::DeviceError;
+    use crate::error::Error;
     use crate::platform::Platform;
 
     #[test]
@@ -571,10 +597,10 @@ mod tests {
     #[test]
     fn device_method_preferred_vector_width_double_works() {
         let device = Device::default();
-        let info: u32 = device.preferred_vector_width_double()
+        let _info: u32 = device.preferred_vector_width_double()
             .expect("Device method test for preferred_vector_width_double failed");
             
-        assert!(info != 0);
+        
     }
 
     #[test]
@@ -733,19 +759,17 @@ mod tests {
     #[test]
     fn device_method_global_mem_cacheline_size_works() {
         let device = Device::default();
-        let info: u32 = device.global_mem_cacheline_size()
+        let _info: u32 = device.global_mem_cacheline_size()
             .expect("Device method test for global_mem_cacheline_size failed");
-            
-        assert!(info != 0);
+        // NOTE: Needs meaningful test for correct behavior.
     }
 
     #[test]
     fn device_method_global_mem_cache_size_works() {
         let device = Device::default();
-        let info: u64 = device.global_mem_cache_size()
+        let _info: u64 = device.global_mem_cache_size()
             .expect("Device method test for global_mem_cache_size failed");
-            
-        assert!(info != 0);
+        // Note: It returns a u64. Not sure how to make this test meaningful though...
     }
 
     #[test]
@@ -902,10 +926,8 @@ mod tests {
     #[test]
     fn device_method_preferred_vector_width_half_works() {
         let device = Device::default();
-        let info: u32 = device.preferred_vector_width_half()
+        let _info: u32 = device.preferred_vector_width_half()
             .expect("Device method test for preferred_vector_width_half failed");
-            
-        assert!(info != 0);
     }
 
     #[test]
@@ -963,17 +985,23 @@ mod tests {
     #[test]
     fn device_method_native_vector_width_double_works() {
         let device = Device::default();
-        let info: u32 = device.native_vector_width_double()
+        let _info: u32 = device.native_vector_width_double()
             .expect("Device method test for native_vector_width_double failed");
-        assert!(info != 0);
+        // NOTE: Needs meaningful test. My MacBook's integrated GPU has this as 0,
+        // but that will not be the case on other devices.
+        // For details see the notes about CL_DEVICE_PREFERRED_VECTOR_WIDTH_DOUBLE 
+        // at https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clGetDeviceInfo.html
     }
 
     #[test]
     fn device_method_native_vector_width_half_works() {
         let device = Device::default();
-        let info: u32 = device.native_vector_width_half()
+        let _info: u32 = device.native_vector_width_half()
             .expect("Device method test for native_vector_width_half failed");
-        assert!(info != 0);
+        // NOTE: Needs meaningful test. My MacBook's integrated GPU has this as 0,
+        // but that will not be the case on other devices.
+        // For details see the notes about CL_DEVICE_PREFERRED_VECTOR_WIDTH_HALFq 
+        // at https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clGetDeviceInfo.html
     }
 
     #[test]
@@ -1020,23 +1048,23 @@ mod tests {
     #[test]
     fn device_method_parent_device_works() {
         let device = Device::default();
-        device.parent_device().map(|maybe_device| {
-            if let Some(parent_device) = maybe_device {
+        match device.parent_device() {
+            Ok(parent_device) => {
                 assert!(device != parent_device);
                 let name = device.name().expect("Failed to get device name");
                 let p_name = parent_device.name().expect("Failed to get parent_device name");
                 assert!(name != p_name);
-            };
-        }).expect("Called to device.parent_device() failed");
+            },
+            Err(Error::DeviceError(DeviceError::NoParentDevice)) => (),
+            Err(other) => panic!("Unexpected return error from device.parent_device() {:?}", other),
+        }
     }
 
     #[test]
     fn device_method_partition_max_sub_devices_works() {
         let device = Device::default();
-        let info: u32 = device.partition_max_sub_devices()
+        let _info: u32 = device.partition_max_sub_devices()
             .expect("Device method test for partition_max_sub_devices failed");
-            
-        assert!(info != 0);
     }
 
     #[test]
@@ -1066,18 +1094,15 @@ mod tests {
                 info == P::ByAffinityDomain
             );
         }
-
-
-
-
     }
 
     #[test]
     fn device_method_reference_count_works() {
         let device = Device::default();
-        let count: u32 = device.reference_count()
+        println!("getting reference count");
+        let count: u64 = device.reference_count()
             .expect("Device method test for reference_count failed");
-
+        println!("done reference_count");
         // NOTE: I have no idea why 191 is here...
         assert_eq!(count, 191);
     }

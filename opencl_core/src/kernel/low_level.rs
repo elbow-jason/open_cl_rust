@@ -45,5 +45,5 @@ pub fn cl_create_kernel(program: &Program, name: &str) -> Output<Kernel> {
     })?;
     let kernel = unsafe { clCreateKernel(program.raw_cl_object(), c_name.as_ptr(), &mut err_code) };
     let () = StatusCode::into_output(err_code, ())?;
-    Ok(unsafe { Kernel::new(kernel) })
+    unsafe { Kernel::new(kernel) }
 }

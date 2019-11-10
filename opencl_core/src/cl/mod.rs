@@ -8,7 +8,7 @@ pub use cl_object::{
     ClObject, 
     CopyClObject,
     MutClObject,
-    ClRetain
+    ClObjectError
 };
 
 pub use cl_pointer::ClPointer;
@@ -47,36 +47,37 @@ pub unsafe fn cl_get_object<Obj: Copy, Flag: Copy, Obj2: Copy>(
     flag: Flag,
     func: ObjFunc<Obj, Flag, Obj2>,
 ) -> Output<ClPointer<Obj2>> {
-    let output_size: u32 = cl_get_object_count(cl_object, flag, func)?;
+    let output_count: u32 = cl_get_object_count(cl_object, flag, func)?;
 
-    if output_size == 0 {
+    if output_count == 0 {
+        println!("IT WAS 0");
         return Ok(ClPointer::new_empty());
     }
-
+    let output_size = output_count * (std::mem::size_of::<Obj2>() as u32);
     let mut bytes = utils::vec_filled_with(0u8, output_size as usize);
-    
     let output = bytes.as_mut_ptr() as *mut _ as *mut Obj2;
 
     let err_code = func(
         cl_object,
         flag,
-        output_size,
+        output_count,
         output,
         std::ptr::null_mut(),
     );
-    let count = (output_size / std::mem::size_of::<Obj2>() as u32) as usize;
     
     let () = StatusCode::into_output(err_code, ())?;
+    inspect!(bytes);
     // everything worked, but we dont want the `bytes` vec to be dropped so we forget it.
     std::mem::forget(bytes);
-    Ok(ClPointer::new(count, output))
+    inspect!(output);
+    Ok(ClPointer::new(output_count as usize, output))
     
 }
 
 type InfoFunc5<Obj, Flag> = unsafe extern "C" fn(Obj, Flag, size_t, *mut c_void, *mut size_t) -> cl_int;
 
 
-pub unsafe fn cl_get_info_count5<Obj: Copy, Flag: Copy>(cl_object: Obj, flag: Flag, func: InfoFunc5<Obj, Flag>) -> Output<size_t> {
+pub unsafe fn cl_get_info_byte_count5<Obj: Copy, Flag: Copy>(cl_object: Obj, flag: Flag, func: InfoFunc5<Obj, Flag>) -> Output<size_t> {
     let mut output_size = 0 as size_t;
 
     let err_code = func(
@@ -92,33 +93,38 @@ pub unsafe fn cl_get_info_count5<Obj: Copy, Flag: Copy>(cl_object: Obj, flag: Fl
 
 
 pub unsafe fn cl_get_info5<Obj: Copy, Flag: Copy, Ret: Copy>(cl_object: Obj, flag: Flag, func: InfoFunc5<Obj, Flag>) -> Output<ClPointer<Ret>> {
-    let output_size: size_t = cl_get_info_count5(cl_object, flag, func)?;
+    let num_bytes: size_t = cl_get_info_byte_count5(cl_object, flag, func)?;
 
-    if output_size == 0 {
+
+    if num_bytes == 0 {
         return Ok(ClPointer::new_empty());
     }
 
-    let mut bytes = utils::vec_filled_with(0u8, output_size);
+    let mut bytes = utils::vec_filled_with(0u8, num_bytes as usize);
+    println!("cl_get_info5 bytes: {:?}, num_bytes: {:?}, size_of_ret: {:?}", bytes, num_bytes, std::mem::size_of::<Ret>());
     let output = bytes.as_mut_ptr() as *mut _ as *mut libc::c_void;
-    
-    
+
     let err_code = func(
         cl_object,
         flag,
-        output_size,
+        num_bytes,
         output,
         std::ptr::null_mut(),
     );
 
     let () = StatusCode::into_output(err_code, ())?;
-    let count = (output_size / std::mem::size_of::<Ret>()) as usize;
+    // Everything above worked so we don't want the `bytes` vec to be freed
+    // Therefore we forget it.
+    println!("cl_get_info5 bytes after: {:?}", bytes);
+    std::mem::forget(bytes);
 
-    Ok(ClPointer::new(count, output as *mut Ret))
+    let output_count = num_bytes / std::mem::size_of::<Ret>();
+    Ok(ClPointer::new(output_count, output as *mut Ret))
 }
 
 type InfoFunc6<Obj, Obj2, Flag> = unsafe extern "C" fn(Obj, Obj2, Flag, size_t, *mut c_void, *mut size_t) -> cl_int;
 
-pub unsafe fn cl_get_info_count6<Obj1: Copy, Obj2: Copy, Flag: Copy>(cl_obj1: Obj1, cl_obj2: Obj2, flag: Flag, func: InfoFunc6<Obj1, Obj2, Flag>) -> Output<size_t> {
+pub unsafe fn cl_get_info_byte_count6<Obj1: Copy, Obj2: Copy, Flag: Copy>(cl_obj1: Obj1, cl_obj2: Obj2, flag: Flag, func: InfoFunc6<Obj1, Obj2, Flag>) -> Output<size_t> {
     let mut output_size = 0 as size_t;
 
     let err_code = func(
@@ -135,28 +141,28 @@ pub unsafe fn cl_get_info_count6<Obj1: Copy, Obj2: Copy, Flag: Copy>(cl_obj1: Ob
 
 
 pub unsafe fn cl_get_info6<Obj1: Copy, Obj2: Copy, Flag: Copy, Ret: Copy>(cl_obj1: Obj1, cl_obj2: Obj2, flag: Flag, func: InfoFunc6<Obj1, Obj2, Flag>) -> Output<ClPointer<Ret>> {
-    let output_size: size_t = cl_get_info_count6(cl_obj1, cl_obj2, flag, func)?;
+    let byte_count: size_t = cl_get_info_byte_count6(cl_obj1, cl_obj2, flag, func)?;
 
-    if output_size == 0 {
+    if byte_count == 0 {
         return Ok(ClPointer::new_empty());
     }
 
-    let mut bytes = utils::vec_filled_with(0u8, output_size);
+    let mut bytes = utils::vec_filled_with(0u8, byte_count as usize);
     let output = bytes.as_mut_ptr() as *mut _ as *mut libc::c_void;
-    
+
     let err_code = func(
         cl_obj1,
         cl_obj2,
         flag,
-        output_size,
+        byte_count,
         output,
         std::ptr::null_mut(),
     );
 
     let () = StatusCode::into_output(err_code, ())?;
-    let count = (output_size / std::mem::size_of::<Ret>()) as usize;
     // Everything above worked so we don't want the `bytes` vec to be freed
     // Therefore we forget it.
     std::mem::forget(bytes);
-    Ok(ClPointer::new(count, output as *mut Ret))
+    let output_count = byte_count / std::mem::size_of::<Ret>();
+    Ok(ClPointer::new(output_count, output as *mut Ret))
 }

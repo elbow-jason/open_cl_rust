@@ -7,8 +7,7 @@ use crate::ffi::{
     cl_context,
 };
 use crate::context::Context;
-use crate::error::Output;
-use crate::cl::{ClObject, ClPointer, ClRetain};
+use crate::cl::{ClObject, ClPointer, ClObjectError};
 
 pub mod low_level;
 pub mod flags;
@@ -18,6 +17,23 @@ use low_level::{cl_retain_mem, cl_release_mem};
 use flags::{
     MemObjectType,
 };
+use crate::error::{Error, Output};
+
+
+/// An error related to an Event or WaitList.
+#[derive(Debug, Fail, PartialEq, Eq, Clone)]
+pub enum DeviceMemError {
+    #[fail(display = "Given DeviceMem<T> has no associated cl_mem object")]
+    NoAssociatedMemObject,
+
+}
+
+impl From<DeviceMemError> for Error {
+    fn from(err: DeviceMemError) -> Error {
+        Error::DeviceMemError(err)
+    }
+}
+
 
 #[repr(C)]
 #[derive(Eq, PartialEq, Hash)]
@@ -30,24 +46,20 @@ pub struct DeviceMem<T> where T: Debug {
 impl<T: Debug> Drop for DeviceMem<T> {
     fn drop(&mut self) {
         unsafe {
-            cl_release_mem(&self.raw_cl_object());
+            cl_release_mem(&self.raw_cl_object()).unwrap_or_else(|e| {
+                panic!("Failed to release cl_mem of {:?} due to {:?}", self, e);
+            })
         }
     }
 }
 
-impl<T: Debug> ClRetain for DeviceMem<T> {
-    unsafe fn cl_retain(self) -> DeviceMem<T> {
-        cl_retain_mem(&self.raw_cl_object());
-        self
-    }
-}
 
 impl<T: Debug> Clone for DeviceMem<T> {
     fn clone(&self) -> DeviceMem<T> {
         unsafe {
-            let new_device_mem = DeviceMem::new(self.raw_cl_object());
-            cl_retain_mem(&new_device_mem.handle);
-            new_device_mem
+            DeviceMem::new_retained(self.raw_cl_object()).unwrap_or_else(|e| {
+                panic!("Failed to clone {:?} due to {:?}", self, e);
+            })
         }
     }
 }
@@ -57,13 +69,32 @@ impl<T: Debug> ClObject<cl_mem> for DeviceMem<T> {
         self.handle
     }
 
-    unsafe fn new(handle: cl_mem) -> DeviceMem<T> {
-        DeviceMem {
+    unsafe fn new(handle: cl_mem) -> Output<DeviceMem<T>> {
+        if handle.is_null() {
+            let error = ClObjectError::ClObjectCannotBeNull("DeviceMem<T>".to_string());
+            return Err(error.into())
+        }
+        Ok(DeviceMem {
             handle,
             _phantom: PhantomData
+        })
+    }
+
+    unsafe fn new_retained(handle: cl_mem) -> Output<DeviceMem<T>> {
+        if handle.is_null() {
+            let error = ClObjectError::ClObjectCannotBeNull("DeviceMem<T>".to_string());
+            return Err(error.into())
         }
+
+        let () = cl_retain_mem(&handle)?;
+        Ok(DeviceMem {
+            handle,
+            _phantom: PhantomData
+        })
     }
 }
+
+
 
 impl<T> DeviceMem<T>
 where
@@ -198,23 +229,21 @@ impl<T: Debug> DeviceMem<T> {
         })
     }
 
-    pub fn associated_memobject(&self) -> Output<Option<DeviceMem<T>>> {
-        self.get_info::<cl_mem>(MemInfo::AssociatedMemobject).map(|ret| {
-            if ret.is_null() {
-                None
-            } else {
-                let dmem = unsafe { 
-                    ret.into_one_wrapper::<DeviceMem<T>>().cl_retain()
-                };
-                Some(dmem)
-            }
-        })
+    pub fn associated_memobject(&self) -> Output<DeviceMem<T>> {
+        self.get_info::<cl_mem>(MemInfo::AssociatedMemobject)
+            .and_then(|ret| unsafe { ret.into_retained_wrapper::<DeviceMem<T>>() })
+            .map_err(|e| {
+                match e {
+                    Error::ClObjectError(ClObjectError::ClObjectCannotBeNull(..)) => {
+                        DeviceMemError::NoAssociatedMemObject.into()
+                    }
+                    other => other
+                }
+            })
     }
 
     pub fn context(&self) -> Output<Context> {
-        self.get_info::<cl_context>(MemInfo::Context).map(|ret| {
-            unsafe { ret.into_one_wrapper::<Context>().cl_retain() }
-        })
+        self.get_info::<cl_context>(MemInfo::Context).and_then(|ret| unsafe { ret.into_retained_wrapper::<Context>() })
     }
 
     pub fn reference_count(&self) -> Output<u32> {
@@ -255,12 +284,13 @@ __impl_mem_info!(flags, Flags, MemFlags);
 
 #[cfg(test)]
 mod tests {
-    use super::DeviceMem;
-    use crate::{Context, Session};
+    use super::{DeviceMem, DeviceMemError};
+    use crate::{Context, Session, Output, Error};
     use super::flags::{
         MemFlags,
         MemObjectType,
     };
+
 
     fn get_device_mem() -> (Session, DeviceMem<usize>) {
         let session = Session::default();
@@ -282,17 +312,23 @@ mod tests {
         let out = device_mem.host_ptr().expect("Failed to call device_mem.host_ptr()");
         match out {
             Some(host_vec) => {
-                assert_eq!(host_vec.len(), 9);
+                assert_eq!(host_vec.len(), 0);
             },
             None => (),
         }
     }
+
     #[test]
     fn device_mem_method_associated_memobject_works() {
         let (_sess, device_mem) = get_device_mem();
-        let _out: Option<DeviceMem<usize>> = device_mem.associated_memobject()
-            .expect("Failed to call device_mem.associated_memobject()");
+        let result: Output<DeviceMem<usize>> = device_mem.associated_memobject();
+        match result {
+            Ok(_dmem) => (),
+            Err(Error::DeviceMemError(DeviceMemError::NoAssociatedMemObject)) => (),
+            Err(e) => panic!("Call device_mem.associated_memobject() encountered an unexpected Error: {:?}", e),
+        }
     }
+
     #[test]
     fn device_mem_method_reference_count_works() {
         let (_sess, device_mem) = get_device_mem();

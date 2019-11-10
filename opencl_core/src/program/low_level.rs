@@ -78,7 +78,7 @@ pub fn cl_create_program_with_source(context: &Context, src: &str) -> Output<Pro
     };
     
     let checked_program = StatusCode::into_output(err_code, program)?;
-    unsafe { Ok(Program::new(checked_program)) }
+    unsafe { Program::new(checked_program) }
 }
 
 pub fn cl_create_program_with_binary(
@@ -102,7 +102,7 @@ pub fn cl_create_program_with_binary(
     };
     let checked_program = StatusCode::into_output(err_code, program)?;
     debug_assert!(checked_program.is_null() == false);
-    unsafe { Ok(Program::new(checked_program)) }
+    unsafe { Program::new(checked_program) }
 }
 
 

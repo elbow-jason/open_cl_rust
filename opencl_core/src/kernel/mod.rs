@@ -41,6 +41,9 @@ pub enum KernelError {
 
     #[fail(display = "The kernel name '{}' could not be represented as a CString.",_0)]
     CStringInvalidKernelName(String),
+
+    #[fail(display = "Kernel cannot be retained. It is short lived and only creatable as already.")]
+    CannotBeRetained
 }
 
 impl From<KernelError> for Error {
@@ -49,11 +52,15 @@ impl From<KernelError> for Error {
     }
 }
 
+fn kernel_cannot_be_retained(_k: &cl_kernel) -> Output<()> {
+    Err(KernelError::CannotBeRetained.into())
+}
+
 // cl_kernel is not thread-safe.
 // cl_kernel should be a short lived, generate as needed structure;
 // to be loaded with args then immediately enqueued and disposed of.
 __impl_unconstructable_cl_wrapper!(Kernel, cl_kernel);
-__impl_cl_object_for_wrapper!(Kernel, cl_kernel);
+__impl_cl_object_for_wrapper!(Kernel, cl_kernel, kernel_cannot_be_retained, cl_release_kernel);
 // Should we even implement clone? No for now.
 // __impl_clone_for_cl_object_wrapper!(Kernel, cl_retain_kernel);
 __impl_drop_for_cl_object_wrapper!(Kernel, cl_release_kernel);

@@ -27,13 +27,13 @@ use crate::{
     Work,
 };
 
-use crate::cl::{ClRetain, ClObject, ClPointer};
+use crate::cl::{ClObject, ClPointer};
 
 use low_level::{cl_release_command_queue, cl_retain_command_queue};
 use helpers::CommandQueueOptions;
 
 __impl_unconstructable_cl_wrapper!(CommandQueue, cl_command_queue);
-__impl_cl_object_for_wrapper!(CommandQueue, cl_command_queue);
+__impl_cl_object_for_wrapper!(CommandQueue, cl_command_queue, cl_retain_command_queue, cl_release_command_queue);
 __impl_clone_for_cl_object_wrapper!(CommandQueue, cl_retain_command_queue);
 __impl_drop_for_cl_object_wrapper!(CommandQueue, cl_release_command_queue);
 
@@ -54,7 +54,7 @@ impl CommandQueue {
             &device,
             properties.bits() as cl_command_queue_properties,
         )?;
-        Ok(unsafe { CommandQueue::new(command_queue) })
+        unsafe { CommandQueue::new(command_queue) }
     }
 
     /// write_buffer is used to ,ove data from the host buffer (buffer: &[T]) to
@@ -166,18 +166,15 @@ impl CommandQueue {
     }
 
     pub fn context(&self) -> Output<Context> {
-        self.info(CQInfo::Context).map(|ret| {
-            // The OpenCL context gives an non-reference counted pointer.
-            // What an absolute joy.
-            // Manually increase the reference count.
-            unsafe { ret.into_one_wrapper::<Context>().cl_retain() }
-        })
+        // The OpenCL context gives an non-reference counted pointer.
+        // What an absolute joy.
+        // Manually increase the reference count.
+        self.info(CQInfo::Context).and_then(|ret| unsafe { ret.into_retained_wrapper::<Context>() })
+        
     }
 
     pub fn device(&self) -> Output<Device> {
-        self.info(CQInfo::Device).map(|ret| {
-            unsafe { ret.into_one_wrapper::<Device>().cl_retain() }
-        })
+        self.info(CQInfo::Device).and_then(|ret| unsafe { ret.into_retained_wrapper::<Device>() })
     }
 
     pub fn reference_count(&self) -> Output<u32> {

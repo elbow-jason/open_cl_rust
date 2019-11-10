@@ -21,7 +21,7 @@ pub fn cl_create_context(device: &Device) -> Output<Context> {
     };
     let checked_context = StatusCode::into_output(err_code, context)?;
     debug_assert!(checked_context.is_null() == false);
-    unsafe { Ok(Context::new(checked_context)) }
+    unsafe { Context::new(checked_context) }
 }
 
 __release_retain!(context, Context);

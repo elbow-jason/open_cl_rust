@@ -45,7 +45,7 @@ pub fn cl_get_device_ids(
 ) -> Output<ClPointer<cl_device_id>> {
     
     unsafe {
-        cl_get_object::<cl_platform_id, cl_device_type, cl_device_id>(
+        cl_get_object(
             platform.raw_cl_object(),
             device_type.bits(),
             clGetDeviceIDs

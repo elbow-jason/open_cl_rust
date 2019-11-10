@@ -9,7 +9,7 @@ use crate::context::Context;
 
 use low_level::{cl_retain_program, cl_release_program};
 
-use crate::cl::{ClRetain, ClPointer};
+use crate::cl::ClPointer;
 
 use flags::{ProgramInfo};
 
@@ -30,7 +30,7 @@ impl From<ProgramError> for Error {
 }
 
 __impl_unconstructable_cl_wrapper!(Program, cl_program);
-__impl_cl_object_for_wrapper!(Program, cl_program);
+__impl_cl_object_for_wrapper!(Program, cl_program, cl_retain_program, cl_release_program);
 __impl_clone_for_cl_object_wrapper!(Program, cl_retain_program);
 __impl_drop_for_cl_object_wrapper!(Program, cl_release_program);
 
@@ -68,9 +68,7 @@ impl Program {
 
 
     pub fn context(&self) -> Output<Context> {
-        self.get_info(ProgramInfo::Context).map(|ret| {
-            unsafe { ret.into_one_wrapper::<Context>().cl_retain() }
-        })
+        self.get_info(ProgramInfo::Context).and_then(|ret| unsafe { ret.into_retained_wrapper::<Context>() })
     }
 
     pub fn num_devices(&self) -> Output<u32> {
@@ -80,15 +78,11 @@ impl Program {
     }
 
     pub fn devices(&self) -> Output<Vec<Device>> {
-        self.get_info(ProgramInfo::Devices).map(|ret| {
-            unsafe { ret.into_many_wrapper().into_iter().map(|d: Device| d.cl_retain()).collect() }
-        })
+        self.get_info(ProgramInfo::Devices).and_then(|ret| unsafe { ret.into_many_retained_wrappers() })
     }
 
     pub fn source(&self) -> Output<String> {
-        self.get_info(ProgramInfo::Source).map(|ret| {
-            unsafe { ret.into_string() }
-        })
+        self.get_info(ProgramInfo::Source).map(|ret| unsafe { ret.into_string() })
     }
     pub fn binary_sizes(&self) -> Output<Vec<usize>> {
         self.get_info(ProgramInfo::BinarySizes).map(|ret| {

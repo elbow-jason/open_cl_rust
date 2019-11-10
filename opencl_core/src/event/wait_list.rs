@@ -6,8 +6,8 @@ use crate::ffi::{
 use crate::event::{Event};
 use crate::event::low_level::cl_release_event;
 use crate::utils::StatusCode;
-use crate::cl::CopyClObject;
-use crate::error::Output;
+use crate::cl::ClObject;
+use crate::error::{Error, Output};
 
 pub fn cl_wait_for_events(wait_list: WaitList) -> Output<()> {
     let err_code = unsafe {
@@ -34,15 +34,11 @@ impl WaitList {
         }
     }
 
-    // In this function the `event` is passed as an owned `Event`. The inner `cl_event` of the
-    // `event` has a reference count of `n`. We copy the `cl_event` via `copy_cl_object_ref`
-    // increasing its refcount to `n + 1`. We put the copied `cl_event` into the `events`
-    // field effectively becoming the "owner" of the `cl_event`. When the scope of `push`
-    // ends the `event` that is in scope and owned is `Drop`ped changing the refcount of
-    // our new `cl_event` back to `n`.
+    // Here we hand ownership of the `cl_event` of the 
     pub fn push(&mut self, event: Event) {
-        let copied_cl_object_ref = unsafe { event.copy_cl_object_ref() };
-        self.events.push(copied_cl_object_ref);
+        let cl_object: cl_event = unsafe { event.raw_cl_object() };
+        std::mem::forget(event);
+        self.events.push(cl_object);
     }
 
     pub fn cl_object(&self) -> &[cl_event] {
@@ -70,12 +66,22 @@ impl WaitList {
 }
 
 impl Drop for WaitList {
+
+    /// Don't panic early when dropping.
+    /// Release all the events, accumulate the errors *then* panic if anything when wrong.
     fn drop(&mut self) {
-        unsafe {
-            for e in self.events.iter_mut() {
-                cl_release_event(&e);
+        let mut errors: Vec<Error> = Vec::new();
+        for e in self.events.iter_mut() {
+            unsafe {
+                match cl_release_event(&e) {
+                    Ok(()) => (),
+                    Err(e) => errors.push(e),
+                }
             }
-        };
+        }
+        if !errors.is_empty() {
+            panic!("WaitList failed to drop at least one cl_event {:?}", errors);
+        }
     }
 }
 

@@ -8,7 +8,7 @@ use crate::error::Output;
 use low_level::{cl_create_context, cl_retain_context, cl_release_context};
 
 __impl_unconstructable_cl_wrapper!(Context, cl_context);
-__impl_cl_object_for_wrapper!(Context, cl_context);
+__impl_cl_object_for_wrapper!(Context, cl_context, cl_retain_context, cl_release_context);
 __impl_clone_for_cl_object_wrapper!(Context, cl_retain_context);
 __impl_drop_for_cl_object_wrapper!(Context, cl_release_context);
 

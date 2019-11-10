@@ -31,8 +31,11 @@ pub enum DeviceError {
     #[fail(display = "Device is not in a usable state")]
     UnusableDevice,
 
-    #[fail(display = "The given platform had no default Device")]
+    #[fail(display = "The given platform had no default device")]
     NoDefaultDevice,
+
+    #[fail(display = "The given device had no parent device")]
+    NoParentDevice,
 }
 
 impl From<DeviceError> for Error {
@@ -42,7 +45,7 @@ impl From<DeviceError> for Error {
 }
 
 __impl_unconstructable_cl_wrapper!(Device, cl_device_id);
-__impl_cl_object_for_wrapper!(Device, cl_device_id);
+__impl_cl_object_for_wrapper!(Device, cl_device_id, cl_retain_device_id, cl_release_device_id);
 __impl_clone_for_cl_object_wrapper!(Device, cl_retain_device_id);
 __impl_drop_for_cl_object_wrapper!(Device, cl_release_device_id);
 
@@ -67,14 +70,21 @@ impl Device {
     }
 
     pub fn all_by_type(platform: &Platform, device_type: DeviceType) -> Output<Vec<Device>> {
-        low_level::cl_get_device_ids(platform, device_type).map(|ret| {
-            unsafe { ret.into_many_wrapper() }
+        low_level::cl_get_device_ids(platform, device_type).and_then(|ret| {
+            inspect!(ret);
+            let out = unsafe { ret.into_many_retained_wrappers() };
+            inspect!(out);
+            out
         })
     }
 
     pub fn default_devices(platform: &Platform) -> Output<Vec<Device>> {
         let ret = low_level::cl_get_device_ids(platform, DeviceType::DEFAULT)?;
-        let devices: Vec<Device> = unsafe { ret.into_many_wrapper() };
+        let devices: Vec<Device> = unsafe {
+            ret.into_many_retained_wrappers().unwrap_or_else(|e| {
+                panic!("Failed to get default devices due to {:?}", e);
+            })
+        };
         match devices.len() {
             0 => Err(DeviceError::NoDefaultDevice.into()),
             _ => Ok(devices),
@@ -119,20 +129,22 @@ mod tests {
     #[test]
     fn unusable_device_id_is_unusable() {
         let unusable_device_id = 0xFFFF_FFFF as cl_device_id;
-        let device = unsafe{ Device::new(unusable_device_id) };
+        let device = unsafe{ Device::new(unusable_device_id).expect("Failed to create new device!") };
         assert_eq!(device.is_usable(), false);
     }
 
     #[test]
     fn unusable_device_check_errors_for_unusable_device_id() {
         let unusable_device_id = 0xFFFF_FFFF as cl_device_id;
-        let device = unsafe{ Device::new(unusable_device_id) };
+        let device = unsafe{ Device::new(unusable_device_id).expect("Failed to create new device!") };
         assert_eq!(device.usability_check(), Err(Error::DeviceError(DeviceError::UnusableDevice)));
     }
 
     #[test]
     fn device_all_lists_all_devices() {
         let platform = Platform::default();
+        let name = platform.name().expect("Failed to get platform.name()");
+        println!("Platform name: {:?}", name);
         let devices = Device::all(&platform).expect("Failed to list all devices");
         assert!(devices.len() > 0);
     }

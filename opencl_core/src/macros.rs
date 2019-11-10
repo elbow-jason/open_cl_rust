@@ -95,6 +95,62 @@ macro_rules! __test_enum_converter {
     };
 }
 
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __impl_cl_object_for_wrapper {
+    ($wrapper:ident, $cl_object_type:ty, $retain_func:ident, $release_func:ident) => {
+
+        impl $wrapper {
+            #[inline]
+            pub unsafe fn retain_raw_cl_object(handle: &$cl_object_type) -> Output<()> {
+                $retain_func(handle)
+            }
+
+            #[inline]
+            pub unsafe fn release_raw_cl_object(handle: &$cl_object_type) -> Output<()> {
+                $release_func(handle)
+            }
+        }
+
+        impl $crate::cl::ClObject<$cl_object_type> for $wrapper {
+            unsafe fn raw_cl_object(&self) -> $cl_object_type {
+                self.inner
+            }
+
+            unsafe fn new(cl_object: $cl_object_type) -> Output<$wrapper> {
+                
+                if cl_object.is_null() {
+                    use crate::error::Error;
+                    use crate::cl::ClObjectError;
+                    let wrapper_name = stringify!($wrapper).to_string();
+                    let e = Error::ClObjectError(ClObjectError::ClObjectCannotBeNull(wrapper_name));
+                    return Err(e);
+                }
+                Ok($wrapper {
+                    inner: cl_object,
+                    _unconstructable: (),
+                })
+            }
+
+            unsafe fn new_retained(cl_object: $cl_object_type) -> Output<$wrapper> {
+                if cl_object.is_null() {
+                    use crate::error::Error;
+                    use crate::cl::ClObjectError;
+                    let wrapper_name = stringify!($wrapper).to_string();
+                    let e = Error::ClObjectError(ClObjectError::ClObjectCannotBeNull(wrapper_name));
+                    return Err(e);
+                }
+                let () = $retain_func(&cl_object)?;
+                Ok($wrapper {
+                    inner: cl_object,
+                    _unconstructable: (),
+                })
+
+            }
+        }
+    };
+}
+
 
 #[doc(hidden)]
 #[macro_export]
@@ -104,23 +160,23 @@ macro_rules! __impl_clone_for_cl_object_wrapper {
             fn clone(&self) -> $wrapper {
                 use $crate::cl::ClObject;
                 unsafe {
-                    let new_wrapper = $wrapper::new(self.raw_cl_object());
-                    $retain_func(&new_wrapper.inner);
-                    new_wrapper 
+                    $wrapper::new_retained(self.raw_cl_object()).unwrap_or_else(|e| {
+                        panic!("Failed to clone {:?} due to {:?}", stringify!($wrapper), e)
+                    })
                 }
             }
         }
 
-        impl $crate::cl::ClRetain for $wrapper {
+        // impl $crate::cl::ClRetain for $wrapper {
 
-            // Increments the reference count of the underlying cl object.
-            // Incorrect usage of this function can cause a memory leak.
-            unsafe fn cl_retain(self) -> $wrapper {
-                // println!("retain_cl_object called for {:?}", self);
-                $retain_func(&self.inner);
-                self
-            }
-        }    
+        //     // Increments the reference count of the underlying cl object.
+        //     // Incorrect usage of this function can cause a memory leak.
+        //     unsafe fn cl_retain(self) -> $wrapper {
+        //         // println!("retain_cl_object called for {:?}", self);
+        //         $retain_func(&self.inner);
+        //         self
+        //     }
+        // }    
     };
 }
 
@@ -133,7 +189,9 @@ macro_rules! __impl_drop_for_cl_object_wrapper {
                 use $crate::cl::ClObject;
                 // println!("Dropping {:?}", self);
                 unsafe {
-                    $release_func(&self.raw_cl_object());
+                    $release_func(&self.raw_cl_object()).unwrap_or_else(|e|{
+                        panic!("Failed to drop {:?} due to {:?}", self, e);
+                    })
                 }
             }
         }
@@ -142,32 +200,14 @@ macro_rules! __impl_drop_for_cl_object_wrapper {
 
             // Decrements the reference count of the underlying cl object.
             // Incorrect usage of this function can cause a SEGFAULT.
-            pub unsafe fn release_cl_object(self) {
-                $release_func(&self.inner);
+            pub unsafe fn release_cl_object(self) -> Output<()> {
+                $release_func(&self.inner)
             }
         }    
     };
 }
 
-#[doc(hidden)]
-#[macro_export]
-macro_rules! __impl_cl_object_for_wrapper {
-    ($wrapper:ident, $cl_object_type:ty) => {
-        impl $crate::cl::ClObject<$cl_object_type> for $wrapper {
-            unsafe fn raw_cl_object(&self) -> $cl_object_type {
-                self.inner
-            }
 
-            unsafe fn new(cl_object: $cl_object_type) -> $wrapper {
-                assert!(cl_object.is_null() == false);
-                $wrapper {
-                    inner: cl_object,
-                    _unconstructable: (),
-                }
-            }
-        }
-    };
-}
 
 
 #[doc(hidden)]
@@ -198,28 +238,14 @@ macro_rules! __release_retain {
                 [<clRetain $pascal>],
             };
 
-            pub unsafe fn [<cl_release_ $snake>](cl_obj: &[<cl_ $snake>]) {
-                let status = [<clRelease $pascal>](*cl_obj);
-                if let Err(e) = StatusCode::into_output(status, ()) {
-                    panic!(
-                        "Failed to release {} OpenCL object {:?} due to {:?}",
-                        stringify!($snake),
-                        cl_obj,
-                        e
-                    );
-                }
+            pub unsafe fn [<cl_release_ $snake>](cl_obj: &[<cl_ $snake>]) -> Output<()> {
+                let err_code = [<clRelease $pascal>](*cl_obj);
+                StatusCode::into_output(err_code, ())
             }
 
-            pub unsafe fn [<cl_retain_ $snake>](cl_obj: &[<cl_ $snake>]) {
-                let status = [<clRetain $pascal>](*cl_obj);
-                if let Err(e) = StatusCode::into_output(status, ()) {
-                    panic!(
-                        "Failed to retain {} OpenCL object {:?} due to {:?}",
-                        stringify!($snake),
-                        cl_obj,
-                        e
-                    );
-                }
+            pub unsafe fn [<cl_retain_ $snake>](cl_obj: &[<cl_ $snake>]) -> Output<()> {
+                let err_code = [<clRetain $pascal>](*cl_obj);
+                StatusCode::into_output(err_code, ())
             }
         }
     };
@@ -236,3 +262,11 @@ macro_rules! inspect {
     }
 }
 
+#[macro_export]
+macro_rules! panic_once {
+    ($fmt:expr, $($arg:tt)+) => {
+        if !std::thread::panicking() {
+            panic!($fmt, $($arg)+);
+        }
+    }
+}

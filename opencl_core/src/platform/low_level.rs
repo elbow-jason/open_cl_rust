@@ -32,18 +32,17 @@ pub fn cl_get_platforms() -> Output<ClPointer<cl_platform_id>> {
     let mut num_platforms: cl_uint = 0;
     let e1 = unsafe { clGetPlatformIDs(0, std::ptr::null_mut(), &mut num_platforms) };
     let mut ids: Vec<cl_platform_id> = utils::vec_filled_with(0 as cl_platform_id, num_platforms as usize);
-    let output = ids.as_mut_ptr();
     let () = StatusCode::into_output(e1, ())?;
     let e2 = unsafe {
         clGetPlatformIDs(
             num_platforms,
-            output,
+            ids.as_mut_ptr(),
             &mut num_platforms
         )
     };
     let () = StatusCode::into_output(e2, ())?;
     std::mem::drop(platform_lock);
-    Ok(unsafe { ClPointer::new(num_platforms as usize, output) })
+    Ok(unsafe { ClPointer::from_vec(ids) })
 }
 
 pub fn cl_get_platform_info<T: Copy>(

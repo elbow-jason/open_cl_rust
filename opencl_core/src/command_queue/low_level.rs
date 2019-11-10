@@ -99,7 +99,7 @@ pub fn cl_enqueue_nd_range_kernel(
     let () = StatusCode::into_output(err_code, ())?;
     let () = cl_finish(queue)?;
     debug_assert!(tracking_event.is_null() == false);
-    Ok(unsafe { Event::new(tracking_event) })
+    unsafe { Event::new(tracking_event) }
 }
 
 fn buffer_mem_size_and_ptr<T>(buf: &[T]) -> (usize, *const libc::c_void) {
@@ -116,8 +116,7 @@ fn new_tracking_event() -> cl_event {
 #[inline]
 fn into_event(err_code: cl_int, tracking_event: cl_event) -> Output<Event> {
     let () = StatusCode::into_output(err_code, ())?;
-    debug_assert!(tracking_event.is_null() == false);
-    Ok(unsafe { Event::new(tracking_event) })
+    unsafe { Event::new(tracking_event) }
 }
 
 pub fn cl_enqueue_read_buffer<T>(

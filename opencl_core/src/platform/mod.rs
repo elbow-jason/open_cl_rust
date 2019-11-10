@@ -30,6 +30,13 @@ pub enum PlatformError {
 
     #[fail(display = "The given platform had no default Device")]
     NoDefaultDevice,
+
+    #[fail(display = "All cl_platform_id objects are part of host memory and cannot be retained by OpenCL.")]
+    CannotBeRetained,
+
+    #[fail(display = "All cl_platform_id objects are part of host memory and cannot be released by OpenCL.")]
+    CannotBeReleased,
+    
 }
 
 impl From<PlatformError> for Error {
@@ -38,21 +45,29 @@ impl From<PlatformError> for Error {
     }
 }
 
+fn platform_cannot_be_retained(_platform_id: &cl_platform_id) -> Output<()> {
+    Err(PlatformError::CannotBeRetained.into())
+}
+
+fn platform_cannot_be_released(_platform_id: &cl_platform_id) -> Output<()> {
+    Err(PlatformError::CannotBeReleased.into())
+}
+
 
 // NOTE: cl_platform_id is host mem?
 // https://stackoverflow.com/questions/17711407/opencl-releasing-platform-object
 // so no retain or release for platform 
 __impl_unconstructable_cl_wrapper!(Platform, cl_platform_id);
-__impl_cl_object_for_wrapper!(Platform, cl_platform_id);
+__impl_cl_object_for_wrapper!(Platform, cl_platform_id, platform_cannot_be_retained, platform_cannot_be_released);
 
 use flags::PlatformInfo;
 
 impl Platform {
 
     pub fn all() -> Output<Vec<Platform>> {
-        low_level::cl_get_platforms().map(|ret| {
+        cl_get_platforms().and_then(|ret| {
             inspect!(ret);
-            unsafe { ret.into_many_wrapper() }
+            unsafe { ret.into_many_wrappers() }
         })
     }
 
@@ -161,6 +176,11 @@ mod tests {
         Platform::default()
     }
 
+   #[test]
+    fn platform_func_default_works() {
+        let _platform: Platform = Platform::default();
+    }
+
     #[test]
     fn platform_func_all_works() {
         let platforms: Vec<Platform> = Platform::all().expect("Platform::all failed");
@@ -168,13 +188,7 @@ mod tests {
     }
 
     #[test]
-    fn all_platforms_can_be_listed() {
-        let platforms = Platform::all().expect("failed to list all the platforms");
-        assert!(platforms.len() > 0);
-    }
-
-    #[test]
-    fn platform_can_list_devices() {
+    fn platform_can_list_all_devices() {
         let platform = get_platform();
         let devices = platform.all_devices().expect("failed to list all platform devices");
         assert!(devices.len() > 0);
