@@ -12,7 +12,7 @@ use low_level::{cl_retain_device_id, cl_release_device_id};
 use crate::ffi::cl_device_id;
 use crate::error::{Error, Output};
 use crate::platform::Platform;
-use crate::cl::ClDecoder;
+// use crate::cl::{ClObject, ClDecoder};
 
 
 
@@ -33,9 +33,6 @@ pub enum DeviceError {
 
     #[fail(display = "The given platform had no default Device")]
     NoDefaultDevice,
-
-    #[fail(display = "The given device did not have a parent Device")]
-    NoParentDevice,
 }
 
 impl From<DeviceError> for Error {
@@ -66,16 +63,18 @@ impl Device {
 
   
     pub fn count_by_type(platform: &Platform, device_type: DeviceType) -> Output<u32> {
-        low_level::cl_get_device_count(platform, device_type).map(|ret| unsafe{ ret.cl_decode() })
+        low_level::cl_get_device_count(platform, device_type)
     }
 
     pub fn all_by_type(platform: &Platform, device_type: DeviceType) -> Output<Vec<Device>> {
-        low_level::cl_get_device_ids(platform, device_type).map(|ret| unsafe { ret.cl_decode() })
+        low_level::cl_get_device_ids(platform, device_type).map(|ret| {
+            unsafe { ret.into_many_wrapper() }
+        })
     }
 
     pub fn default_devices(platform: &Platform) -> Output<Vec<Device>> {
         let ret = low_level::cl_get_device_ids(platform, DeviceType::DEFAULT)?;
-        let devices: Vec<Device> = unsafe { ret.cl_decode() };
+        let devices: Vec<Device> = unsafe { ret.into_many_wrapper() };
         match devices.len() {
             0 => Err(DeviceError::NoDefaultDevice.into()),
             _ => Ok(devices),
@@ -105,9 +104,7 @@ impl Device {
 
 impl Default for Device {
     fn default() -> Device {
-        let mut platforms = Platform::all().expect("Failed to list platforms for Device::default()");
-        let platform = platforms.remove(0);
-        platform.default_device().expect("Failed to find default device")
+        Platform::default().default_device().expect("Failed to find default device")
     }
 }
 

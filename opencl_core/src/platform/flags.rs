@@ -1,7 +1,7 @@
 
 use crate::ffi::cl_platform_info;
 
-
+ 
 // All return chars so no need for custom ClReturn mapping
 crate::__codes_enum!(PlatformInfo, cl_platform_info, {
     Profile => 0x0900,

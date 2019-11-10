@@ -36,8 +36,10 @@ crate::__codes_enum!(MemInfo, cl_mem_info, {
     ReferenceCount => 0x1105,
     Context => 0x1106,
     AssociatedMemobject => 0x1107,
-    Offset => 0x1108,
-    UsesSvmPointer => 0x1109
+    Offset => 0x1108
+
+    // v2.0
+    // UsesSvmPointer => 0x1109
 });
 
 crate::__codes_enum!(BufferCreateType, cl_buffer_create_type, {

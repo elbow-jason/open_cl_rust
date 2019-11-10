@@ -4,16 +4,23 @@
 // use libc::c_void;
 
 use crate::ffi::{
-    cl_device_id,
     cl_device_info,
     cl_device_partition_property,
     clGetDeviceInfo,
 };
-use crate::error::{Error, Output};
-use crate::utils::{StatusCode};
-use crate::utils;
-use crate::cl::{ClOutput, ClReturn, ClDecoder, ClObject};
-use crate::device::{Device, DeviceType, DeviceError};
+use crate::error::Output;
+
+use crate::cl::{
+    // ClOutput,
+    // ClReturn,
+    // ClDecoder,
+    ClObject,
+    ClRetain,
+    ClPointer,
+    cl_get_info5
+};
+
+use crate::device::{Device, DeviceType};
 use crate::device::flags::{
     DeviceFpConfig,
     DeviceExecCapabilities,
@@ -135,54 +142,108 @@ crate::__codes_enum!(DeviceInfo, cl_device_info, {
     DriverVersion => 0x102D
 });
 
-pub fn cl_get_device_info(device: &Device, device_info: DeviceInfo) -> ClOutput {
+pub fn cl_get_device_info<T: Copy>(device: &Device, flag: DeviceInfo) -> Output<ClPointer<T>> {
     device.usability_check()?;
-    let mut size = 0 as libc::size_t;
-    let err_code = unsafe {
-        clGetDeviceInfo(
+    unsafe {
+        cl_get_info5(
             device.raw_cl_object(),
-            device_info as cl_device_info,
-            0,
-            std::ptr::null_mut(),
-            &mut size,
+            flag as cl_device_info,
+            clGetDeviceInfo
         )
-    };
-    size = StatusCode::into_output(err_code, size)?;
-    // println!("Before");
-    // inspect_var!(size);
-    // size = std::cmp::max(size, 8);
-    // println!("After");
-    // inspect_var!(size);
-    let mut buf: Vec<u8> = utils::vec_filled_with(0u8, size as usize);
-    device.usability_check()?;
-    let err_code = unsafe {
-        clGetDeviceInfo(
-            device.raw_cl_object(),
-            device_info as cl_device_info,
-            size,
-            buf.as_mut_ptr() as *mut libc::c_void,
-            std::ptr::null_mut(),
-        )
-    };
-    // inspect_var!(buf);
-    
-    let () = StatusCode::into_output(err_code, ())?;
-    let ret = unsafe { ClReturn::from_vec(buf) };
-    Ok(ret)
+    }
 }
 
-macro_rules! __impl_device_info {
-    ($name:ident, $flag:ident, $output_t:ty) => {
-        impl Device {
-            pub fn $name(&self) -> Output<$output_t> {
-                self.get_info(DeviceInfo::$flag).map(|ret| unsafe { ret.cl_decode() })
+    // let mut size = 0 as libc::size_t;
+    // let err_code = unsafe {
+    //     clGetDeviceInfo(
+    //         device.raw_cl_object(),
+    //         device_info as cl_device_info,
+    //         0,
+    //         std::ptr::null_mut(),
+    //         &mut size,
+    //     )
+    // };
+    // size = StatusCode::into_output(err_code, size)?;
+    // // println!("Before");
+    // // inspect_var!(size);
+    // // size = std::cmp::max(size, 8);
+    // // println!("After");
+    // // inspect_var!(size);
+    // let mut buf: Vec<u8> = utils::vec_filled_with(0u8, size as usize);
+    // device.usability_check()?;
+    // let err_code = unsafe {
+    //     clGetDeviceInfo(
+    //         device.raw_cl_object(),
+    //         device_info as cl_device_info,
+    //         size,
+    //         buf.as_mut_ptr() as *mut libc::c_void,
+    //         std::ptr::null_mut(),
+    //     )
+    // };
+    // // inspect_var!(buf);
+    
+    // let () = StatusCode::into_output(err_code, ())?;
+    // let ret = unsafe { ClReturn::from_vec(buf) };
+    // Ok(ret)
+// }
+
+
+// Platform
+
+
+
+
+
+macro_rules! __impl_info_for_one_wrapper {
+    ($impl_struct:ident, $func_name:ident, $flag:expr, $wrapper_struct:ident) => {
+        impl $impl_struct {
+            pub fn $func_name(&self) -> Output<$wrapper_struct> {
+                self.get_info($flag).map(|ret| unsafe { ret.into_one_wrapper() })
             }
         }
     }
 }
 
-unsafe fn cast_device_partition_properties(ret: ClReturn) -> Vec<DevicePartitionProperty> {
-    let props: Vec<cl_device_partition_property> = ret.into_vec();
+macro_rules! __impl_info_for_one_wrapper_retained {
+    ($impl_struct:ident, $func_name:ident, $flag:expr, $wrapper_struct:ident) => {
+        impl $impl_struct {
+            pub fn $func_name(&self) -> Output<$wrapper_struct> {
+                self.get_info($flag).map(|ret| unsafe { ret.into_one_wrapper().cl_retain() })
+            }
+        }
+    }
+}
+
+__impl_info_for_one_wrapper!(Device, platform, DeviceInfo::Platform, Platform);
+
+
+macro_rules! __impl_device_info_one {
+    ($name:ident, $flag:ident, String) => {
+        impl Device {
+            pub fn $name(&self) -> Output<String> {
+                self.get_info(DeviceInfo::$flag).map(|ret| unsafe { ret.into_string() })
+            }
+        }
+    };
+    ($name:ident, $flag:ident, Vec<$output_t:ty>) => {
+        impl Device {
+            pub fn $name(&self) -> Output<Vec<$output_t>> {
+                self.get_info(DeviceInfo::$flag).map(|ret| unsafe { ret.into_many() })
+            }
+        }
+    };
+    ($name:ident, $flag:ident, $output_t:ty) => {
+        impl Device {
+            pub fn $name(&self) -> Output<$output_t> {
+                self.get_info(DeviceInfo::$flag).map(|ret| unsafe { ret.into_one() })
+            }
+        }
+    };
+}
+
+
+unsafe fn cast_device_partition_properties(ret: ClPointer<cl_device_partition_property>) -> Vec<DevicePartitionProperty> {
+    let props: Vec<cl_device_partition_property> = ret.into_many();
     let mut output = Vec::new();
     for p in props {
         // Zero here is an indication that the list of  device partition properties is
@@ -199,15 +260,15 @@ impl Device {
     pub fn built_in_kernels(&self) -> Output<Vec<String>> {
         self.get_info(DeviceInfo::BuiltInKernels)
             .map(|ret| {
-                let kernels: String = unsafe { ret.cl_decode() };
-                kernels.split(";").map(|s| s.to_string()).collect()
+                let kernel_names: String = unsafe { ret.into_string() };
+                kernel_names.split(";").map(|s| s.to_string()).collect()
             })
     }
 
     pub fn extensions(&self) -> Output<Vec<String>> {
         self.get_info(DeviceInfo::Extensions)
             .map(|ret| {
-                let kernels: String = unsafe { ret.cl_decode() };
+                let kernels: String = unsafe { ret.into_string() };
                 kernels.split(" ").map(|s| s.to_string()).collect()
             })
     }
@@ -226,19 +287,19 @@ impl Device {
 
     pub fn double_fp_config(&self) -> Output<DeviceFpConfig> {
         self.get_info(DeviceInfo::DoubleFpConfig).map(|ret| {
-            let cfg: DeviceFpConfig = unsafe { ret.cl_decode() };
+            let cfg: DeviceFpConfig = unsafe { ret.into_one() };
             cfg
         })
     }
     pub fn half_fp_config(&self) -> Output<DeviceFpConfig> {
         self.get_info(DeviceInfo::HalfFpConfig).map(|ret| {
-            let cfg: DeviceFpConfig = unsafe { ret.cl_decode() };
+            let cfg: DeviceFpConfig = unsafe { ret.into_one() };
             cfg
         })
     }
     pub fn single_fp_config(&self) -> Output<DeviceFpConfig> {
         self.get_info(DeviceInfo::SingleFpConfig).map(|ret| {
-            let cfg: DeviceFpConfig = unsafe { ret.cl_decode() };
+            let cfg: DeviceFpConfig = unsafe { ret.into_one() };
             cfg
         })
     }
@@ -246,126 +307,114 @@ impl Device {
     // Docs says cl_uint, but API returns u64?
     pub fn reference_count(&self) -> Output<u32> {
         self.get_info(DeviceInfo::SingleFpConfig).map(|ret| {
-            // let value = *ret.ptr;
-            // inspect_var!(ref_count_ret);
-            unsafe { ret.into_ref_count() }
-            // inspect_var!(ref_count);
-            // ref_count // as i32
+            unsafe { ret.into_one() }
         })
     }
 
-    pub fn parent_device(&self) -> Output<Device> {
-        match self.get_info(DeviceInfo::ParentDevice) {
-            Ok(ret) => {
-                let cl_device_id_ptr = ret.ptr as *mut cl_device_id;
-                let pointed_at = unsafe { *cl_device_id_ptr };
-                if pointed_at.is_null() {
-                    Err(Error::DeviceError(DeviceError::NoParentDevice))
-                } else {
-                    println!("What {:?}", ret);
-                    let device: Device = unsafe { ret.cl_decode() };
-                    println!("Why");
-                    unsafe { device.retain_cl_object(); }
-                    Ok(device)
-                }
+    pub fn parent_device(&self) -> Output<Option<Device>> {
+        self.get_info(DeviceInfo::ParentDevice).map(|ret| {    
+            if ret.is_null() {
+                None
+            } else {
+                let device = unsafe { 
+                    ret.into_one_wrapper::<Device>().cl_retain()
+                };
+                Some(device)
             }
-            Err(e) => Err(e)
-        }
+        })
     }
 }
 
-
-
 impl Device {
-    fn get_info(&self, info: DeviceInfo) -> ClOutput {
-        cl_get_device_info(self, info)
+    fn get_info<T: Copy>(&self, info: DeviceInfo) -> Output<ClPointer<T>> {
+        cl_get_device_info::<T>(self, info)
     }
 }
 // cl_uint
-__impl_device_info!(address_bits, AddressBits, u32);
-__impl_device_info!(global_mem_cacheline_size, GlobalMemCachelineSize, u32);
-__impl_device_info!(max_clock_frequency, MaxClockFrequency, u32);
-__impl_device_info!(max_compute_units, MaxComputeUnits, u32);
-__impl_device_info!(max_constant_args, MaxConstantArgs, u32);
-__impl_device_info!(max_read_image_args, MaxReadImageArgs, u32);
-__impl_device_info!(max_samplers, MaxSamplers, u32);
-__impl_device_info!(max_work_item_dimensions, MaxWorkItemDimensions, u32);
-__impl_device_info!(max_write_image_args, MaxWriteImageArgs, u32);
-__impl_device_info!(mem_base_addr_align, MemBaseAddrAlign, u32);
-__impl_device_info!(min_data_type_align_size, MinDataTypeAlignSize, u32);
-__impl_device_info!(native_vector_width_char, NativeVectorWidthChar, u32);
-__impl_device_info!(native_vector_width_short, NativeVectorWidthShort, u32);
-__impl_device_info!(native_vector_width_int, NativeVectorWidthInt, u32);
-__impl_device_info!(native_vector_width_long, NativeVectorWidthLong, u32);
-__impl_device_info!(native_vector_width_float, NativeVectorWidthFloat, u32);
-__impl_device_info!(native_vector_width_double, NativeVectorWidthDouble, u32);
-__impl_device_info!(native_vector_width_half, NativeVectorWidthHalf, u32);
-__impl_device_info!(partition_max_sub_devices, PartitionMaxSubDevices, u32);
-__impl_device_info!(preferred_vector_width_char, PreferredVectorWidthChar, u32);
-__impl_device_info!(preferred_vector_width_short, PreferredVectorWidthShort, u32);
-__impl_device_info!(preferred_vector_width_int, PreferredVectorWidthInt, u32);
-__impl_device_info!(preferred_vector_width_long, PreferredVectorWidthLong, u32);
-__impl_device_info!(preferred_vector_width_float, PreferredVectorWidthFloat, u32);
-__impl_device_info!(preferred_vector_width_double, PreferredVectorWidthDouble, u32);
-__impl_device_info!(preferred_vector_width_half, PreferredVectorWidthHalf, u32);
+__impl_device_info_one!(address_bits, AddressBits, u32);
+__impl_device_info_one!(global_mem_cacheline_size, GlobalMemCachelineSize, u32);
+__impl_device_info_one!(max_clock_frequency, MaxClockFrequency, u32);
+__impl_device_info_one!(max_compute_units, MaxComputeUnits, u32);
+__impl_device_info_one!(max_constant_args, MaxConstantArgs, u32);
+__impl_device_info_one!(max_read_image_args, MaxReadImageArgs, u32);
+__impl_device_info_one!(max_samplers, MaxSamplers, u32);
+__impl_device_info_one!(max_work_item_dimensions, MaxWorkItemDimensions, u32);
+__impl_device_info_one!(max_write_image_args, MaxWriteImageArgs, u32);
+__impl_device_info_one!(mem_base_addr_align, MemBaseAddrAlign, u32);
+__impl_device_info_one!(min_data_type_align_size, MinDataTypeAlignSize, u32);
+__impl_device_info_one!(native_vector_width_char, NativeVectorWidthChar, u32);
+__impl_device_info_one!(native_vector_width_short, NativeVectorWidthShort, u32);
+__impl_device_info_one!(native_vector_width_int, NativeVectorWidthInt, u32);
+__impl_device_info_one!(native_vector_width_long, NativeVectorWidthLong, u32);
+__impl_device_info_one!(native_vector_width_float, NativeVectorWidthFloat, u32);
+__impl_device_info_one!(native_vector_width_double, NativeVectorWidthDouble, u32);
+__impl_device_info_one!(native_vector_width_half, NativeVectorWidthHalf, u32);
+__impl_device_info_one!(partition_max_sub_devices, PartitionMaxSubDevices, u32);
+__impl_device_info_one!(preferred_vector_width_char, PreferredVectorWidthChar, u32);
+__impl_device_info_one!(preferred_vector_width_short, PreferredVectorWidthShort, u32);
+__impl_device_info_one!(preferred_vector_width_int, PreferredVectorWidthInt, u32);
+__impl_device_info_one!(preferred_vector_width_long, PreferredVectorWidthLong, u32);
+__impl_device_info_one!(preferred_vector_width_float, PreferredVectorWidthFloat, u32);
+__impl_device_info_one!(preferred_vector_width_double, PreferredVectorWidthDouble, u32);
+__impl_device_info_one!(preferred_vector_width_half, PreferredVectorWidthHalf, u32);
 
 
 
 
-__impl_device_info!(vendor_id, VendorId, u32);
+__impl_device_info_one!(vendor_id, VendorId, u32);
 
 // cl_bool
-__impl_device_info!(available, Available, bool);
-__impl_device_info!(compiler_available, CompilerAvailable, bool);
-__impl_device_info!(endian_little, EndianLittle, bool);
-__impl_device_info!(error_correction_support, ErrorCorrectionSupport, bool);
-__impl_device_info!(host_unified_memory, HostUnifiedMemory, bool);
-__impl_device_info!(image_support, ImageSupport, bool);
-__impl_device_info!(linker_available, LinkerAvailable, bool);
-__impl_device_info!(preferred_interop_user_sync, PreferredInteropUserSync, bool);
+__impl_device_info_one!(available, Available, bool);
+__impl_device_info_one!(compiler_available, CompilerAvailable, bool);
+__impl_device_info_one!(endian_little, EndianLittle, bool);
+__impl_device_info_one!(error_correction_support, ErrorCorrectionSupport, bool);
+__impl_device_info_one!(host_unified_memory, HostUnifiedMemory, bool);
+__impl_device_info_one!(image_support, ImageSupport, bool);
+__impl_device_info_one!(linker_available, LinkerAvailable, bool);
+__impl_device_info_one!(preferred_interop_user_sync, PreferredInteropUserSync, bool);
 
 // char[]
-__impl_device_info!(name, Name, String);
-__impl_device_info!(opencl_c_version, OpenclCVersion, String);
-__impl_device_info!(profile, Profile, String);
-__impl_device_info!(vendor, Vendor, String);
-__impl_device_info!(version, Version, String);
-__impl_device_info!(driver_version, DriverVersion, String);
+__impl_device_info_one!(name, Name, String);
+__impl_device_info_one!(opencl_c_version, OpenclCVersion, String);
+__impl_device_info_one!(profile, Profile, String);
+__impl_device_info_one!(vendor, Vendor, String);
+__impl_device_info_one!(version, Version, String);
+__impl_device_info_one!(driver_version, DriverVersion, String);
 
 // DeviceFpConfig
 
 
 // ExecutionCapabilities
-__impl_device_info!(execution_capabilities, ExecutionCapabilities, DeviceExecCapabilities);
+__impl_device_info_one!(execution_capabilities, ExecutionCapabilities, DeviceExecCapabilities);
 
 // ulong as u64
-__impl_device_info!(global_mem_cache_size, GlobalMemCacheSize, u64);
-__impl_device_info!(global_mem_size, GlobalMemSize, u64);
-__impl_device_info!(local_mem_size, LocalMemSize, u64);
-__impl_device_info!(max_constant_buffer_size, MaxConstantBufferSize, u64);
-__impl_device_info!(max_mem_alloc_size, MaxMemAllocSize, u64);
+__impl_device_info_one!(global_mem_cache_size, GlobalMemCacheSize, u64);
+__impl_device_info_one!(global_mem_size, GlobalMemSize, u64);
+__impl_device_info_one!(local_mem_size, LocalMemSize, u64);
+__impl_device_info_one!(max_constant_buffer_size, MaxConstantBufferSize, u64);
+__impl_device_info_one!(max_mem_alloc_size, MaxMemAllocSize, u64);
 
 //  CL_DEVICE_GLOBAL_MEM_CACHE_TYPE
-__impl_device_info!(global_mem_cache_type, GlobalMemCacheType, DeviceMemCacheType);
+__impl_device_info_one!(global_mem_cache_type, GlobalMemCacheType, DeviceMemCacheType);
 
 // size_t as usize
-__impl_device_info!(image2d_max_width, Image2DMaxWidth, usize);
-__impl_device_info!(image2d_max_height, Image2DMaxHeight, usize);
-__impl_device_info!(image3d_max_width, Image3DMaxWidth, usize);
-__impl_device_info!(image3d_max_height, Image3DMaxHeight, usize);
-__impl_device_info!(image3d_max_depth, Image3DMaxDepth, usize);
-__impl_device_info!(image_max_buffer_size, ImageMaxBufferSize, usize);
-__impl_device_info!(image_max_array_size, ImageMaxArraySize, usize);
-__impl_device_info!(max_parameter_size, MaxParameterSize, usize);
-__impl_device_info!(max_work_group_size, MaxWorkGroupSize, usize);
-__impl_device_info!(printf_buffer_size, PrintfBufferSize, usize);
-__impl_device_info!(profiling_timer_resolution, ProfilingTimerResolution, usize);
+__impl_device_info_one!(image2d_max_width, Image2DMaxWidth, usize);
+__impl_device_info_one!(image2d_max_height, Image2DMaxHeight, usize);
+__impl_device_info_one!(image3d_max_width, Image3DMaxWidth, usize);
+__impl_device_info_one!(image3d_max_height, Image3DMaxHeight, usize);
+__impl_device_info_one!(image3d_max_depth, Image3DMaxDepth, usize);
+__impl_device_info_one!(image_max_buffer_size, ImageMaxBufferSize, usize);
+__impl_device_info_one!(image_max_array_size, ImageMaxArraySize, usize);
+__impl_device_info_one!(max_parameter_size, MaxParameterSize, usize);
+__impl_device_info_one!(max_work_group_size, MaxWorkGroupSize, usize);
+__impl_device_info_one!(printf_buffer_size, PrintfBufferSize, usize);
+__impl_device_info_one!(profiling_timer_resolution, ProfilingTimerResolution, usize);
 
 // cl_device_local_mem_type
-__impl_device_info!(local_mem_type, LocalMemType, DeviceLocalMemType);
+__impl_device_info_one!(local_mem_type, LocalMemType, DeviceLocalMemType);
 
 // size_t[]
-__impl_device_info!(max_work_item_sizes, MaxWorkItemSizes, Vec<usize>);
+__impl_device_info_one!(max_work_item_sizes, MaxWorkItemSizes, Vec<usize>);
 
 // Device
 
@@ -373,13 +422,11 @@ __impl_device_info!(max_work_item_sizes, MaxWorkItemSizes, Vec<usize>);
 // cl_device_partition_property[]
 
 // cl_device_affinity_domain
-__impl_device_info!(partition_affinity_domain, PartitionAffinityDomain, DeviceAffinityDomain);
+__impl_device_info_one!(partition_affinity_domain, PartitionAffinityDomain, DeviceAffinityDomain);
 
-// Platform
-__impl_device_info!(platform, Platform, Platform);
 
 // DeviceType
-__impl_device_info!(device_type, Type, DeviceType);
+__impl_device_info_one!(device_type, Type, DeviceType);
 
 
 // v2.0+
@@ -417,10 +464,8 @@ mod tests {
         DeviceExecCapabilities,
         DevicePartitionProperty,
         DeviceAffinityDomain,
-        DeviceError,
     };
-    
-    use crate::error::Error;
+
     use crate::device::flags::DeviceFpConfig;
     use crate::platform::Platform;
 
@@ -975,18 +1020,14 @@ mod tests {
     #[test]
     fn device_method_parent_device_works() {
         let device = Device::default();
-        match device.parent_device() {
-            Ok(parent_device) => {
+        device.parent_device().map(|maybe_device| {
+            if let Some(parent_device) = maybe_device {
                 assert!(device != parent_device);
                 let name = device.name().expect("Failed to get device name");
                 let p_name = parent_device.name().expect("Failed to get parent_device name");
                 assert!(name != p_name);
-            },
-            Err(e) => {
-                let expected = Error::DeviceError(DeviceError::NoParentDevice);
-                assert_eq!(e, expected);
-            }
-        }   
+            };
+        }).expect("Called to device.parent_device() failed");
     }
 
     #[test]

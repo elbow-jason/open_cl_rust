@@ -41,6 +41,7 @@ pub mod program;
 pub mod utils;
 pub mod error;
 pub mod cl;
+pub mod session;
 
 pub use command_queue::CommandQueue;
 pub use context::Context;
@@ -55,6 +56,7 @@ pub use utils::work::Work;
 pub use utils::status_code::StatusCode;
 pub use utils::Volumetric;
 pub use utils::Dims;
+pub use session::{Session, SessionBuilder};
 
 #[cfg(test)]
 mod tests;

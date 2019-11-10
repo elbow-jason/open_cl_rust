@@ -17,3 +17,17 @@ impl Context {
         cl_create_context(device)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::device::Device;
+    use super::Context;
+
+
+    #[test]
+    fn context_can_be_created_via_a_device() {
+        let device: Device = Device::default();
+        let _context: Context = Context::create(&device)
+            .expect("Failed to create context from a device");
+    }
+}

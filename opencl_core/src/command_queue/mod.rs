@@ -27,7 +27,7 @@ use crate::{
     Work,
 };
 
-use crate::cl::{ClDecoder, ClReturn};
+use crate::cl::{ClRetain, ClObject, ClPointer};
 
 use low_level::{cl_release_command_queue, cl_retain_command_queue};
 use helpers::CommandQueueOptions;
@@ -161,106 +161,66 @@ impl CommandQueue {
             command_queue_opts.wait_list,
         )
     }
-    fn info(&self, flag: CQInfo) -> Output<ClReturn> {
+    fn info<T: Copy>(&self, flag: CQInfo) -> Output<ClPointer<T>> {
         low_level::cl_get_command_queue_info(self, flag)
     }
 
     pub fn context(&self) -> Output<Context> {
         self.info(CQInfo::Context).map(|ret| {
-            unsafe {
-                let context: Context = ret.cl_decode();
-
-                // The OpenCL context gives an non-reference counted pointer.
-                // What an absolute joy.
-                // Manually increase the reference count.
-                context.retain_cl_object();
-                context
-            }
+            // The OpenCL context gives an non-reference counted pointer.
+            // What an absolute joy.
+            // Manually increase the reference count.
+            unsafe { ret.into_one_wrapper::<Context>().cl_retain() }
         })
     }
 
     pub fn device(&self) -> Output<Device> {
         self.info(CQInfo::Device).map(|ret| {
-            unsafe {
-                let device: Device = ret.cl_decode();
-                device.retain_cl_object();
-                device
-            }
+            unsafe { ret.into_one_wrapper::<Device>().cl_retain() }
         })
     }
 
     pub fn reference_count(&self) -> Output<u32> {
-        self.info(CQInfo::ReferenceCount).map(|ret| unsafe{ ret.into_ref_count() })
+        self.info(CQInfo::ReferenceCount).map(|ret| unsafe{ ret.into_one() })
     }
 
     pub fn properties(&self) -> Output<CommandQueueProperties> {
-        self.info(CQInfo::Properties).map(|ret| unsafe{ ret.cl_decode() })
+        self.info(CQInfo::Properties).map(|ret| unsafe{ ret.into_one() })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{
-        Platform,
+        // Platform,
         Device,
         Context,
-        CommandQueue
+        // CommandQueue,
+        Session,
     };
     use crate::command_queue::flags::CommandQueueProperties;
     // use crate::cl::ClObject;
 
-    #[repr(C)]
-    pub struct Session {
-        platform: Platform,
-        command_queue: CommandQueue,
-        context: Context,
-        device: Device,
-    }
-
-    // impl Drop for Session {
-    //     fn drop(&mut self) {
-    //         unsafe {
-    //             // std::mem::forget(&self.device);
-    //             // std::mem::forget(&self.context);
-    //             // std::mem::forget(&self.command_queue);
-    //             self.command_queue.release_cl_object();
-    //             self.context.release_cl_object();
-    //             self.device.release_cl_object();
-    //         }
-    //     }
-    // }
-
     fn get_session() -> Session {
-        let platform: Platform = Platform::default();
-
-        let device: Device = platform.default_device()
-            .expect("Failed to get default_device for default platform");
-        
-        let context: Context = Context::create(&device)
-            .expect("Failed to get context for device");
-
-        let command_queue: CommandQueue = CommandQueue::create(&context, &device, None)
-            .expect("Failed to create CommandQueue from device");
-
-        Session{ platform, device, context, command_queue }
+        Session::default()
     }
 
     #[test]
     pub fn command_queue_method_context_works() {          
         let session = get_session();
-        let _ctx: Context = session.command_queue.context().expect("CommandQueue method context() failed");
+        let _ctx: Context = session.command_queue().context().expect("CommandQueue method context() failed");
     }
     
     #[test]
     pub fn command_queue_method_device_works() { 
         let session = get_session();
-        let _ctx: Context = session.command_queue.context().expect("CommandQueue method context() failed");
+        let _device: Device = session.command_queue().device().expect("CommandQueue method context() failed");
     }
     
     #[test]
     pub fn command_queue_method_reference_count_works() { 
         let session = get_session();
-        let ref_count: u32 = session.command_queue.reference_count()
+        let ref_count: u32 = session.command_queue().reference_count()
             .expect("CommandQueue method reference_count() failed");
         assert_eq!(ref_count, 1);
     }
@@ -268,7 +228,7 @@ mod tests {
     #[test]
     pub fn command_queue_method_properties_works() { 
         let session = get_session();
-        let props: CommandQueueProperties = session.command_queue.properties()
+        let props: CommandQueueProperties = session.command_queue().properties()
             .expect("CommandQueue method properties() failed");
         let bits = props.bits();
         let maybe_same_prop = CommandQueueProperties::from_bits(bits);

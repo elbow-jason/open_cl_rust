@@ -4,14 +4,14 @@ use crate::device::DeviceError;
 use crate::program::ProgramError;
 use crate::platform::PlatformError;
 use crate::utils::ClError;
-use crate::cl::ClValueError;
+// use crate::cl::ClValueError;
 // use crate::utils::StatusCode;
 
 
 #[derive(Debug, Fail, PartialEq, Clone)]
 pub enum Error {
-    #[fail(display = "{:?}", _0)]
-    ClValueError(ClValueError),
+    // #[fail(display = "{:?}", _0)]
+    // ClValueError(ClValueError),
 
     #[fail(display = "{:?}", _0)]
     PlatformError(PlatformError),

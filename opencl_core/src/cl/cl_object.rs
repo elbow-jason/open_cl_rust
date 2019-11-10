@@ -15,5 +15,6 @@ pub trait MutClObject<T> {
     unsafe fn raw_mut_cl_object(&mut self) -> T;
 }
 
-
-
+pub trait ClRetain {
+    unsafe fn cl_retain(self) -> Self;
+}

@@ -3,6 +3,8 @@ use crate::ffi::{
     cl_device_id,
     cl_program,
     cl_program_build_info,
+    cl_program_info,
+    clGetProgramInfo,
     clBuildProgram,
     clGetProgramBuildInfo,
     clCreateProgramWithBinary,
@@ -15,8 +17,10 @@ use crate::device::Device;
 use crate::error::Output; 
 use crate::context::Context;
 use crate::utils::strings;
+use crate::cl::{ClPointer, cl_get_info5, cl_get_info6};
 
 use super::{ProgramError, Program, flags};
+use flags::ProgramInfo;
 
 __release_retain!(program, Program);
 
@@ -40,41 +44,17 @@ pub fn cl_build_program(program: &Program, devices: &[&Device]) -> Output<()> {
 pub fn cl_get_program_build_log(
     program: &Program,
     device: &Device,
-    build_info_flag: flags::ProgramBuildInfo,
-) -> Output<String> {
+    info_flag: flags::ProgramBuildInfo,
+) -> Output<ClPointer<u8>> {
     device.usability_check()?;
-    let mut size = 0 as libc::size_t;
-    // determine buffer size
-    let mut err_code = unsafe {
-        clGetProgramBuildInfo(
+    unsafe {
+        cl_get_info6(
             program.raw_cl_object(),
             device.raw_cl_object(),
-            build_info_flag as cl_program_build_info,
-            0,
-            std::ptr::null_mut(),
-            &mut size,
+            info_flag as cl_program_build_info,
+            clGetProgramBuildInfo
         )
-    };
-
-    // check that the info can be retrieved
-    size = StatusCode::into_output(err_code, size)?;
-
-    // make a buffer of the size
-    let mut buf: Vec<u8> = vec![0u8; size as usize];
-    // get bytes from the device for the last compilation for this program.
-    err_code = unsafe {
-        clGetProgramBuildInfo(
-            program.raw_cl_object(),
-            device.raw_cl_object(),
-            build_info_flag as cl_program_build_info,
-            buf.len() as libc::size_t,
-            buf.as_mut_ptr() as *mut libc::c_void,
-            std::ptr::null_mut(),
-        )
-    };
-    buf = StatusCode::into_output(err_code, buf)?;
-
-    Ok(strings::to_utf8_string(buf))
+    }
 }
 
 pub fn cl_create_program_with_source(context: &Context, src: &str) -> Output<Program> {
@@ -123,4 +103,15 @@ pub fn cl_create_program_with_binary(
     let checked_program = StatusCode::into_output(err_code, program)?;
     debug_assert!(checked_program.is_null() == false);
     unsafe { Ok(Program::new(checked_program)) }
+}
+
+
+pub fn cl_get_program_info<T: Copy>(program: &Program, flag: ProgramInfo) -> Output<ClPointer<T>> {
+   unsafe {
+        cl_get_info5(
+            program.raw_cl_object(),
+            flag as cl_program_info,
+            clGetProgramInfo
+        )
+    }
 }

@@ -13,10 +13,14 @@ use std::default::Default;
 pub mod low_level;
 pub mod flags;
 
+use low_level::{
+    cl_get_platforms,
+    cl_get_platform_info,
+};
 use crate::ffi::cl_platform_id;
 use crate::device::{Device, DeviceType};
 use crate::error::{Output, Error};
-use crate::cl::ClDecoder;
+// use crate::cl::ClObject;
 
 /// An error related to an Event or WaitList.
 #[derive(Debug, Fail, PartialEq, Eq, Clone)]
@@ -45,12 +49,11 @@ use flags::PlatformInfo;
 
 impl Platform {
 
-    pub fn count() -> Output<usize> {
-        low_level::cl_get_platforms_count().map(|ret| unsafe { ret.cl_decode() })
-    }
-
     pub fn all() -> Output<Vec<Platform>> {
-        low_level::cl_get_platforms().map(|ret| unsafe { ret.cl_decode() })
+        low_level::cl_get_platforms().map(|ret| {
+            inspect!(ret);
+            unsafe { ret.into_many_wrapper() }
+        })
     }
 
     pub fn all_devices(&self) -> Output<Vec<Device>> {
@@ -106,10 +109,7 @@ impl Platform {
     }
     
     fn info(&self, info_code: PlatformInfo) -> Output<String> {
-        low_level::cl_get_platform_info(self, info_code).map(|ret| {
-            // inspect_var!(ret);
-            unsafe { ret.cl_decode() }
-        })
+        cl_get_platform_info(self, info_code).map(|ret| unsafe { ret.into_string() })
     }
 
     pub fn name(&self) -> Output<String> {
@@ -145,6 +145,9 @@ impl Platform {
 impl Default for Platform {
     fn default() -> Platform {
         let mut platforms = Platform::all().expect("Failed to list platforms for Platform::default()");
+        if platforms.len() == 0 {
+            panic!("No platforms during Platform::default()");
+        }
         platforms.remove(0)
     }
 }
@@ -155,27 +158,19 @@ mod tests {
     use crate::device::{Device, DeviceType};
 
     fn get_platform() -> Platform {
-        let mut platforms = Platform::all().expect("failed to list all the platforms");
-        platforms.remove(0)
+        Platform::default()
     }
 
     #[test]
-    fn all_platforms_can_be_counted() {
-        let count = Platform::count().expect("failed to count all the platforms");
-        assert!(count > 0);
+    fn platform_func_all_works() {
+        let platforms: Vec<Platform> = Platform::all().expect("Platform::all failed");
+        assert!(platforms.len() > 0);
     }
 
     #[test]
     fn all_platforms_can_be_listed() {
         let platforms = Platform::all().expect("failed to list all the platforms");
         assert!(platforms.len() > 0);
-    }
-
-    #[test]
-    fn all_platforms_len_is_the_same_as_count() {
-        let platforms = Platform::all().expect("failed to list all the platforms");
-        let count = Platform::count().expect("failed to count all the platforms");
-        assert_eq!(platforms.len(), count);
     }
 
     #[test]

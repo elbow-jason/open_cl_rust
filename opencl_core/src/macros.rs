@@ -102,6 +102,7 @@ macro_rules! __impl_clone_for_cl_object_wrapper {
     ($wrapper:ident, $retain_func:ident) => {
         impl Clone for $wrapper {
             fn clone(&self) -> $wrapper {
+                use $crate::cl::ClObject;
                 unsafe {
                     let new_wrapper = $wrapper::new(self.raw_cl_object());
                     $retain_func(&new_wrapper.inner);
@@ -110,13 +111,14 @@ macro_rules! __impl_clone_for_cl_object_wrapper {
             }
         }
 
-        impl $wrapper {
+        impl $crate::cl::ClRetain for $wrapper {
 
             // Increments the reference count of the underlying cl object.
             // Incorrect usage of this function can cause a memory leak.
-            pub unsafe fn retain_cl_object(&self) {
+            unsafe fn cl_retain(self) -> $wrapper {
                 // println!("retain_cl_object called for {:?}", self);
                 $retain_func(&self.inner);
+                self
             }
         }    
     };
@@ -128,6 +130,7 @@ macro_rules! __impl_drop_for_cl_object_wrapper {
     ($wrapper:ident, $release_func:ident) => {
         impl Drop for $wrapper {
             fn drop(&mut self) {
+                use $crate::cl::ClObject;
                 // println!("Dropping {:?}", self);
                 unsafe {
                     $release_func(&self.raw_cl_object());
@@ -139,7 +142,7 @@ macro_rules! __impl_drop_for_cl_object_wrapper {
 
             // Decrements the reference count of the underlying cl object.
             // Incorrect usage of this function can cause a SEGFAULT.
-            pub unsafe fn release_cl_object(&self) {
+            pub unsafe fn release_cl_object(self) {
                 $release_func(&self.inner);
             }
         }    
@@ -150,8 +153,7 @@ macro_rules! __impl_drop_for_cl_object_wrapper {
 #[macro_export]
 macro_rules! __impl_cl_object_for_wrapper {
     ($wrapper:ident, $cl_object_type:ty) => {
-        use crate::cl::ClObject;
-        impl ClObject<$cl_object_type> for $wrapper {
+        impl $crate::cl::ClObject<$cl_object_type> for $wrapper {
             unsafe fn raw_cl_object(&self) -> $cl_object_type {
                 self.inner
             }
@@ -224,10 +226,10 @@ macro_rules! __release_retain {
 }
 
 
+
 #[macro_export]
-macro_rules! inspect_var {
-    ($item:ident) => {
-        #[cfg(not(prod))]
+macro_rules! inspect {
+    ($item:expr) => {
         println!("INSPECT: {}:{}:{}
             {}: {:?}
         ", file!(), line!(), column!(), stringify!($item), $item);

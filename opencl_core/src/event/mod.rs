@@ -4,27 +4,30 @@ pub mod flags;
 pub mod event_info;
 pub mod wait_list;
 
-
-#[cfg(test)]
-mod tests;
-
 use low_level::{cl_retain_event, cl_release_event};
 
 use crate::ffi::{
     cl_event,
     cl_profiling_info,
+    cl_command_queue,
+    cl_context,
 };
 
 use event_info::{
     CommandExecutionStatus,
     EventInfo,
-    EventInfoFlag
 };
 
 pub use wait_list::WaitList;
 
 use crate::command_queue::CommandQueue;
-use crate::cl::CopyClObject;
+use crate::cl::{
+    ClObject,
+    ClPointer,
+    CopyClObject,
+    ClRetain
+};
+
 use crate::context::Context;
 use crate::error::{Error, Output};
 
@@ -57,7 +60,6 @@ impl CopyClObject<cl_event> for Event {
 
 use flags::ProfilingInfo;
 use EventInfo as Info;
-use EventInfoFlag as Flag;
 
 impl Event {
     #[allow(dead_code)]
@@ -88,44 +90,32 @@ impl Event {
         self.time(ProfilingInfo::End)
     }
 
-    pub fn reference_count(&self) -> Output<usize> {
-        let info = low_level::cl_get_event_info(self, Flag::ReferenceCount)?;
-        match info {
-            Info::ReferenceCount(output) => Ok(output),
-            _ => panic!(
-                "The EventInfo flag {:?} returned an invalid variant {:?}",
-                Flag::ReferenceCount,
-                info
-            ),
-        }
+    fn info<T: Copy>(&self, flag: Info) -> Output<ClPointer<T>> {
+        low_level::cl_get_event_info::<T>(self, flag)
+    }
+
+    pub fn reference_count(&self) -> Output<u32> {
+        self.info(Info::ReferenceCount).map(|ret| {
+            unsafe { ret.into_one() }
+        })
+    }
+    pub fn command_queue(&self) -> Output<CommandQueue> {
+        self.info::<cl_command_queue>(Info::CommandQueue).map(|ret| {
+            unsafe { ret.into_one_wrapper::<CommandQueue>().cl_retain() }
+        })
+    }
+
+    pub fn context(&self) -> Output<Context> {
+        self.info::<cl_context>(Info::Context).map(|ret| {
+            unsafe { ret.into_one_wrapper::<Context>().cl_retain() }
+        })
+    }
+
+    pub fn command_execution_status(&self) -> Output<CommandExecutionStatus> {
+        self.info(Info::CommandExecutionStatus).map(|ret| unsafe { ret.into_one() })
     }
 }
 
-macro_rules! impl_event_info {
-    ($fn_name:ident, $pascal:ident, $ret:ident) => {
-        impl Event {
-            pub fn $fn_name(&self) -> Output<$ret> {
-                let info = low_level::cl_get_event_info(self, Flag::$pascal)?;
-                match info {
-                    Info::$pascal(output) => Ok(output),
-                    _ => panic!(
-                        "The EventInfo flag {:?} returned an invalid variant {:?}",
-                        Flag::$pascal,
-                        info
-                    ),
-                }
-            }
-        }
-    };
-}
-
-impl_event_info!(command_queue, CommandQueue, CommandQueue);
-impl_event_info!(context, Context, Context);
-impl_event_info!(
-    command_execution_status,
-    CommandExecutionStatus,
-    CommandExecutionStatus
-);
 
 
 /// A CompleteEvent is the result of making a synchronous ffi call.
@@ -158,3 +148,79 @@ impl CompleteEvent {
         self.event.raw_cl_object()
     }
 }
+
+
+
+// #[cfg(test)]
+// mod tests {
+//     // use crate::ffi::cl_event;
+//     use crate::{Session, SessionBuilder, Event, Kernel, Work, DeviceMem};
+//     // use crate::cl::ClObject;
+//     use crate::event::event_info::CommandExecutionStatus;
+
+//     fn get_event() -> (Session, Event) {
+//         let session: Session = SessionBuilder::new().build();
+//         let kernel = Kernel::create(session.program(), "add_one").expect("Failed to Kernel::create/2");
+//         let input_data: Vec<usize> = vec![1, 2, 3];
+//         let mem_buffer: DeviceMem<usize> = DeviceMem::create_read_write_from(session.context(), &input_data)
+//             .expect("Failed to create_read_write_from vec![1, 2, 3]");
+//         let () = kernel.set_arg(0, &mem_buffer).expect("Failed to set_arg(0, &mem_buffer)");
+//         let work = Work::new(input_data.len());
+//         let event = session.command_queue().sync_enqueue_kernel(&kernel, &work).expect("Failed to sync_enqueue_kernel");
+//         (session, event)
+//     }
+
+//     #[test]
+//     fn event_method_queue_time_works() {
+//         let (_sess, event) = get_event();
+//         let output = event.queue_time().expect("Failed to call event.queue_time()");
+//         assert_eq!(output, 0);
+//     }
+
+// //     #[test]
+// //     fn event_method_submit_time_works() {
+// //         let (_sess, event) = get_event();
+// //         let output = event.submit_time().expect("Failed to call event.submit_time()");
+// //         assert_eq!(output, 0);
+// //     }
+
+// //     #[test]
+// //     fn event_method_start_time_works() {
+// //         let (_sess, event) = get_event();
+// //         let output = event.start_time().expect("Failed to call event.start_time()");
+// //         assert_eq!(output, 0);
+// //     }
+
+// //     #[test]
+// //     fn event_method_end_time_works() {
+// //         let (_sess, event) = get_event();
+// //         let output = event.end_time().expect("Failed to call event.end_time()");
+// //         assert_eq!(output, 0);
+// //     }
+
+// //     #[test]
+// //     fn event_method_reference_count_works() {
+// //         let (_sess, event) = get_event();
+// //         let output = event.reference_count().expect("Failed to call event.reference_count()");
+// //         assert_eq!(output, 0);
+// //     }
+
+// //     #[test]
+// //     fn event_method_command_queue_works() {
+// //         let (_sess, event) = get_event();
+// //         let _output: CommandQueue = event.command_queue().expect("Failed to call event.command_queue()");
+        
+// //     }
+
+// //     #[test]
+// //     fn event_method_context_works() {
+// //         let (_sess, event) = get_event();
+// //         let _output: Context = event.context().expect("Failed to call event.context()");
+// //     }
+
+// //     #[test]
+// //     fn event_method_command_execution_status_works() {
+// //         let (_sess, event) = get_event();
+// //         let _output: CommandExecutionStatus = event.command_execution_status().expect("Failed to call event.command_exection_status()");
+// //     }
+// }

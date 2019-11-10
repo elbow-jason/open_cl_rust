@@ -4,7 +4,9 @@ use crate::utils::volume;
 
 use crate::cl::{
     ClObject,
-    ClReturn,
+    ClPointer,
+    // ClReturn,
+    cl_get_info5,
 };
 
 use crate::ffi::{
@@ -33,9 +35,9 @@ use crate::{
 };
 
 use crate::utils::StatusCode;
-use crate::utils;
-use crate::error::Error;
-use crate::cl::ClValueError;
+// use crate::utils;
+// use crate::error::Error;
+// use crate::cl::ClValueError;
 
 use super::{CommandQueue, CommandQueueOptions};
 use super::flags::CommandQueueInfo;
@@ -133,6 +135,14 @@ where
 
         let (buffer_mem_size, buffer_ptr) = buffer_mem_size_and_ptr(buffer);
 
+        println!("
+            buffer.len() {:?}
+            device_mem.len().unwrap() {:?}
+            ",
+            buffer.len(),
+            device_mem.len().unwrap()
+        );
+
         debug_assert!(buffer.len() == device_mem.len().unwrap());
 
         clEnqueueReadBuffer(
@@ -180,42 +190,16 @@ where
     into_event(err_code, tracking_event)
 }
 
-pub fn cl_get_command_queue_info(
+
+pub fn cl_get_command_queue_info<T: Copy>(
     command_queue: &CommandQueue,
     flag: CommandQueueInfo,
-) -> Output<ClReturn> {
-    
-    let mut output_size = std::mem::size_of::<usize>();
-    let err_code = unsafe { 
-        clGetCommandQueueInfo(
+) -> Output<ClPointer<T>> {
+    unsafe {
+        cl_get_info5(
             command_queue.raw_cl_object(),
             flag as cl_command_queue_info,
-            0 as libc::size_t,
-            std::ptr::null_mut(),
-            &mut output_size as *mut libc::size_t,
+            clGetCommandQueueInfo
         )
-    };
-
-    let () = StatusCode::into_output(err_code, ())?;
-
-    if output_size == 0 {
-        let name = format!("clGetCommandQueueInfo {:?}", flag).to_string();
-        return Err(Error::ClValueError(ClValueError::ClNullPointer(name)))
     }
-
-    let mut output = utils::vec_filled_with(0u8, output_size);
-
-    let err_code2 = unsafe { 
-        clGetCommandQueueInfo(
-            command_queue.raw_cl_object(),
-            flag as cl_command_queue_info,
-            output_size,
-            output.as_mut_ptr() as *mut _ as *mut libc::c_void,
-            std::ptr::null_mut(),
-        )
-    };
-
-    let () = StatusCode::into_output(err_code2, ())?;
-
-    Ok(unsafe{ ClReturn::from_vec(output) })
 }

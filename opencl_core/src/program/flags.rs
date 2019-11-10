@@ -24,11 +24,11 @@ crate::__codes_enum!(ProgramInfo, cl_program_info, {
     BinarySizes => 0x1165,
     Binaries => 0x1166,
     NumKernels => 0x1167,
-    KernelNames => 0x1168,
-    Il => 0x1169,
-    ScopeGlobalCtorsPresent => 0x116A,
-    ScopeGlobalDtorsPresent => 0x116B
-
+    KernelNames => 0x1168
+    // v2.0+
+    // Il => 0x1169,
+    // ScopeGlobalCtorsPresent => 0x116A,
+    // ScopeGlobalDtorsPresent => 0x116B
 });
 
 /* cl_build_status */

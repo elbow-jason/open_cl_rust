@@ -1,19 +1,26 @@
 use crate::ffi::{
-    cl_uint,
+    // cl_uint,
     cl_device_id,
+    cl_device_type,
+    cl_platform_id,
     clGetDeviceIDs,
 };
 
-use libc::c_void;
+// use libc::c_void;
 
 use crate::utils::StatusCode;
 use crate::platform::Platform;
 use crate::error::Output;
-use crate::utils;
+// use crate::utils;
 use crate::cl::{
-    ClReturn,
-    ClDecoder,
+    // ClReturn,
+    // ClDecoder,
     ClObject,
+    ClPointer,
+    // cl_get_info,
+    // cl_get_info_count,
+    cl_get_object_count,
+    cl_get_object,
 };
 use super::flags::DeviceType;
 
@@ -21,41 +28,46 @@ use super::flags::DeviceType;
 __release_retain!(device_id, Device);
 
 // NOTE: fix cl_device_type
-pub fn cl_get_device_count(platform: &Platform, device_type: DeviceType) -> Output<ClReturn> {
-    let mut num_devices = 0;
-    let err_code = unsafe {
-        clGetDeviceIDs(
+pub fn cl_get_device_count(platform: &Platform, device_type: DeviceType) -> Output<u32> {
+    let num_devices: u32 = unsafe {
+        cl_get_object_count::<cl_platform_id, cl_device_type, cl_device_id>(
             platform.raw_cl_object(),
             device_type.bits(),
-            0,
-            std::ptr::null_mut(),
-            &mut num_devices,
+            clGetDeviceIDs
         )
-    };
-    let () = StatusCode::into_output(err_code, ())?;
-    Ok(unsafe { ClReturn::new_sized::<usize>(num_devices as *mut c_void) })
+    }?;
+    Ok(num_devices)
 }
 
 pub fn cl_get_device_ids(
     platform: &Platform,
     device_type: DeviceType,
-) -> Output<ClReturn> {
+) -> Output<ClPointer<cl_device_id>> {
     
-    let device_count_ret: ClReturn = cl_get_device_count(platform, device_type)?;
-    let mut n_devices = unsafe { device_count_ret.cl_decode() };
-    let mut ids: Vec<cl_device_id> = utils::vec_filled_with(0 as cl_device_id, n_devices as usize);
-    let err_code = unsafe {
-        clGetDeviceIDs(
+    unsafe {
+        cl_get_object::<cl_platform_id, cl_device_type, cl_device_id>(
             platform.raw_cl_object(),
             device_type.bits(),
-            ids.len() as cl_uint,
-            ids.as_mut_ptr(),
-            &mut n_devices,
+            clGetDeviceIDs
         )
-    };
-    let () = StatusCode::into_output(err_code, ())?;
-    let cl_ret = unsafe { ClReturn::from_vec(ids) };
-    Ok(cl_ret)
+    }
+    // let mut n_devices: u32 = cl_get_device_count(platform, device_type)?;
+
+
+    // let mut ids: Vec<cl_device_id> = utils::vec_filled_with(0 as cl_device_id, n_devices as usize);
+    // let err_code = unsafe {
+    //     clGetDeviceIDs(
+    //         platform.raw_cl_object(),
+    //         device_type.bits(),
+    //         ids.len() as cl_uint,
+    //         ids.as_mut_ptr(),
+    //         &mut n_devices,
+    //     )
+    // };
+    // let () = StatusCode::into_output(err_code, ())?;
+    // let bytes: Vec<u8> = unsafe { std::mem::transmute(ids) };
+    // let cl_ret = unsafe { ClReturn::new(bytes) };
+    // Ok(cl_ret)
 }
 
 

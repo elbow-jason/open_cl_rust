@@ -10,12 +10,13 @@ use crate::ffi::{
 };
 
 use super::DeviceMem;
-use super::flags::MemFlags;
+use super::flags::{MemInfo, MemFlags};
 
+use crate::cl::ClPointer;
 use crate::context::Context;
 use crate::error::Output;
 use crate::utils::StatusCode;
-use crate::cl::ClObject;
+use crate::cl::{ClObject, cl_get_info5};
 
 __release_retain!(mem, MemObject);
 
@@ -80,22 +81,19 @@ unsafe fn _cl_create_buffer<T>(
 
 
 // NOTE: Fix this cl_mem_info arg
-pub fn cl_get_mem_object_info<T>(
+pub fn cl_get_mem_object_info<T, P>(
     device_mem: &DeviceMem<T>,
-    mem_info_flag: cl_mem_info,
-) -> Output<usize>
+    flag: MemInfo,
+) -> Output<ClPointer<P>>
 where
     T: Debug,
+    P: Copy,
 {
-    let mut size: libc::size_t = 0;
-    let err_code = unsafe {
-        clGetMemObjectInfo(
+   unsafe {
+        cl_get_info5(
             device_mem.raw_cl_object(),
-            mem_info_flag,
-            std::mem::size_of::<libc::size_t>() as libc::size_t,
-            (&mut size as *mut libc::size_t) as *mut libc::c_void,
-            std::ptr::null_mut(),
+            flag as cl_mem_info,
+            clGetMemObjectInfo
         )
-    };
-    StatusCode::into_output(err_code, size as usize)
+    }
 }

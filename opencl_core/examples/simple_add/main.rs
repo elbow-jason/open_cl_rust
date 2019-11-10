@@ -32,7 +32,7 @@ fn run() -> Result<(), Error> {
     let name = device.name()?;
 
     println!("creating program...");
-    let program: Program = Program::create_with_source(&context, src)?;
+    let program: Program = Program::create_with_source(&context, &src)?;
 
     println!("building program on device {}...", name);
     let () = program.build_on_one_device(&device)?;
