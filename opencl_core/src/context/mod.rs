@@ -12,6 +12,9 @@ __impl_cl_object_for_wrapper!(Context, cl_context);
 __impl_clone_for_cl_object_wrapper!(Context, cl_retain_context);
 __impl_drop_for_cl_object_wrapper!(Context, cl_release_context);
 
+unsafe impl Send for Context {}
+unsafe impl Sync for Context {}
+
 impl Context {
     pub fn create(device: &Device) -> Output<Context> {
         cl_create_context(device)

@@ -1,14 +1,14 @@
-use crate::kernel::KernelError;
-use crate::event::EventError;
-use crate::device::DeviceError;
-use crate::program::ProgramError;
-use crate::platform::PlatformError;
-use crate::utils::ClError;
-use crate::cl::ClValueError;
+pub use crate::kernel::KernelError;
+pub use crate::event::EventError;
+pub use crate::device::DeviceError;
+pub use crate::program::ProgramError;
+pub use crate::platform::PlatformError;
+pub use crate::utils::ClError;
+pub use crate::cl::ClValueError;
 // use crate::utils::StatusCode;
 
 
-#[derive(Debug, Fail, PartialEq, Clone)]
+#[derive(Debug, Fail, PartialEq, Clone, Eq)]
 pub enum Error {
     #[fail(display = "{:?}", _0)]
     ClValueError(ClValueError),

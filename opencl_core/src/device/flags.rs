@@ -60,12 +60,13 @@ crate::__codes_enum!(DevicePartitionProperty, cl_device_partition_property, {
 
 bitflags! {
     pub struct DeviceAffinityDomain: cl_device_affinity_domain {
+        const NONE_SUPPORTED = 0;
         const NUMA = 1;
         const L4_CACHE = 2;
         const L3_CACHE = 4;
         const L2_CACHE = 8;
-        const L1_CACHE =16;
-        const NEXT_PARTITIONABLE = 3;
+        const L1_CACHE = 16;
+        const NEXT_PARTITIONABLE = 32;
     }
 }
 

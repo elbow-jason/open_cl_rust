@@ -17,6 +17,7 @@ use crate::ffi::cl_platform_id;
 use crate::device::{Device, DeviceType};
 use crate::error::{Output, Error};
 use crate::cl::ClDecoder;
+use flags::PlatformInfo;
 
 /// An error related to an Event or WaitList.
 #[derive(Debug, Fail, PartialEq, Eq, Clone)]
@@ -34,6 +35,8 @@ impl From<PlatformError> for Error {
     }
 }
 
+unsafe impl Send for Platform {}
+unsafe impl Sync for Platform {}
 
 // NOTE: cl_platform_id is host mem?
 // https://stackoverflow.com/questions/17711407/opencl-releasing-platform-object
@@ -41,7 +44,7 @@ impl From<PlatformError> for Error {
 __impl_unconstructable_cl_wrapper!(Platform, cl_platform_id);
 __impl_cl_object_for_wrapper!(Platform, cl_platform_id);
 
-use flags::PlatformInfo;
+
 
 impl Platform {
 

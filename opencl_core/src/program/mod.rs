@@ -30,9 +30,12 @@ __impl_cl_object_for_wrapper!(Program, cl_program);
 __impl_clone_for_cl_object_wrapper!(Program, cl_retain_program);
 __impl_drop_for_cl_object_wrapper!(Program, cl_release_program);
 
+unsafe impl Send for Program {}
+unsafe impl Sync for Program {}
+
 impl Program {
-    pub fn create_with_source(context: &Context, src: String) -> Output<Program> {
-        low_level::cl_create_program_with_source(context, &src[..])
+    pub fn create_with_source(context: &Context, src: &str) -> Output<Program> {
+        low_level::cl_create_program_with_source(context, src)
     }
 
     pub fn create_program_with_binary(context: &Context, device: &Device, binary: String) -> Output<Program> {

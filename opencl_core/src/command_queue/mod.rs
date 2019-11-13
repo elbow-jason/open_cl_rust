@@ -37,6 +37,10 @@ __impl_cl_object_for_wrapper!(CommandQueue, cl_command_queue);
 __impl_clone_for_cl_object_wrapper!(CommandQueue, cl_retain_command_queue);
 __impl_drop_for_cl_object_wrapper!(CommandQueue, cl_release_command_queue);
 
+unsafe impl Send for CommandQueue {}
+unsafe impl Sync for CommandQueue {}
+
+
 use CommandQueueInfo as CQInfo;
 
 impl CommandQueue {
@@ -200,49 +204,10 @@ impl CommandQueue {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        Platform,
-        Device,
-        Context,
-        CommandQueue
-    };
-    use crate::command_queue::flags::CommandQueueProperties;
-    // use crate::cl::ClObject;
-
-    #[repr(C)]
-    pub struct Session {
-        platform: Platform,
-        command_queue: CommandQueue,
-        context: Context,
-        device: Device,
-    }
-
-    // impl Drop for Session {
-    //     fn drop(&mut self) {
-    //         unsafe {
-    //             // std::mem::forget(&self.device);
-    //             // std::mem::forget(&self.context);
-    //             // std::mem::forget(&self.command_queue);
-    //             self.command_queue.release_cl_object();
-    //             self.context.release_cl_object();
-    //             self.device.release_cl_object();
-    //         }
-    //     }
-    // }
+    use crate::Session;
 
     fn get_session() -> Session {
-        let platform: Platform = Platform::default();
-
-        let device: Device = platform.default_device()
-            .expect("Failed to get default_device for default platform");
-        
-        let context: Context = Context::create(&device)
-            .expect("Failed to get context for device");
-
-        let command_queue: CommandQueue = CommandQueue::create(&context, &device, None)
-            .expect("Failed to create CommandQueue from device");
-
-        Session{ platform, device, context, command_queue }
+        Session::default()
     }
 
     #[test]
