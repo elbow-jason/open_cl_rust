@@ -1,5 +1,5 @@
 [package]
-name = "opencl_core"
+name = "opencl-core"
 version = "0.1.0"
 authors = ["Jason Goldberger <jasongoldberger@gmail.com>"]
 edition = "2018"
@@ -8,7 +8,7 @@ edition = "2018"
 name = "opencl_core"
 
 [dependencies]
-opencl_sys = { version = "0.1.0", path = "../opencl_sys" }
+opencl-sys = { version = "0.1.0", path = "../opencl-sys" }
 paste = "0.1.6"
 libc = "0.2.65"
 # log = "0.4.8"
