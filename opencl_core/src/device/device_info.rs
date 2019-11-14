@@ -348,6 +348,7 @@ impl Device {
     }
 }
 // cl_uint
+
 __impl_device_info_one!(global_mem_cacheline_size, GlobalMemCachelineSize, cl_uint, u32);
 __impl_device_info_one!(native_vector_width_double, NativeVectorWidthDouble, cl_uint, u32);
 __impl_device_info_one!(native_vector_width_half, NativeVectorWidthHalf, cl_uint, u32);
@@ -385,6 +386,35 @@ __impl_device_info_one!(preferred_vector_width_half, PreferredVectorWidthHalf, u
 
 __impl_device_info_one!(vendor_id, VendorId, u32);
 
+// __impl_device_info!(address_bits, AddressBits, u32);
+// __impl_device_info!(global_mem_cacheline_size, GlobalMemCachelineSize, u32);
+// __impl_device_info!(max_clock_frequency, MaxClockFrequency, u32);
+// __impl_device_info!(max_compute_units, MaxComputeUnits, u32);
+// __impl_device_info!(max_constant_args, MaxConstantArgs, u32);
+// __impl_device_info!(max_read_image_args, MaxReadImageArgs, u32);
+// __impl_device_info!(max_samplers, MaxSamplers, u32);
+// __impl_device_info!(max_work_item_dimensions, MaxWorkItemDimensions, u32);
+// __impl_device_info!(max_write_image_args, MaxWriteImageArgs, u32);
+// __impl_device_info!(mem_base_addr_align, MemBaseAddrAlign, u32);
+// __impl_device_info!(min_data_type_align_size, MinDataTypeAlignSize, u32);
+// __impl_device_info!(native_vector_width_char, NativeVectorWidthChar, u32);
+// __impl_device_info!(native_vector_width_short, NativeVectorWidthShort, u32);
+// __impl_device_info!(native_vector_width_int, NativeVectorWidthInt, u32);
+// __impl_device_info!(native_vector_width_long, NativeVectorWidthLong, u32);
+// __impl_device_info!(native_vector_width_float, NativeVectorWidthFloat, u32);
+// __impl_device_info!(native_vector_width_double, NativeVectorWidthDouble, u32);
+// __impl_device_info!(native_vector_width_half, NativeVectorWidthHalf, u32);
+// __impl_device_info!(partition_max_sub_devices, PartitionMaxSubDevices, u32);
+// __impl_device_info!(preferred_vector_width_char, PreferredVectorWidthChar, u32);
+// __impl_device_info!(preferred_vector_width_short, PreferredVectorWidthShort, u32);
+// __impl_device_info!(preferred_vector_width_int, PreferredVectorWidthInt, u32);
+// __impl_device_info!(preferred_vector_width_long, PreferredVectorWidthLong, u32);
+// __impl_device_info!(preferred_vector_width_float, PreferredVectorWidthFloat, u32);
+// __impl_device_info!(preferred_vector_width_double, PreferredVectorWidthDouble, u32);
+// __impl_device_info!(preferred_vector_width_half, PreferredVectorWidthHalf, u32);
+// __impl_device_info!(vendor_id, VendorId, u32);
+
+
 // cl_bool
 __impl_device_info_one!(available, Available, bool);
 __impl_device_info_one!(compiler_available, CompilerAvailable, bool);
@@ -418,6 +448,7 @@ __impl_device_info_one!(local_mem_size, LocalMemSize, u64);
 __impl_device_info_one!(max_constant_buffer_size, MaxConstantBufferSize, u64);
 __impl_device_info_one!(max_mem_alloc_size, MaxMemAllocSize, u64);
 
+
 //  CL_DEVICE_GLOBAL_MEM_CACHE_TYPE
 __impl_device_info_one!(global_mem_cache_type, GlobalMemCacheType, DeviceMemCacheType);
 
@@ -434,13 +465,13 @@ __impl_device_info_one!(max_work_group_size, MaxWorkGroupSize, usize);
 __impl_device_info_one!(printf_buffer_size, PrintfBufferSize, usize);
 __impl_device_info_one!(profiling_timer_resolution, ProfilingTimerResolution, usize);
 
+
 // cl_device_local_mem_type
 __impl_device_info_one!(local_mem_type, LocalMemType, DeviceLocalMemType);
 
+
 // size_t[]
 __impl_device_info_one!(max_work_item_sizes, MaxWorkItemSizes, Vec<usize>);
-
-// Device
 
 
 // cl_device_partition_property[]

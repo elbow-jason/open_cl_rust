@@ -5,8 +5,6 @@
 /// command-queue or change the state of OpenCL objects such as command-queue
 /// objects, memory objects, program and kernel objects are not thread-safe.
 ///
-/// Options here: Don't allow
-///
 
 #[macro_use]
 extern crate lazy_static;
@@ -27,8 +25,6 @@ mod macros;
 pub extern crate opencl_sys as ffi;
 
 extern crate num;
-
-// pub mod open_cl;
 
 pub mod command_queue;
 pub mod context;
@@ -52,11 +48,14 @@ pub use event::Event;
 pub use kernel::Kernel;
 pub use platform::Platform;
 pub use program::Program;
+pub use session::Session;
+
 pub use utils::work::Work;
 pub use utils::status_code::StatusCode;
 pub use utils::Volumetric;
 pub use utils::Dims;
-pub use session::{Session, SessionBuilder};
+
+
 
 #[cfg(test)]
 mod tests;

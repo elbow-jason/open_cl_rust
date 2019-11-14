@@ -37,6 +37,10 @@ __impl_cl_object_for_wrapper!(CommandQueue, cl_command_queue, cl_retain_command_
 __impl_clone_for_cl_object_wrapper!(CommandQueue, cl_retain_command_queue);
 __impl_drop_for_cl_object_wrapper!(CommandQueue, cl_release_command_queue);
 
+unsafe impl Send for CommandQueue {}
+unsafe impl Sync for CommandQueue {}
+
+
 use CommandQueueInfo as CQInfo;
 
 impl CommandQueue {
@@ -188,18 +192,13 @@ impl CommandQueue {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        // Platform,
-        Device,
-        Context,
-        // CommandQueue,
-        Session,
-    };
-    use crate::command_queue::flags::CommandQueueProperties;
-    // use crate::cl::ClObject;
+    use crate::{Session, Context, Device};
+    use super::flags::CommandQueueProperties;
 
     fn get_session() -> Session {
-        Session::default()
+        let src = "__kernel void test(__global int *i) { *i += 1; }";
+        let device = Device::default();
+        Session::create(device, src).expect("Failed to create Session")
     }
 
     #[test]
@@ -211,7 +210,7 @@ mod tests {
     #[test]
     pub fn command_queue_method_device_works() { 
         let session = get_session();
-        let _device: Device = session.command_queue().device().expect("CommandQueue method context() failed");
+        let _device: Device = session.command_queue().device().expect("CommandQueue method device() failed");
     }
     
     #[test]

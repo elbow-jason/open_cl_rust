@@ -50,6 +50,9 @@ __impl_clone_for_cl_object_wrapper!(Device, cl_retain_device_id);
 __impl_drop_for_cl_object_wrapper!(Device, cl_release_device_id);
 
 
+unsafe impl Send for Device {}
+unsafe impl Sync for Device {}
+
 impl Device {
 
     pub fn is_usable(&self) -> bool {

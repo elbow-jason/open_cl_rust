@@ -12,7 +12,7 @@ fn main() {
 }
 
 fn run() -> Result<(), Error> {
-    let src: String = include_str!("program.ocl").to_string();
+    let src: &str = include_str!("program.ocl");
     let mut platforms = Platform::all()?;
 
     if platforms.len() == 0 {

@@ -34,6 +34,9 @@ __impl_cl_object_for_wrapper!(Program, cl_program, cl_retain_program, cl_release
 __impl_clone_for_cl_object_wrapper!(Program, cl_retain_program);
 __impl_drop_for_cl_object_wrapper!(Program, cl_release_program);
 
+unsafe impl Send for Program {}
+unsafe impl Sync for Program {}
+
 impl Program {
     pub fn create_with_source(context: &Context, src: &str) -> Output<Program> {
         low_level::cl_create_program_with_source(context, src)
@@ -115,15 +118,20 @@ impl Program {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Session, SessionBuilder, Context, Device};
+    use crate::{Session,  Context, Device};
 
-    const TEST_SRC: &str = "__kernel void test(__global int *i) { \
-            *i += 1; \
-            }";
-
-    fn get_session() -> Session {
-        SessionBuilder::new().with_src(TEST_SRC).build()
+    const TEST_SRC: &str = "
+    __kernel void test(__global int *i) {        
+        *i += 1;
     }
+    ";
+
+    
+    fn get_session() -> Session {
+        let device = Device::default();
+        Session::create(device, TEST_SRC).expect("Failed to create Session")
+    }
+
 
     #[test]
     fn program_method_reference_count_works() {

@@ -285,15 +285,21 @@ __impl_mem_info!(flags, Flags, MemFlags);
 #[cfg(test)]
 mod tests {
     use super::{DeviceMem, DeviceMemError};
-    use crate::{Context, Session, Output, Error};
+    use crate::{Device, Context, Session, Output, Error};
     use super::flags::{
         MemFlags,
         MemObjectType,
     };
 
 
+    fn get_session() -> Session {
+        let src = "__kernel void test(__global int *i) { *i += 1; }";
+        let device = Device::default();
+        Session::create(device, src).expect("Failed to create Session")
+    }
+
     fn get_device_mem() -> (Session, DeviceMem<usize>) {
-        let session = Session::default();
+        let session = get_session();
         let data = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
         let dmem = DeviceMem::create_read_write_from(session.context(), &data[..])
             .expect("Failed to create_read_write_from one to nine");

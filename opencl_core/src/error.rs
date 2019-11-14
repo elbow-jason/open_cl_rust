@@ -6,10 +6,9 @@ use crate::platform::PlatformError;
 use crate::utils::ClError;
 use crate::cl::ClObjectError;
 use crate::device_mem::DeviceMemError;
-// use crate::utils::StatusCode;
 
 
-#[derive(Debug, Fail, PartialEq, Clone)]
+#[derive(Debug, Fail, PartialEq, Clone, Eq)]
 pub enum Error {
     #[fail(display = "{:?}", _0)]
     DeviceMemError(DeviceMemError),
