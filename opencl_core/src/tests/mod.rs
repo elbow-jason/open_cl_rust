@@ -163,7 +163,7 @@ mod testing {
                    *i += 1; \
                    }";
         test_all(&mut |device, context, _| {
-            let prog = Program::create_with_source(context, src.to_string()).unwrap();
+            let prog = Program::create_with_source(context, src).unwrap();
             prog.build_on_one_device(&device).unwrap();
         })
     }
@@ -178,7 +178,7 @@ mod testing {
 
         test_all(&mut |device, context, queue| {
             println!("here 0");
-            let program = Program::create_with_source(context, src.to_string()).unwrap();
+            let program = Program::create_with_source(context, src).unwrap();
             println!("here 1");
             program.build_on_one_device(&device).unwrap();
             println!("here 2");
@@ -220,7 +220,7 @@ mod testing {
         }";
 
         test_all(&mut |device, context, queue| {
-            let program = Program::create_with_source(context, src.to_string()).unwrap();
+            let program = Program::create_with_source(context, src).unwrap();
             program.build_on_one_device(device).unwrap();
 
             let add_scalar_var: Kernel = Kernel::create(&program, "test").unwrap();
@@ -325,7 +325,7 @@ mod testing {
                    N[i * s + j] = i * j;
         }";
         test_all(&mut |device, context, queue| {
-            let program = Program::create_with_source(context, src.to_string()).unwrap();
+            let program = Program::create_with_source(context, src).unwrap();
 
             let () = program.build_on_one_device(device).expect("failed to build_one_on_device");
 
@@ -429,7 +429,7 @@ mod array {
             let mem_result: DeviceMem<usize> = DeviceMem::create_read_write(context, data.len())
                 .expect("Failed to create_read_write with len");
 
-            let program = Program::create_with_source(context, src.to_string()).unwrap();
+            let program = Program::create_with_source(context, src).unwrap();
 
             let () = program.build_on_one_device(device).expect("failed to build_one_on_device");
 

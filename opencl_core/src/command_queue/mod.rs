@@ -204,28 +204,31 @@ impl CommandQueue {
 
 #[cfg(test)]
 mod tests {
-    use crate::Session;
+    use crate::{Session, Context, Device};
+    use super::flags::CommandQueueProperties;
 
     fn get_session() -> Session {
-        Session::default()
+        let src = "__kernel void test(__global int *i) { *i += 1; }";
+        let device = Device::default();
+        Session::create(device, src).expect("Failed to create Session")
     }
 
     #[test]
     pub fn command_queue_method_context_works() {          
         let session = get_session();
-        let _ctx: Context = session.command_queue.context().expect("CommandQueue method context() failed");
+        let _ctx: Context = session.command_queue().context().expect("CommandQueue method context() failed");
     }
     
     #[test]
     pub fn command_queue_method_device_works() { 
         let session = get_session();
-        let _ctx: Context = session.command_queue.context().expect("CommandQueue method context() failed");
+        let _ctx: Context = session.command_queue().context().expect("CommandQueue method context() failed");
     }
     
     #[test]
     pub fn command_queue_method_reference_count_works() { 
         let session = get_session();
-        let ref_count: u32 = session.command_queue.reference_count()
+        let ref_count: u32 = session.command_queue().reference_count()
             .expect("CommandQueue method reference_count() failed");
         assert_eq!(ref_count, 1);
     }
@@ -233,7 +236,7 @@ mod tests {
     #[test]
     pub fn command_queue_method_properties_works() { 
         let session = get_session();
-        let props: CommandQueueProperties = session.command_queue.properties()
+        let props: CommandQueueProperties = session.command_queue().properties()
             .expect("CommandQueue method properties() failed");
         let bits = props.bits();
         let maybe_same_prop = CommandQueueProperties::from_bits(bits);
