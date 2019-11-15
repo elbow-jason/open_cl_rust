@@ -1,27 +1,64 @@
+
+
 extern crate bindgen;
 extern crate which;
 
+use std::fs;
 use std::env;
 use std::path::PathBuf;
 use which::which;
 
+
+
 fn main() {
-    let llvm_config_path = which("llvm-config").unwrap().to_str().unwrap().to_string();
-    env::set_var("LLVM_CONFIG_PATH", llvm_config_path);
-    // Tell cargo to tell rustc to link the system -framework OpenCL shared library.
-    // println!("cargo:rustc-link-lib=framework=OpenCL");
+    #[cfg(all(target_os = "macos", debug_assertions))]
+    build_dev(PathBuf::from("./dev_bindings/macos_dev_bindings.rs"));
 
-    // Tell cargo to invalidate the built crate whenever the wrapper changes
+    #[cfg(not(debug_assertions))]
+    build_release();
+
+}
+
+
+fn build_dev(bindings_file: PathBuf) {
+    if !path_exists(bindings_file.to_str().unwrap()) {
+        setup_llvm();
+        link_opencl();
+        gen_and_save_bindings(bindings_file);
+    }
+}
+
+fn _build_release() {
+    setup_llvm();
+    link_opencl();
+    let bindings_file = PathBuf::from(env::var("OUT_DIR").unwrap()).join("bindings.rs");
+    gen_and_save_bindings(bindings_file);
+}
+
+fn gen_and_save_bindings(bindings_file: PathBuf) {
     println!("cargo:rerun-if-changed=wrapper.h");
-
-    let bindings = bindgen::Builder::default()
+    bindgen::Builder::default()
         .header("opencl_headers/wrapper.h")
         .generate()
-        .expect("Unable to generate bindings");
-
-    // Write the bindings to the $OUT_DIR/bindings.rs file.
-    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
-    bindings
-        .write_to_file(out_path.join("binding.rs"))
+        .expect("Unable to generate bindings")
+        .write_to_file(bindings_file)
         .expect("Couldn't write bindings!");
+}
+
+
+fn path_exists(path: &str) -> bool {
+    fs::metadata(path).is_ok()
+}
+
+
+
+
+fn link_opencl() {
+    #[cfg(target_os = "macos")]
+    println!("cargo:rustc-link-lib=framework=OpenCL");
+}
+
+fn setup_llvm() {
+    let llvm_config_path = which("llvm-config").unwrap().to_str().unwrap().to_string();
+    env::set_var("LLVM_CONFIG_PATH", llvm_config_path);
 }
