@@ -13,8 +13,5 @@ extern "C" {}
 #[cfg(target_os = "macos")]
 extern "C" {}
 
-// #[cfg(all(target_os = "macos", debug_assertions))]
-// include!("../dev_bindings/macos_dev_bindings.rs");
 
-// #[cfg(not(debug_assertions))]
-include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+include!("../bindgen/opencl_bindings.rs");

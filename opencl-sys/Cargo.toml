@@ -4,13 +4,9 @@ version = "0.1.0"
 authors = ["Jason Goldberger <jlgoldb2@asu.edu>"]
 edition = "2018"
 links = "OpenCL"
-build = "build.rs"
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 libc = "0.2.65"
 
 [build-dependencies]
 bindgen = "0.51.1"
-which = "3.0.0"
-cc = "1.0"
