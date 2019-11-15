@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Jason Goldberger <jlgoldb2@asu.edu>"]
 edition = "2018"
 links = "OpenCL"
+build = "build.rs"
 
 [dependencies]
 libc = "0.2.65"
