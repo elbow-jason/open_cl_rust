@@ -51,7 +51,7 @@ impl Program {
     }
 
     pub fn build_on_one_device(&self, device: &Device) -> Output<()> {
-        low_level::cl_build_program(self, &vec![device])
+        low_level::cl_build_program(self, &[device])
     }
 
     pub fn get_log(program: &Program, device: &Device) -> Output<String> {
@@ -109,7 +109,7 @@ impl Program {
         self.get_info(ProgramInfo::KernelNames).map(|ret| {
             let kernels: String = unsafe { ret.into_string() };
             kernels
-                .split(";")
+                .split(';')
                 .map(|s| s.to_string())
                 .collect()
         })

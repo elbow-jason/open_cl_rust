@@ -24,6 +24,7 @@ use flags::ProgramInfo;
 
 __release_retain!(program, Program);
 
+#[allow(clippy::transmuting_null)]
 pub fn cl_build_program(program: &Program, devices: &[&Device]) -> Output<()> {
     let err_code = unsafe {
         let mut cl_devices: Vec<cl_device_id> = devices.iter().map(|d| d.raw_cl_object()).collect();
@@ -37,7 +38,7 @@ pub fn cl_build_program(program: &Program, devices: &[&Device]) -> Output<()> {
             std::ptr::null_mut(), // user_data
         )
     };
-    StatusCode::into_output(err_code, ())
+    StatusCode::build_output(err_code, ())
 }
 
 pub fn cl_get_program_build_log(
@@ -76,10 +77,13 @@ pub fn cl_create_program_with_source(context: &Context, src: &str) -> Output<Pro
         )
     };
     
-    let checked_program = StatusCode::into_output(err_code, program)?;
+    let checked_program = StatusCode::build_output(err_code, program)?;
     unsafe { Program::new(checked_program) }
 }
 
+// the dereferncing of the pointer happens on the _other_ _side_ of the C FFI.
+// So it cannot be any more unsafe that in already is...
+#[allow(clippy::cast_ptr_alignment)]
 pub fn cl_create_program_with_binary(
     context: &Context,
     device: &Device,
@@ -99,8 +103,8 @@ pub fn cl_create_program_with_binary(
             &mut err_code,
         )
     };
-    let checked_program = StatusCode::into_output(err_code, program)?;
-    debug_assert!(checked_program.is_null() == false);
+    let checked_program = StatusCode::build_output(err_code, program)?;
+    debug_assert!(!checked_program.is_null());
     unsafe { Program::new(checked_program) }
 }
 

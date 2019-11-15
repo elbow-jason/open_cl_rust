@@ -11,7 +11,7 @@ use crate::ffi::{
 };
 
 crate::__codes_enum!(MemMigrationFlags, cl_mem_migration_flags, {
-    Host => (1 << 0),
+    Host => 1,
     ContentUndefined => (1 << 1)
 });
 
@@ -49,7 +49,7 @@ crate::__codes_enum!(BufferCreateType, cl_buffer_create_type, {
 
 bitflags! {
     pub struct MemFlags: cl_mem_flags {
-        const READ_WRITE = 1 << 0;
+        const READ_WRITE = 1;
         const WRITE_ONLY = 1 << 1;
         const READ_ONLY = 1 << 2;
         const ALLOC_HOST_PTR = 1 << 4;

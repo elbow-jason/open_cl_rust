@@ -204,7 +204,7 @@ impl Device {
         self.get_info(DeviceInfo::BuiltInKernels)
             .map(|ret| {
                 let kernel_names: String = unsafe { ret.into_string() };
-                kernel_names.split(";").map(|s| s.to_string()).collect()
+                kernel_names.split(';').map(|s| s.to_string()).collect()
             })
     }
 
@@ -212,7 +212,7 @@ impl Device {
         self.get_info(DeviceInfo::Extensions)
             .map(|ret| {
                 let kernels: String = unsafe { ret.into_string() };
-                kernels.split(" ").map(|s| s.to_string()).collect()
+                kernels.split(' ').map(|s| s.to_string()).collect()
             })
     }
 

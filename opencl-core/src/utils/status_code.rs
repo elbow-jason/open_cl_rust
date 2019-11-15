@@ -145,7 +145,7 @@ impl From<cl_int> for ClError {
 
 impl StatusCode {
     #[inline]
-    pub fn into_output<T>(err_code: cl_int, result: T) -> Output<T> {
+    pub fn build_output<T>(err_code: cl_int, result: T) -> Output<T> {
         match StatusCode::from(err_code) {
             StatusCode::Success => Ok(result),
             StatusCode::Failure(num, cl_error) => Err(Error::StatusCode(num, cl_error)),

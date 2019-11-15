@@ -46,11 +46,11 @@ impl From<PlatformError> for Error {
 }
 
 
-fn platform_cannot_be_retained(_platform_id: &cl_platform_id) -> Output<()> {
+fn platform_cannot_be_retained(_platform_id: cl_platform_id) -> Output<()> {
     Err(PlatformError::CannotBeRetained.into())
 }
 
-fn platform_cannot_be_released(_platform_id: &cl_platform_id) -> Output<()> {
+fn platform_cannot_be_released(_platform_id: cl_platform_id) -> Output<()> {
     Err(PlatformError::CannotBeReleased.into())
 }
 
@@ -146,7 +146,7 @@ impl Platform {
 
     pub fn extensions(&self) -> Output<Vec<String>> {
         self.info(PlatformInfo::Extensions).map(|exts| {
-            exts.split(" ")
+            exts.split(' ')
                 .map(|ext| ext.to_string())
                 .collect()
         })
@@ -161,7 +161,7 @@ impl Platform {
 impl Default for Platform {
     fn default() -> Platform {
         let mut platforms = Platform::all().expect("Failed to list platforms for Platform::default()");
-        if platforms.len() == 0 {
+        if platforms.is_empty() {
             panic!("No platforms during Platform::default()");
         }
         platforms.remove(0)

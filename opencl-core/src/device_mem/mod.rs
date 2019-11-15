@@ -46,7 +46,7 @@ pub struct DeviceMem<T> where T: Debug {
 impl<T: Debug> Drop for DeviceMem<T> {
     fn drop(&mut self) {
         unsafe {
-            cl_release_mem(&self.raw_cl_object()).unwrap_or_else(|e| {
+            cl_release_mem(self.raw_cl_object()).unwrap_or_else(|e| {
                 panic!("Failed to release cl_mem of {:?} due to {:?}", self, e);
             })
         }
@@ -86,7 +86,8 @@ impl<T: Debug> ClObject<cl_mem> for DeviceMem<T> {
             return Err(error.into())
         }
 
-        let () = cl_retain_mem(&handle)?;
+        cl_retain_mem(handle)?;
+
         Ok(DeviceMem {
             handle,
             _phantom: PhantomData
@@ -208,11 +209,14 @@ impl<T: Debug> DeviceMem<T> {
     }
 
 
-    pub fn len(&self) -> Output<usize> {
-        let mem_size_in_bytes = self.size()?;    
-        Ok(mem_size_in_bytes / std::mem::size_of::<T>())
+    pub fn len(&self) -> usize {
+        let mem_size_in_bytes = self.size().expect("Failed to get the size of DeviceMem");    
+        mem_size_in_bytes / std::mem::size_of::<T>()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 
     pub fn host_ptr(&self) -> Output<Option<Vec<T>>> where T: Copy {
         self.get_info::<T>(MemInfo::HostPtr).map(|ret| {
@@ -309,7 +313,7 @@ mod tests {
     #[test]
     fn device_mem_method_len_works() {
         let (_sess, device_mem) = get_device_mem();
-        let out = device_mem.len().expect("Failed to call device_mem.len()");
+        let out = device_mem.len();
         assert_eq!(out, 9);
     }
     #[test]

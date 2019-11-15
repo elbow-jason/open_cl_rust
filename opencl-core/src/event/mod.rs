@@ -8,7 +8,6 @@ use low_level::{cl_retain_event, cl_release_event};
 
 use crate::ffi::{
     cl_event,
-    cl_profiling_info,
     cl_command_queue,
     cl_context,
 };
@@ -61,8 +60,7 @@ impl Event {
     }
 
     fn time(&self, info: ProfilingInfo) -> Output<u64> {
-        let cl_object = unsafe { self.raw_cl_object() };
-        low_level::cl_get_event_profiling_info(&cl_object, info as cl_profiling_info)
+        low_level::cl_get_event_profiling_info(self, info)
     }
 
     pub fn queue_time(&self) -> Output<u64> {

@@ -15,7 +15,7 @@ pub fn cl_wait_for_events(wait_list: WaitList) -> Output<()> {
 
         clWaitForEvents(wait_list_len, wait_list_ptr_ptr)
     };
-    StatusCode::into_output(err_code, ())
+    StatusCode::build_output(err_code, ())
 }
 
 /// WaitList is a holder for `cl_event`s that are to be awaited before
@@ -53,6 +53,10 @@ impl WaitList {
         self.events.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.events.len() == 0
+    }
+
     #[inline]
     pub(crate) unsafe fn len_and_ptr_ptr(&self) -> (cl_uint, *const cl_event) {
         let slice = self.cl_object();
@@ -73,7 +77,7 @@ impl Drop for WaitList {
         let mut errors: Vec<Error> = Vec::new();
         for e in self.events.iter_mut() {
             unsafe {
-                match cl_release_event(&e) {
+                match cl_release_event(*e) {
                     Ok(()) => (),
                     Err(e) => errors.push(e),
                 }

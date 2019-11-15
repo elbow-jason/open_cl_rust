@@ -10,7 +10,7 @@ use crate::ffi::{
 
 bitflags! {
     pub struct CommandQueueProperties: cl_command_queue_properties {
-        const OutOfOrderExecModeEnable = 1 << 0;
+        const OutOfOrderExecModeEnable = 1;
         const ProfilingEnable = 1 << 1;
         const OnDevice = 1 << 2;
         const OnDeviceDefault = 1 << 3;
@@ -39,7 +39,7 @@ crate::__codes_enum!(CommandQueueInfo, cl_command_queue_info, {
 use CommandQueueInfo as F;
 
 impl CommandQueueInfo {
-    pub fn size_t(&self) -> usize {
+    pub fn size_t(self) -> usize {
         match self {
             F::Context => size_t!(cl_context),
             F::Device => size_t!(cl_device_id),

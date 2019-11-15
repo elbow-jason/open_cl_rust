@@ -75,7 +75,7 @@ unsafe fn _cl_create_buffer<T>(
         ptr,
         &mut err_code,
     );
-    cl_mem_object = StatusCode::into_output(err_code, cl_mem_object)?;
+    cl_mem_object = StatusCode::build_output(err_code, cl_mem_object)?;
     DeviceMem::new(cl_mem_object)
 }
 

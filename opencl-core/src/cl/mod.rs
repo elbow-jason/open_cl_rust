@@ -38,7 +38,7 @@ pub unsafe fn cl_get_object_count<Obj, Flag, Obj2>(
         &mut output_size as *mut u32,
     );
 
-    StatusCode::into_output(err_code, output_size)
+    StatusCode::build_output(err_code, output_size)
 }
 
 
@@ -65,7 +65,7 @@ pub unsafe fn cl_get_object<Obj: Copy, Flag: Copy, Obj2: Copy>(
         std::ptr::null_mut(),
     );
     
-    let () = StatusCode::into_output(err_code, ())?;
+    StatusCode::build_output(err_code, ())?;
     // everything worked, but we dont want the `bytes` vec to be dropped so we forget it.
     std::mem::forget(bytes);
     Ok(ClPointer::new(output_count as usize, output))
@@ -85,7 +85,7 @@ pub unsafe fn cl_get_info_byte_count5<Obj: Copy, Flag: Copy>(cl_object: Obj, fla
         &mut output_size as *mut size_t,
     );
 
-    StatusCode::into_output(err_code, output_size)
+    StatusCode::build_output(err_code, output_size)
 }
 
 
@@ -109,7 +109,7 @@ pub unsafe fn cl_get_info5<Obj: Copy, Flag: Copy, Ret: Copy>(cl_object: Obj, fla
         std::ptr::null_mut(),
     );
 
-    let () = StatusCode::into_output(err_code, ())?;
+    StatusCode::build_output(err_code, ())?;
     // Everything above worked so we don't want the `bytes` vec to be freed
     // Therefore we forget it.
     std::mem::forget(bytes);
@@ -132,7 +132,7 @@ pub unsafe fn cl_get_info_byte_count6<Obj1: Copy, Obj2: Copy, Flag: Copy>(cl_obj
         &mut output_size as *mut size_t,
     );
 
-    StatusCode::into_output(err_code, output_size)
+    StatusCode::build_output(err_code, output_size)
 }
 
 
@@ -155,7 +155,7 @@ pub unsafe fn cl_get_info6<Obj1: Copy, Obj2: Copy, Flag: Copy, Ret: Copy>(cl_obj
         std::ptr::null_mut(),
     );
 
-    let () = StatusCode::into_output(err_code, ())?;
+    StatusCode::build_output(err_code, ())?;
     // Everything above worked so we don't want the `bytes` vec to be freed
     // Therefore we forget it.
     std::mem::forget(bytes);

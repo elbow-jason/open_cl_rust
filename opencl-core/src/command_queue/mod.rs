@@ -124,7 +124,7 @@ impl CommandQueue {
         command_queue_opts: CommandQueueOptions,
     ) -> Output<Event> {
         let event = self.async_enqueue_kernel_with_opts(kernel, work, command_queue_opts)?;
-        let () = low_level::cl_finish(self)?;
+        low_level::cl_finish(self)?;
         Ok(event)
     }
 
@@ -136,7 +136,7 @@ impl CommandQueue {
     ) -> Output<Event> {
         let command_queue_opts = CommandQueueOptions::default();
         let event = self.async_enqueue_kernel_with_opts(kernel, work, command_queue_opts)?;
-        let () = low_level::cl_finish(self)?;
+        low_level::cl_finish(self)?;
         Ok(event)
     }
 

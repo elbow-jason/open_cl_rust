@@ -35,7 +35,7 @@ where
             arg_ptr,
         )
     };
-    StatusCode::into_output(err_code, ())
+    StatusCode::build_output(err_code, ())
 }
 
 pub fn cl_create_kernel(program: &Program, name: &str) -> Output<Kernel> {
@@ -44,6 +44,6 @@ pub fn cl_create_kernel(program: &Program, name: &str) -> Output<Kernel> {
         KernelError::CStringInvalidKernelName(name.to_string())
     })?;
     let kernel = unsafe { clCreateKernel(program.raw_cl_object(), c_name.as_ptr(), &mut err_code) };
-    let () = StatusCode::into_output(err_code, ())?;
+    StatusCode::build_output(err_code, ())?;
     unsafe { Kernel::new(kernel) }
 }

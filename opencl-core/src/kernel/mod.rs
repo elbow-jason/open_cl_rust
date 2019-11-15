@@ -52,7 +52,7 @@ impl From<KernelError> for Error {
     }
 }
 
-fn kernel_cannot_be_retained(_k: &cl_kernel) -> Output<()> {
+fn kernel_cannot_be_retained(_k: cl_kernel) -> Output<()> {
     Err(KernelError::CannotBeRetained.into())
 }
 

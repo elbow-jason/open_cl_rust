@@ -29,7 +29,7 @@ impl Session {
     pub fn create(device: Device, src: &str) -> Output<Session> {
         let context: Context = Context::create(&device)?;
         let program: Program = Program::create_with_source(&context, src)?;
-        let () = program.build_on_one_device(&device)?;
+        program.build_on_one_device(&device)?;
         let command_queue: CommandQueue = CommandQueue::create(&context, &device, None)?;
         Ok(Session{ device, context, program, command_queue, _unconstructable: () })
     }

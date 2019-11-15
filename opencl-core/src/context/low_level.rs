@@ -6,10 +6,12 @@ use crate::cl::ClObject;
 
 use super::Context;
 
+#[allow(clippy::transmuting_null)]
 pub fn cl_create_context(device: &Device) -> Output<Context> {
     device.usability_check()?;
     let mut err_code = 0;
     let context = unsafe {
+        
         clCreateContext(
             std::ptr::null(),
             1,
@@ -19,8 +21,8 @@ pub fn cl_create_context(device: &Device) -> Output<Context> {
             &mut err_code,
         )
     };
-    let checked_context = StatusCode::into_output(err_code, context)?;
-    debug_assert!(checked_context.is_null() == false);
+    let checked_context = StatusCode::build_output(err_code, context)?;
+    debug_assert!(!checked_context.is_null());
     unsafe { Context::new(checked_context) }
 }
 

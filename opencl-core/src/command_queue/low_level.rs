@@ -10,7 +10,6 @@ use crate::cl::{
 
 use crate::ffi::{
     cl_bool,
-    cl_uint,
     cl_int,
     cl_event,
     cl_command_queue,
@@ -52,11 +51,11 @@ pub fn cl_create_command_queue(
             &mut err_code,
         )
     };
-    StatusCode::into_output(err_code, command_queue)
+    StatusCode::build_output(err_code, command_queue)
 }
 
 pub fn cl_finish(queue: &CommandQueue) -> Output<()> {
-    StatusCode::into_output(unsafe { clFinish(queue.raw_cl_object()) }, ())
+    StatusCode::build_output(unsafe { clFinish(queue.raw_cl_object()) }, ())
 }
 
 pub fn cl_enqueue_nd_range_kernel(
@@ -79,7 +78,7 @@ pub fn cl_enqueue_nd_range_kernel(
         clEnqueueNDRangeKernel(
             queue.raw_cl_object(),
             kernel.raw_cl_object(),
-            work_dim as cl_uint,
+            u32::from(work_dim),
             global_work_offset_ptr,
             global_work_size_ptr,
             local_work_size_ptr,
@@ -89,9 +88,11 @@ pub fn cl_enqueue_nd_range_kernel(
         )
     };
 
-    let () = StatusCode::into_output(err_code, ())?;
-    let () = cl_finish(queue)?;
-    debug_assert!(tracking_event.is_null() == false);
+    StatusCode::build_output(err_code, ())?;
+
+    cl_finish(queue)?;
+
+    debug_assert!(!tracking_event.is_null());
     unsafe { Event::new(tracking_event) }
 }
 
@@ -108,7 +109,7 @@ fn new_tracking_event() -> cl_event {
 
 #[inline]
 fn into_event(err_code: cl_int, tracking_event: cl_event) -> Output<Event> {
-    let () = StatusCode::into_output(err_code, ())?;
+    StatusCode::build_output(err_code, ())?;
     unsafe { Event::new(tracking_event) }
 }
 
@@ -132,10 +133,10 @@ where
             device_mem.len().unwrap() {:?}
             ",
             buffer.len(),
-            device_mem.len().unwrap()
+            device_mem.len()
         );
 
-        debug_assert!(buffer.len() == device_mem.len().unwrap());
+        debug_assert!(buffer.len() == device_mem.len());
 
         clEnqueueReadBuffer(
             queue.raw_cl_object(),

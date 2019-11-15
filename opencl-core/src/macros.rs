@@ -103,12 +103,12 @@ macro_rules! __impl_cl_object_for_wrapper {
         impl $wrapper {
             #[inline]
             pub unsafe fn retain_raw_cl_object(handle: &$cl_object_type) -> Output<()> {
-                $retain_func(handle)
+                $retain_func(*handle)
             }
 
             #[inline]
             pub unsafe fn release_raw_cl_object(handle: &$cl_object_type) -> Output<()> {
-                $release_func(handle)
+                $release_func(*handle)
             }
         }
 
@@ -140,7 +140,7 @@ macro_rules! __impl_cl_object_for_wrapper {
                     let e = Error::ClObjectError(ClObjectError::ClObjectCannotBeNull(wrapper_name));
                     return Err(e);
                 }
-                let () = $retain_func(&cl_object)?;
+                let () = $retain_func(cl_object)?;
                 Ok($wrapper {
                     inner: cl_object,
                     _unconstructable: (),
@@ -178,7 +178,7 @@ macro_rules! __impl_drop_for_cl_object_wrapper {
                 use $crate::cl::ClObject;
                 // println!("Dropping {:?}", self);
                 unsafe {
-                    $release_func(&self.raw_cl_object()).unwrap_or_else(|e|{
+                    $release_func(self.raw_cl_object()).unwrap_or_else(|e|{
                         panic!("Failed to drop {:?} due to {:?}", self, e);
                     })
                 }
@@ -190,7 +190,7 @@ macro_rules! __impl_drop_for_cl_object_wrapper {
             // Decrements the reference count of the underlying cl object.
             // Incorrect usage of this function can cause a SEGFAULT.
             pub unsafe fn release_cl_object(self) -> Output<()> {
-                $release_func(&self.inner)
+                $release_func(self.inner)
             }
         }    
     };
@@ -227,14 +227,14 @@ macro_rules! __release_retain {
                 [<clRetain $pascal>],
             };
 
-            pub unsafe fn [<cl_release_ $snake>](cl_obj: &[<cl_ $snake>]) -> Output<()> {
-                let err_code = [<clRelease $pascal>](*cl_obj);
-                StatusCode::into_output(err_code, ())
+            pub unsafe fn [<cl_release_ $snake>](cl_obj: [<cl_ $snake>]) -> Output<()> {
+                let err_code = [<clRelease $pascal>](cl_obj);
+                StatusCode::build_output(err_code, ())
             }
 
-            pub unsafe fn [<cl_retain_ $snake>](cl_obj: &[<cl_ $snake>]) -> Output<()> {
-                let err_code = [<clRetain $pascal>](*cl_obj);
-                StatusCode::into_output(err_code, ())
+            pub unsafe fn [<cl_retain_ $snake>](cl_obj: [<cl_ $snake>]) -> Output<()> {
+                let err_code = [<clRetain $pascal>](cl_obj);
+                StatusCode::build_output(err_code, ())
             }
         }
     };
