@@ -1,11 +1,11 @@
-pub mod low_level;
 pub mod flags;
+pub mod low_level;
 
-use crate::ffi::cl_context;
 use crate::device::Device;
 use crate::error::Output;
+use crate::ffi::cl_context;
 
-use low_level::{cl_create_context, cl_retain_context, cl_release_context};
+use low_level::{cl_create_context, cl_release_context, cl_retain_context};
 
 __impl_unconstructable_cl_wrapper!(Context, cl_context);
 __impl_cl_object_for_wrapper!(Context, cl_context, cl_retain_context, cl_release_context);
@@ -23,14 +23,13 @@ impl Context {
 
 #[cfg(test)]
 mod tests {
-    use crate::device::Device;
     use super::Context;
-
+    use crate::device::Device;
 
     #[test]
     fn context_can_be_created_via_a_device() {
         let device: Device = Device::default();
-        let _context: Context = Context::create(&device)
-            .expect("Failed to create context from a device");
+        let _context: Context =
+            Context::create(&device).expect("Failed to create context from a device");
     }
 }

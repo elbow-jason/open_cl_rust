@@ -2,37 +2,18 @@ use std::fmt::Debug;
 
 use crate::utils::volume;
 
-use crate::cl::{
-    ClObject,
-    ClPointer,
-    cl_get_info5,
-};
+use crate::cl::{cl_get_info5, ClObject, ClPointer};
 
-use crate::ffi::{
-    cl_bool,
-    cl_int,
-    cl_event,
-    cl_command_queue,
-    cl_command_queue_info,
-    cl_command_queue_properties,
-    clFinish,
-    clEnqueueNDRangeKernel,
-    clEnqueueReadBuffer,
-    clEnqueueWriteBuffer,
-    clCreateCommandQueue,
-    clGetCommandQueueInfo,
-};
+use super::flags::CommandQueueInfo;
+use super::{CommandQueue, CommandQueueOptions};
 use crate::event::{Event, WaitList};
-use crate::{
-    DeviceMem,
-    Device,
-    Context,
-    Kernel,
-    Output,
+use crate::ffi::{
+    clCreateCommandQueue, clEnqueueNDRangeKernel, clEnqueueReadBuffer, clEnqueueWriteBuffer,
+    clFinish, clGetCommandQueueInfo, cl_bool, cl_command_queue, cl_command_queue_info,
+    cl_command_queue_properties, cl_event, cl_int,
 };
 use crate::utils::StatusCode;
-use super::{CommandQueue, CommandQueueOptions};
-use super::flags::CommandQueueInfo;
+use crate::{Context, Device, DeviceMem, Kernel, Output};
 
 __release_retain!(command_queue, CommandQueue);
 
@@ -128,7 +109,8 @@ where
 
         let (buffer_mem_size, buffer_ptr) = buffer_mem_size_and_ptr(buffer);
 
-        println!("
+        println!(
+            "
             buffer.len() {:?}
             device_mem.len().unwrap() {:?}
             ",
@@ -183,7 +165,6 @@ where
     into_event(err_code, tracking_event)
 }
 
-
 pub fn cl_get_command_queue_info<T: Copy>(
     command_queue: &CommandQueue,
     flag: CommandQueueInfo,
@@ -192,7 +173,7 @@ pub fn cl_get_command_queue_info<T: Copy>(
         cl_get_info5(
             command_queue.raw_cl_object(),
             flag as cl_command_queue_info,
-            clGetCommandQueueInfo
+            clGetCommandQueueInfo,
         )
     }
 }

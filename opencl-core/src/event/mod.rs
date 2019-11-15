@@ -1,30 +1,22 @@
-
-pub mod low_level;
-pub mod flags;
 pub mod event_info;
+pub mod flags;
+pub mod low_level;
 pub mod wait_list;
 
-use low_level::{cl_retain_event, cl_release_event};
+use low_level::{cl_release_event, cl_retain_event};
 
-use crate::ffi::{
-    cl_event,
-    cl_command_queue,
-    cl_context,
-};
+use crate::ffi::{cl_command_queue, cl_context, cl_event};
 
-use event_info::{
-    CommandExecutionStatus,
-    EventInfo,
-};
+use event_info::{CommandExecutionStatus, EventInfo};
 
 pub use wait_list::WaitList;
 
-use crate::command_queue::CommandQueue;
 use crate::cl::{
     ClObject,
     ClPointer,
     // CopyClObject,
 };
+use crate::command_queue::CommandQueue;
 
 use crate::context::Context;
 use crate::error::{Error, Output};
@@ -46,7 +38,6 @@ __impl_unconstructable_cl_wrapper!(Event, cl_event);
 __impl_cl_object_for_wrapper!(Event, cl_event, cl_retain_event, cl_release_event);
 __impl_clone_for_cl_object_wrapper!(Event, cl_retain_event);
 __impl_drop_for_cl_object_wrapper!(Event, cl_release_event);
-
 
 use flags::ProfilingInfo;
 use EventInfo as Info;
@@ -84,24 +75,24 @@ impl Event {
     }
 
     pub fn reference_count(&self) -> Output<u32> {
-        self.info(Info::ReferenceCount).map(|ret| {
-            unsafe { ret.into_one() }
-        })
+        self.info(Info::ReferenceCount)
+            .map(|ret| unsafe { ret.into_one() })
     }
     pub fn command_queue(&self) -> Output<CommandQueue> {
-        self.info::<cl_command_queue>(Info::CommandQueue).and_then(|ret| unsafe { ret.into_retained_wrapper::<CommandQueue>() })
+        self.info::<cl_command_queue>(Info::CommandQueue)
+            .and_then(|ret| unsafe { ret.into_retained_wrapper::<CommandQueue>() })
     }
 
     pub fn context(&self) -> Output<Context> {
-        self.info::<cl_context>(Info::Context).and_then(|ret| unsafe { ret.into_retained_wrapper::<Context>() })
+        self.info::<cl_context>(Info::Context)
+            .and_then(|ret| unsafe { ret.into_retained_wrapper::<Context>() })
     }
 
     pub fn command_execution_status(&self) -> Output<CommandExecutionStatus> {
-        self.info(Info::CommandExecutionStatus).map(|ret| unsafe { ret.into_one() })
+        self.info(Info::CommandExecutionStatus)
+            .map(|ret| unsafe { ret.into_one() })
     }
 }
-
-
 
 /// A CompleteEvent is the result of making a synchronous ffi call.
 ///
@@ -133,8 +124,6 @@ impl CompleteEvent {
         self.event.raw_cl_object()
     }
 }
-
-
 
 // #[cfg(test)]
 // mod tests {
@@ -194,7 +183,7 @@ impl CompleteEvent {
 // //     fn event_method_command_queue_works() {
 // //         let (_sess, event) = get_event();
 // //         let _output: CommandQueue = event.command_queue().expect("Failed to call event.command_queue()");
-        
+
 // //     }
 
 // //     #[test]

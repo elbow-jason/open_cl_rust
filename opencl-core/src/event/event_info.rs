@@ -1,8 +1,4 @@
-use crate::ffi::{
-    cl_command_type,
-    cl_event_info,
-    cl_int,
-};
+use crate::ffi::{cl_command_type, cl_event_info, cl_int};
 
 /* command execution status */
 crate::__codes_enum!(CommandExecutionStatus, cl_int, {

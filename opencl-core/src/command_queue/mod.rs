@@ -1,45 +1,34 @@
-
-pub mod low_level;
 pub mod flags;
 pub mod helpers;
+pub mod low_level;
 
 use std::fmt::Debug;
 
 use num::Num;
 
-use flags::{
-    CommandQueueInfo,
-    CommandQueueProperties
-};
+use flags::{CommandQueueInfo, CommandQueueProperties};
 
-use crate::ffi::{
-    cl_command_queue,
-    cl_command_queue_properties,
-};
+use crate::ffi::{cl_command_queue, cl_command_queue_properties};
 
-use crate::{
-    DeviceMem,
-    Device,
-    Context,
-    Event,
-    Kernel,
-    Output,
-    Work,
-};
+use crate::{Context, Device, DeviceMem, Event, Kernel, Output, Work};
 
 use crate::cl::{ClObject, ClPointer};
 
-use low_level::{cl_release_command_queue, cl_retain_command_queue};
 use helpers::CommandQueueOptions;
+use low_level::{cl_release_command_queue, cl_retain_command_queue};
 
 __impl_unconstructable_cl_wrapper!(CommandQueue, cl_command_queue);
-__impl_cl_object_for_wrapper!(CommandQueue, cl_command_queue, cl_retain_command_queue, cl_release_command_queue);
+__impl_cl_object_for_wrapper!(
+    CommandQueue,
+    cl_command_queue,
+    cl_retain_command_queue,
+    cl_release_command_queue
+);
 __impl_clone_for_cl_object_wrapper!(CommandQueue, cl_retain_command_queue);
 __impl_drop_for_cl_object_wrapper!(CommandQueue, cl_release_command_queue);
 
 unsafe impl Send for CommandQueue {}
 unsafe impl Sync for CommandQueue {}
-
 
 use CommandQueueInfo as CQInfo;
 
@@ -63,11 +52,7 @@ impl CommandQueue {
 
     /// write_buffer is used to ,ove data from the host buffer (buffer: &[T]) to
     /// the OpenCL cl_mem pointer inside `d_mem: &DeviceMem<T>`.
-    pub fn write_buffer<T>(
-        &self,
-        device_mem: &DeviceMem<T>,
-        host_buffer: &[T]
-    ) -> Output<Event>
+    pub fn write_buffer<T>(&self, device_mem: &DeviceMem<T>, host_buffer: &[T]) -> Output<Event>
     where
         T: Sized + Debug + Num,
     {
@@ -86,18 +71,12 @@ impl CommandQueue {
     where
         T: Sized + Debug + Num,
     {
-
         low_level::cl_enqueue_write_buffer(self, device_mem, host_buffer, command_queue_opts)
     }
 
     /// read_buffer is used to move data from the `device_mem` (`cl_mem` pointer
     /// inside `&DeviceMem<T>`) into a `host_buffer` (`&mut [T]`).
-    pub fn read_buffer<T>(
-        &self,
-        device_mem: &DeviceMem<T>,
-        host_buffer: &mut [T],
-        
-    ) -> Output<Event>
+    pub fn read_buffer<T>(&self, device_mem: &DeviceMem<T>, host_buffer: &mut [T]) -> Output<Event>
     where
         T: Sized + Debug + Num,
     {
@@ -128,23 +107,14 @@ impl CommandQueue {
         Ok(event)
     }
 
-    pub fn sync_enqueue_kernel(
-        &self,
-        kernel: &Kernel,
-        work: &Work,
-        
-    ) -> Output<Event> {
+    pub fn sync_enqueue_kernel(&self, kernel: &Kernel, work: &Work) -> Output<Event> {
         let command_queue_opts = CommandQueueOptions::default();
         let event = self.async_enqueue_kernel_with_opts(kernel, work, command_queue_opts)?;
         low_level::cl_finish(self)?;
         Ok(event)
     }
 
-    pub fn async_enqueue_kernel(
-        &self,
-        kernel: &Kernel,
-        work: &Work,
-    ) -> Output<Event> {
+    pub fn async_enqueue_kernel(&self, kernel: &Kernel, work: &Work) -> Output<Event> {
         let command_queue_opts = CommandQueueOptions::default();
         self.async_enqueue_kernel_with_opts(kernel, work, command_queue_opts)
     }
@@ -173,27 +143,30 @@ impl CommandQueue {
         // The OpenCL context gives an non-reference counted pointer.
         // What an absolute joy.
         // Manually increase the reference count.
-        self.info(CQInfo::Context).and_then(|ret| unsafe { ret.into_retained_wrapper::<Context>() })
-        
+        self.info(CQInfo::Context)
+            .and_then(|ret| unsafe { ret.into_retained_wrapper::<Context>() })
     }
 
     pub fn device(&self) -> Output<Device> {
-        self.info(CQInfo::Device).and_then(|ret| unsafe { ret.into_retained_wrapper::<Device>() })
+        self.info(CQInfo::Device)
+            .and_then(|ret| unsafe { ret.into_retained_wrapper::<Device>() })
     }
 
     pub fn reference_count(&self) -> Output<u32> {
-        self.info(CQInfo::ReferenceCount).map(|ret| unsafe{ ret.into_one() })
+        self.info(CQInfo::ReferenceCount)
+            .map(|ret| unsafe { ret.into_one() })
     }
 
     pub fn properties(&self) -> Output<CommandQueueProperties> {
-        self.info(CQInfo::Properties).map(|ret| unsafe{ ret.into_one() })
+        self.info(CQInfo::Properties)
+            .map(|ret| unsafe { ret.into_one() })
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{Session, Context, Device};
     use super::flags::CommandQueueProperties;
+    use crate::{Context, Device, Session};
 
     fn get_session() -> Session {
         let src = "__kernel void test(__global int *i) { *i += 1; }";
@@ -202,40 +175,50 @@ mod tests {
     }
 
     #[test]
-    pub fn command_queue_method_context_works() {          
+    pub fn command_queue_method_context_works() {
         let session = get_session();
-        let _ctx: Context = session.command_queue().context().expect("CommandQueue method context() failed");
+        let _ctx: Context = session
+            .command_queue()
+            .context()
+            .expect("CommandQueue method context() failed");
     }
-    
+
     #[test]
-    pub fn command_queue_method_device_works() { 
+    pub fn command_queue_method_device_works() {
         let session = get_session();
-        let _device: Device = session.command_queue().device().expect("CommandQueue method device() failed");
+        let _device: Device = session
+            .command_queue()
+            .device()
+            .expect("CommandQueue method device() failed");
     }
-    
+
     #[test]
-    pub fn command_queue_method_reference_count_works() { 
+    pub fn command_queue_method_reference_count_works() {
         let session = get_session();
-        let ref_count: u32 = session.command_queue().reference_count()
+        let ref_count: u32 = session
+            .command_queue()
+            .reference_count()
             .expect("CommandQueue method reference_count() failed");
         assert_eq!(ref_count, 1);
     }
-    
+
     #[test]
-    pub fn command_queue_method_properties_works() { 
+    pub fn command_queue_method_properties_works() {
         let session = get_session();
-        let props: CommandQueueProperties = session.command_queue().properties()
+        let props: CommandQueueProperties = session
+            .command_queue()
+            .properties()
             .expect("CommandQueue method properties() failed");
         let bits = props.bits();
         let maybe_same_prop = CommandQueueProperties::from_bits(bits);
         if !maybe_same_prop.is_some() {
-            panic!("
+            panic!(
+                "
                 CommandQueue method properties returned \
                 an invalid CommandQueueProperties bitflag {:?}\
                 ",
                 bits
             );
         }
-
     }
 }

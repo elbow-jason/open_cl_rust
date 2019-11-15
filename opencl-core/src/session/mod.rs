@@ -1,11 +1,4 @@
-use crate::{
-    Device,
-    Context,
-    CommandQueue,
-    Program,
-    Output,
-};
-
+use crate::{CommandQueue, Context, Device, Output, Program};
 
 #[repr(C)]
 #[derive(Debug)]
@@ -31,7 +24,13 @@ impl Session {
         let program: Program = Program::create_with_source(&context, src)?;
         program.build_on_one_device(&device)?;
         let command_queue: CommandQueue = CommandQueue::create(&context, &device, None)?;
-        Ok(Session{ device, context, program, command_queue, _unconstructable: () })
+        Ok(Session {
+            device,
+            context,
+            program,
+            command_queue,
+            _unconstructable: (),
+        })
     }
 
     pub fn device(&self) -> &Device {
@@ -50,5 +49,3 @@ impl Session {
         &self.command_queue
     }
 }
-
-

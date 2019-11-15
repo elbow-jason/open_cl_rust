@@ -1,17 +1,14 @@
 use crate::ffi::{
+    cl_device_affinity_domain,
+    // v2.0+ ?
+    // cl_device_svm,
     cl_device_exec_capabilities,
     cl_device_fp_config,
     cl_device_local_mem_type,
     cl_device_mem_cache_type,
-    cl_device_type,
     cl_device_partition_property,
-    cl_device_affinity_domain,
-    // v2.0+ ?
-    // cl_device_svm,
+    cl_device_type,
 };
-
-
-
 
 crate::__codes_enum!(DeviceLocalMemType,  cl_device_local_mem_type, {
     Local => 0x1,
@@ -78,7 +75,6 @@ bitflags! {
         const NATIVE_KERNEL = 2;
     }
 }
-
 
 // NOTE: Version for cl_device_svm? 2.0?
 // crate::__codes_enum!(DeviceSvm, cl_device_svm, {

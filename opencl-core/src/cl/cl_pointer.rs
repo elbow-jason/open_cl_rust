@@ -1,18 +1,18 @@
-use std::marker::PhantomData;
 use std::fmt;
+use std::marker::PhantomData;
 
 use super::cl_object::ClObject;
 
 use crate::utils::strings;
 
-use crate::ffi::{cl_platform_id, cl_bool};
 use crate::error::Output;
+use crate::ffi::{cl_bool, cl_platform_id};
 use crate::platform::Platform;
 
 /// ClPointer is a very short-lived struct that is used to homogenize the returns from
 /// many of the CL API calls. If a call to an OpenCL C function successfully returns
 /// a ClPointer that ClPointer MUST BE CONSUMED; Failure to consume the ClPointer will
-/// lead to a panic when the ClPointer struct is dropped. 
+/// lead to a panic when the ClPointer struct is dropped.
 #[repr(C)]
 pub struct ClPointer<T: Copy> {
     count: usize,
@@ -21,14 +21,12 @@ pub struct ClPointer<T: Copy> {
     is_consumed: bool,
 }
 
-
 /// Only u8 ClPointers can become String
 impl ClPointer<u8> {
     pub unsafe fn into_string(self) -> String {
         strings::to_utf8_string(self.into_many())
     }
 }
-
 
 /// Special case for cl_platform_id and Platform.
 impl ClPointer<cl_platform_id> {
@@ -46,7 +44,6 @@ impl ClPointer<cl_platform_id> {
         Ok(output)
     }
 }
-
 
 impl ClPointer<cl_bool> {
     pub unsafe fn into_bool(self) -> bool {
@@ -104,12 +101,18 @@ impl<T: Copy> ClPointer<T> {
     }
 
     #[inline]
-    pub unsafe fn into_created_wrapper<W>(self) -> Output<W> where W: ClObject<T> {
+    pub unsafe fn into_created_wrapper<W>(self) -> Output<W>
+    where
+        W: ClObject<T>,
+    {
         W::new(self.into_one())
     }
 
     #[inline]
-    pub unsafe fn into_retained_wrapper<W>(self) -> Output<W> where W: ClObject<T> {
+    pub unsafe fn into_retained_wrapper<W>(self) -> Output<W>
+    where
+        W: ClObject<T>,
+    {
         W::new_retained(self.into_one())
     }
 
@@ -121,9 +124,11 @@ impl<T: Copy> ClPointer<T> {
         many
     }
 
-
     #[inline]
-    pub unsafe fn into_many_retained_wrappers<W>(self) -> Output<Vec<W>> where W: ClObject<T> {
+    pub unsafe fn into_many_retained_wrappers<W>(self) -> Output<Vec<W>>
+    where
+        W: ClObject<T>,
+    {
         let mut output: Vec<W> = Vec::with_capacity(self.count);
         for cl_obj in self.into_many().into_iter() {
             match W::new_retained(cl_obj) {
@@ -147,13 +152,12 @@ impl<T: Copy> ClPointer<T> {
             1 => (),
             0 => {
                 panic!("cl_pointer was not 1 count: {:?}", self);
-            },
+            }
             _ => {
                 panic!("cl_pointer was not 1 count: {:?}", self);
-            },
+            }
         }
     }
-
 }
 
 impl<T: Copy> Drop for ClPointer<T> {
@@ -164,7 +168,6 @@ impl<T: Copy> Drop for ClPointer<T> {
         // println!("Drop called on consumed {:?}", self);
     }
 }
-
 
 impl<T: Copy> fmt::Debug for ClPointer<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

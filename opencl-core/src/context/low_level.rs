@@ -1,8 +1,8 @@
-use crate::ffi::{cl_context, cl_device_id, clCreateContext};
+use crate::cl::ClObject;
 use crate::device::Device;
 use crate::error::Output;
+use crate::ffi::{clCreateContext, cl_context, cl_device_id};
 use crate::utils::StatusCode;
-use crate::cl::ClObject;
 
 use super::Context;
 
@@ -11,7 +11,6 @@ pub fn cl_create_context(device: &Device) -> Output<Context> {
     device.usability_check()?;
     let mut err_code = 0;
     let context = unsafe {
-        
         clCreateContext(
             std::ptr::null(),
             1,

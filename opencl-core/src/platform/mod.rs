@@ -1,26 +1,22 @@
 /// Platform has 3 basic functions (other than holding a cl object handle).
-/// 
+///
 /// Platform is the interface for listing platforms.
-/// 
+///
 /// Platform is the interface for getting metadata about platforms.
-/// 
+///
 /// Platform is the interface for listing Devices.
-/// 
+///
 /// NOTE: Platform is tested!
-
 use std::default::Default;
 
-pub mod low_level;
 pub mod flags;
+pub mod low_level;
 
-use low_level::{
-    cl_get_platforms,
-    cl_get_platform_info,
-};
-use crate::ffi::cl_platform_id;
 use crate::device::{Device, DeviceType};
-use crate::error::{Output, Error};
+use crate::error::{Error, Output};
+use crate::ffi::cl_platform_id;
 use flags::PlatformInfo;
+use low_level::{cl_get_platform_info, cl_get_platforms};
 
 /// An error related to Platform.
 #[derive(Debug, Fail, PartialEq, Eq, Clone)]
@@ -31,12 +27,15 @@ pub enum PlatformError {
     #[fail(display = "The given platform had no default Device")]
     NoDefaultDevice,
 
-    #[fail(display = "All cl_platform_id objects are part of host memory and cannot be retained by OpenCL.")]
+    #[fail(
+        display = "All cl_platform_id objects are part of host memory and cannot be retained by OpenCL."
+    )]
     CannotBeRetained,
 
-    #[fail(display = "All cl_platform_id objects are part of host memory and cannot be released by OpenCL.")]
+    #[fail(
+        display = "All cl_platform_id objects are part of host memory and cannot be released by OpenCL."
+    )]
     CannotBeReleased,
-    
 }
 
 impl From<PlatformError> for Error {
@@ -44,7 +43,6 @@ impl From<PlatformError> for Error {
         Error::PlatformError(err)
     }
 }
-
 
 fn platform_cannot_be_retained(_platform_id: cl_platform_id) -> Output<()> {
     Err(PlatformError::CannotBeRetained.into())
@@ -54,20 +52,21 @@ fn platform_cannot_be_released(_platform_id: cl_platform_id) -> Output<()> {
     Err(PlatformError::CannotBeReleased.into())
 }
 
-
 unsafe impl Send for Platform {}
 unsafe impl Sync for Platform {}
 
-
 // NOTE: cl_platform_id is host mem?
 // https://stackoverflow.com/questions/17711407/opencl-releasing-platform-object
-// so no retain or release necessary/possible for platform! 
+// so no retain or release necessary/possible for platform!
 __impl_unconstructable_cl_wrapper!(Platform, cl_platform_id);
-__impl_cl_object_for_wrapper!(Platform, cl_platform_id, platform_cannot_be_retained, platform_cannot_be_released);
-
+__impl_cl_object_for_wrapper!(
+    Platform,
+    cl_platform_id,
+    platform_cannot_be_retained,
+    platform_cannot_be_released
+);
 
 impl Platform {
-
     pub fn all() -> Output<Vec<Platform>> {
         cl_get_platforms().and_then(|ret| unsafe { ret.into_many_wrappers() })
     }
@@ -107,7 +106,6 @@ impl Platform {
         Err(PlatformError::NoUsableDevices.into())
     }
 
-
     pub fn cpu_devices(&self) -> Output<Vec<Device>> {
         Device::cpu_devices(self)
     }
@@ -123,7 +121,7 @@ impl Platform {
     pub fn custom_devices(&self) -> Output<Vec<Device>> {
         Device::custom_devices(self)
     }
-    
+
     fn info(&self, info_code: PlatformInfo) -> Output<String> {
         cl_get_platform_info(self, info_code).map(|ret| unsafe { ret.into_string() })
     }
@@ -145,11 +143,8 @@ impl Platform {
     }
 
     pub fn extensions(&self) -> Output<Vec<String>> {
-        self.info(PlatformInfo::Extensions).map(|exts| {
-            exts.split(' ')
-                .map(|ext| ext.to_string())
-                .collect()
-        })
+        self.info(PlatformInfo::Extensions)
+            .map(|exts| exts.split(' ').map(|ext| ext.to_string()).collect())
     }
 
     // v2.1
@@ -160,7 +155,8 @@ impl Platform {
 
 impl Default for Platform {
     fn default() -> Platform {
-        let mut platforms = Platform::all().expect("Failed to list platforms for Platform::default()");
+        let mut platforms =
+            Platform::all().expect("Failed to list platforms for Platform::default()");
         if platforms.is_empty() {
             panic!("No platforms during Platform::default()");
         }
@@ -177,7 +173,7 @@ mod tests {
         Platform::default()
     }
 
-   #[test]
+    #[test]
     fn platform_func_default_works() {
         let _platform: Platform = Platform::default();
     }
@@ -191,35 +187,41 @@ mod tests {
     #[test]
     fn platform_can_list_all_devices() {
         let platform = get_platform();
-        let devices = platform.all_devices().expect("failed to list all platform devices");
+        let devices = platform
+            .all_devices()
+            .expect("failed to list all platform devices");
         assert!(devices.len() > 0);
     }
 
     #[test]
     fn platform_can_list_devices_by_type() {
         let platform = get_platform();
-        let cpus = platform.all_devices_by_type(DeviceType::CPU)
+        let cpus = platform
+            .all_devices_by_type(DeviceType::CPU)
             .expect("failed to list CPU platform devices by DeviceType");
 
         assert!(cpus.len() > 0);
-        
+
         let _gpus = platform.all_devices_by_type(DeviceType::GPU);
         let _accelerators = platform.all_devices_by_type(DeviceType::ACCELERATOR);
         let _accelerators = platform.all_devices_by_type(DeviceType::CUSTOM);
     }
 
-
     #[test]
     fn platform_has_one_or_more_default_device() {
         let platform = get_platform();
-        let devices: Vec<Device> = platform.default_devices().expect("failed to find a default device for the platform");
+        let devices: Vec<Device> = platform
+            .default_devices()
+            .expect("failed to find a default device for the platform");
         assert!(devices.len() > 0);
     }
 
     #[test]
     fn platform_can_select_one_usable_default_device_best_effort() {
         let platform = get_platform();
-        let device: Device = platform.default_device().expect("failed to find a default device for the platform");
+        let device: Device = platform
+            .default_device()
+            .expect("failed to find a default device for the platform");
         // fetching a name means it is usable.
         assert!(device.is_usable() == true);
         let _name = device.name().expect("failed to fetch name_info on device");
@@ -236,7 +238,7 @@ mod tests {
         let gpus_flag = platform.all_devices_by_type(DeviceType::GPU);
         let gpus_method = platform.gpu_devices();
         assert_eq!(gpus_flag, gpus_method);
-        
+
         let accel_flag = platform.all_devices_by_type(DeviceType::ACCELERATOR);
         let accel_method = platform.accelerator_devices();
         assert_eq!(accel_flag, accel_method);
@@ -248,7 +250,8 @@ mod tests {
 
     #[test]
     fn platform_can_get_the_first_default_device() {
-        let device = Platform::get_any_default_device().expect("Call to Platform::get_any_default_device() failed.");
+        let device = Platform::get_any_default_device()
+            .expect("Call to Platform::get_any_default_device() failed.");
         assert!(device.is_usable() == true);
         let _name = device.name().expect("Failed to fetch Device name");
     }
@@ -257,39 +260,42 @@ mod tests {
     fn platform_has_methods_for_info() {
         let platform = get_platform();
         let empty_string = "".to_string();
-        
 
-        let name = platform.name()
+        let name = platform
+            .name()
             .expect("failed to get platform info for name");
-        
+
         assert!(name != empty_string);
-        
-        let version = platform.version()
+
+        let version = platform
+            .version()
             .expect("failed to get platform info for version");
-        
+
         assert!(version != empty_string);
 
-        let profile = platform.profile()
+        let profile = platform
+            .profile()
             .expect("failed to get platform info for profile");
-        
+
         assert!(profile != empty_string);
 
-        let vendor = platform.vendor()
+        let vendor = platform
+            .vendor()
             .expect("failed to get platform info for vendor");
-        
+
         assert!(vendor != empty_string);
 
-        let extensions = platform.extensions()
+        let extensions = platform
+            .extensions()
             .expect("failed to get platform info for extensions");
-        
+
         for ext in extensions.into_iter() {
             assert!(ext != empty_string);
         }
         // v2.1
         // let host_timer_resolution = platform.host_timer_resolution()
         //     .expect("failed to get platform info for host_timer_resolution");
-        
+
         // assert_eq!(host_timer_resolution, "".to_string());
     }
-
 }

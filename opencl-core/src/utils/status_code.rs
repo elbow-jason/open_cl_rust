@@ -1,12 +1,11 @@
 use crate::ffi::cl_int;
 use crate::{Error, Output};
 
-
 #[repr(C)]
 #[derive(Eq, PartialEq, Clone, Copy)]
 pub enum StatusCode {
     Success,
-    Failure(isize, ClError)
+    Failure(isize, ClError),
 }
 
 use StatusCode::*;
@@ -15,7 +14,7 @@ impl From<cl_int> for StatusCode {
     fn from(number: cl_int) -> StatusCode {
         match number {
             0 => Success,
-            _ => Failure(number as isize, number.into())
+            _ => Failure(number as isize, number.into()),
         }
     }
 }
@@ -141,7 +140,6 @@ impl From<cl_int> for ClError {
         }
     }
 }
-
 
 impl StatusCode {
     #[inline]

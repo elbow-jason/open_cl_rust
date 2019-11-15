@@ -1,22 +1,14 @@
+pub mod dims;
 pub mod flags;
 pub mod status_code;
 pub mod volume;
 pub mod work;
-pub mod dims;
 
 pub use {
-    volume::Volume,
-    work::{
-        Work,
-        Volumetric,
-        VolumetricError
-    },
     dims::Dims,
-    status_code::{
-        StatusCode,
-        ClError,
-    }
-
+    status_code::{ClError, StatusCode},
+    volume::Volume,
+    work::{Volumetric, VolumetricError, Work},
 };
 
 /// Returns a Vec with *actual* length.
@@ -25,7 +17,6 @@ pub fn vec_filled_with<T: Clone>(filler: T, len: usize) -> Vec<T> {
     out.resize(len, filler);
     out
 }
-
 
 pub mod strings {
     use std::ffi::CString;

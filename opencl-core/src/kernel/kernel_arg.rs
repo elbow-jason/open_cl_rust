@@ -1,8 +1,7 @@
-
-use std::fmt::Debug;
 use libc::{c_void, size_t};
+use std::fmt::Debug;
 
-use crate::ffi::{cl_mem};
+use crate::ffi::cl_mem;
 
 use crate::device_mem::DeviceMem;
 

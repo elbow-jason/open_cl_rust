@@ -1,11 +1,7 @@
 #![allow(non_upper_case_globals)]
 
 use crate::ffi::{
-    cl_command_queue_info,
-    cl_command_queue_properties,
-    cl_context,
-    cl_device_id,
-    cl_uint,
+    cl_command_queue_info, cl_command_queue_properties, cl_context, cl_device_id, cl_uint,
 };
 
 bitflags! {
@@ -48,4 +44,3 @@ impl CommandQueueInfo {
         }
     }
 }
-

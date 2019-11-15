@@ -4,20 +4,15 @@
 pub mod cl_object;
 pub mod cl_pointer;
 
-pub use cl_object::{
-    ClObject, 
-    CopyClObject,
-    MutClObject,
-    ClObjectError
-};
+pub use cl_object::{ClObject, ClObjectError, CopyClObject, MutClObject};
 
 pub use cl_pointer::ClPointer;
 
+use crate::error::Output;
 use crate::ffi::cl_int;
-use libc::{size_t, c_void};
 use crate::utils;
 use crate::utils::status_code::StatusCode;
-use crate::error::Output;
+use libc::{c_void, size_t};
 
 type ObjFunc<Obj, Flag, Obj2> = unsafe extern "C" fn(Obj, Flag, u32, *mut Obj2, *mut u32) -> cl_int;
 
@@ -25,8 +20,11 @@ pub unsafe fn cl_get_object_count<Obj, Flag, Obj2>(
     cl_object: Obj,
     flag: Flag,
     func: ObjFunc<Obj, Flag, Obj2>,
-)
-    -> Output<u32> where Obj: Copy, Flag: Copy, Obj2: Copy
+) -> Output<u32>
+where
+    Obj: Copy,
+    Flag: Copy,
+    Obj2: Copy,
 {
     let mut output_size: u32 = 0;
 
@@ -40,7 +38,6 @@ pub unsafe fn cl_get_object_count<Obj, Flag, Obj2>(
 
     StatusCode::build_output(err_code, output_size)
 }
-
 
 pub unsafe fn cl_get_object<Obj: Copy, Flag: Copy, Obj2: Copy>(
     cl_object: Obj,
@@ -57,24 +54,22 @@ pub unsafe fn cl_get_object<Obj: Copy, Flag: Copy, Obj2: Copy>(
     let mut bytes = utils::vec_filled_with(0u8, output_size as usize);
     let output = bytes.as_mut_ptr() as *mut _ as *mut Obj2;
 
-    let err_code = func(
-        cl_object,
-        flag,
-        output_count,
-        output,
-        std::ptr::null_mut(),
-    );
-    
+    let err_code = func(cl_object, flag, output_count, output, std::ptr::null_mut());
+
     StatusCode::build_output(err_code, ())?;
     // everything worked, but we dont want the `bytes` vec to be dropped so we forget it.
     std::mem::forget(bytes);
     Ok(ClPointer::new(output_count as usize, output))
 }
 
-type InfoFunc5<Obj, Flag> = unsafe extern "C" fn(Obj, Flag, size_t, *mut c_void, *mut size_t) -> cl_int;
+type InfoFunc5<Obj, Flag> =
+    unsafe extern "C" fn(Obj, Flag, size_t, *mut c_void, *mut size_t) -> cl_int;
 
-
-pub unsafe fn cl_get_info_byte_count5<Obj: Copy, Flag: Copy>(cl_object: Obj, flag: Flag, func: InfoFunc5<Obj, Flag>) -> Output<size_t> {
+pub unsafe fn cl_get_info_byte_count5<Obj: Copy, Flag: Copy>(
+    cl_object: Obj,
+    flag: Flag,
+    func: InfoFunc5<Obj, Flag>,
+) -> Output<size_t> {
     let mut output_size = 0 as size_t;
 
     let err_code = func(
@@ -88,10 +83,12 @@ pub unsafe fn cl_get_info_byte_count5<Obj: Copy, Flag: Copy>(cl_object: Obj, fla
     StatusCode::build_output(err_code, output_size)
 }
 
-
-pub unsafe fn cl_get_info5<Obj: Copy, Flag: Copy, Ret: Copy>(cl_object: Obj, flag: Flag, func: InfoFunc5<Obj, Flag>) -> Output<ClPointer<Ret>> {
+pub unsafe fn cl_get_info5<Obj: Copy, Flag: Copy, Ret: Copy>(
+    cl_object: Obj,
+    flag: Flag,
+    func: InfoFunc5<Obj, Flag>,
+) -> Output<ClPointer<Ret>> {
     let num_bytes: size_t = cl_get_info_byte_count5(cl_object, flag, func)?;
-
 
     if num_bytes == 0 {
         return Ok(ClPointer::new_empty());
@@ -101,13 +98,7 @@ pub unsafe fn cl_get_info5<Obj: Copy, Flag: Copy, Ret: Copy>(cl_object: Obj, fla
 
     let output = bytes.as_mut_ptr() as *mut _ as *mut libc::c_void;
 
-    let err_code = func(
-        cl_object,
-        flag,
-        num_bytes,
-        output,
-        std::ptr::null_mut(),
-    );
+    let err_code = func(cl_object, flag, num_bytes, output, std::ptr::null_mut());
 
     StatusCode::build_output(err_code, ())?;
     // Everything above worked so we don't want the `bytes` vec to be freed
@@ -118,9 +109,15 @@ pub unsafe fn cl_get_info5<Obj: Copy, Flag: Copy, Ret: Copy>(cl_object: Obj, fla
     Ok(ClPointer::new(output_count, output as *mut Ret))
 }
 
-type InfoFunc6<Obj, Obj2, Flag> = unsafe extern "C" fn(Obj, Obj2, Flag, size_t, *mut c_void, *mut size_t) -> cl_int;
+type InfoFunc6<Obj, Obj2, Flag> =
+    unsafe extern "C" fn(Obj, Obj2, Flag, size_t, *mut c_void, *mut size_t) -> cl_int;
 
-pub unsafe fn cl_get_info_byte_count6<Obj1: Copy, Obj2: Copy, Flag: Copy>(cl_obj1: Obj1, cl_obj2: Obj2, flag: Flag, func: InfoFunc6<Obj1, Obj2, Flag>) -> Output<size_t> {
+pub unsafe fn cl_get_info_byte_count6<Obj1: Copy, Obj2: Copy, Flag: Copy>(
+    cl_obj1: Obj1,
+    cl_obj2: Obj2,
+    flag: Flag,
+    func: InfoFunc6<Obj1, Obj2, Flag>,
+) -> Output<size_t> {
     let mut output_size = 0 as size_t;
 
     let err_code = func(
@@ -135,8 +132,12 @@ pub unsafe fn cl_get_info_byte_count6<Obj1: Copy, Obj2: Copy, Flag: Copy>(cl_obj
     StatusCode::build_output(err_code, output_size)
 }
 
-
-pub unsafe fn cl_get_info6<Obj1: Copy, Obj2: Copy, Flag: Copy, Ret: Copy>(cl_obj1: Obj1, cl_obj2: Obj2, flag: Flag, func: InfoFunc6<Obj1, Obj2, Flag>) -> Output<ClPointer<Ret>> {
+pub unsafe fn cl_get_info6<Obj1: Copy, Obj2: Copy, Flag: Copy, Ret: Copy>(
+    cl_obj1: Obj1,
+    cl_obj2: Obj2,
+    flag: Flag,
+    func: InfoFunc6<Obj1, Obj2, Flag>,
+) -> Output<ClPointer<Ret>> {
     let byte_count: size_t = cl_get_info_byte_count6(cl_obj1, cl_obj2, flag, func)?;
 
     if byte_count == 0 {

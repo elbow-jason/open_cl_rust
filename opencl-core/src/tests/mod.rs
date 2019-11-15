@@ -22,16 +22,13 @@ pub fn test_all<F>(test: &mut F)
 where
     F: FnMut(&Device, &Context, &CommandQueue),
 {
-    
     let platforms = Platform::all().unwrap();
     for p in platforms.iter() {
         let devices: Vec<Device> = p
             .all_devices()
             .unwrap()
             .into_iter()
-            .filter(|d| {
-                d.is_usable()
-            })
+            .filter(|d| d.is_usable())
             .collect();
 
         assert!(devices.len() > 0, "No usable devices found");
@@ -79,11 +76,12 @@ mod basic_tests {
             assert!(write_event.command_execution_status() == Ok(CommandExecutionStatus::Complete));
 
             let () = k.set_arg(0, &mem1).unwrap();
-            let _queue_event: Event = queue
-                .sync_enqueue_kernel(&k, &work)
-                .unwrap_or_else(|error| {
-                    panic!("Failed to unwrap sync_enqueue_kernel result: {:?}", error);
-                });
+            let _queue_event: Event =
+                queue
+                    .sync_enqueue_kernel(&k, &work)
+                    .unwrap_or_else(|error| {
+                        panic!("Failed to unwrap sync_enqueue_kernel result: {:?}", error);
+                    });
 
             let _read_event = queue.read_buffer(&mem1, &mut v1).unwrap();
 
@@ -115,7 +113,8 @@ mod basic_tests {
 
             let work_size = initial_values.len();
             let work: Work = Work::new(work_size);
-            let _queue_event: Event = queue.sync_enqueue_kernel(&add_scalar_var, &work)
+            let _queue_event: Event = queue
+                .sync_enqueue_kernel(&add_scalar_var, &work)
                 .unwrap_or_else(|error| {
                     panic!("Failed to unwrap sync_enqueue_kernel result: {:?}", error);
                 });
@@ -139,7 +138,9 @@ mod basic_tests {
         test_all(&mut |device, context, queue| {
             let program = Program::create_with_source(context, src).unwrap();
 
-            let () = program.build_on_one_device(device).expect("failed to build_one_on_device");
+            let () = program
+                .build_on_one_device(device)
+                .expect("failed to build_one_on_device");
 
             let k = Kernel::create(&program, "test").expect("failed to create 'test' kernel");
             let v1 = vec![1isize, 2, 3, 4, 5, 6, 7, 8, 9];
@@ -164,7 +165,8 @@ mod basic_tests {
     fn memory_read_write_test() {
         test_all(&mut |_, context, queue| {
             let input = vec![0isize, 1, 2, 3, 4, 5, 6, 7];
-            let buffer: DeviceMem<isize> = DeviceMem::create_read_only(context, input.len()).unwrap();
+            let buffer: DeviceMem<isize> =
+                DeviceMem::create_read_only(context, input.len()).unwrap();
 
             let mut output = utils::vec_filled_with(0, input.len());
 
@@ -183,35 +185,35 @@ mod basic_tests {
                 .expect("failed to create_read_write");
 
             let mut output = utils::vec_filled_with(0, input.len());
-            
-            let _write_event = queue.write_buffer(&buffer, &input)
+
+            let _write_event = queue
+                .write_buffer(&buffer, &input)
                 .expect("failed to write_buffer");
 
-            let _read_event = queue.read_buffer(&buffer, &mut output)
+            let _read_event = queue
+                .read_buffer(&buffer, &mut output)
                 .expect("failed to read_buffer");
-    
+
             expect!(&input[..], &output[..]);
         })
     }
 
     #[test]
-    fn memory_read_owned_clone()
-    {
+    fn memory_read_owned_clone() {
         test_all(&mut |_, ctx, queue| {
             let input = vec![0isize, 1, 2];
             let buffer = DeviceMem::create_read_write_from(ctx, &input[..])
                 .expect("create_read_write_from failed");
             let mut output = utils::vec_filled_with(0, input.len());
-            let _e1 = queue.read_buffer(&buffer, &mut output)
+            let _e1 = queue
+                .read_buffer(&buffer, &mut output)
                 .expect("read_buffer failed");
             expect!(input, output);
         })
     }
 
     #[test]
-    fn transpose_tensor_2d_test()
-    {
-
+    fn transpose_tensor_2d_test() {
         let src = "
         __kernel void transpose_2d(__global const ulong *a,
                                    __global ulong *b,
@@ -234,23 +236,34 @@ mod basic_tests {
 
             let program = Program::create_with_source(context, src).unwrap();
 
-            let () = program.build_on_one_device(device).expect("failed to build_one_on_device");
+            let () = program
+                .build_on_one_device(device)
+                .expect("failed to build_one_on_device");
 
-            let k = Kernel::create(&program, "transpose_2d").expect("failed to create 'transpose_2d' kernel");
-            let () = k.set_arg(0, &mem_in).expect("failed to set mem_in on transpose_2d");
-            let () = k.set_arg(1, &mem_result).expect("failed to set mem_result on transpose_2d");
-            let () = k.set_arg(2, &rows).expect("failed to set rows on transpose_2d");
-            let () = k.set_arg(3, &columns).expect("failed to set columns on transpose_2d");
+            let k = Kernel::create(&program, "transpose_2d")
+                .expect("failed to create 'transpose_2d' kernel");
+            let () = k
+                .set_arg(0, &mem_in)
+                .expect("failed to set mem_in on transpose_2d");
+            let () = k
+                .set_arg(1, &mem_result)
+                .expect("failed to set mem_result on transpose_2d");
+            let () = k
+                .set_arg(2, &rows)
+                .expect("failed to set rows on transpose_2d");
+            let () = k
+                .set_arg(3, &columns)
+                .expect("failed to set columns on transpose_2d");
             let work = Work::new(dims);
             assert_eq!(work.n_items(), data.len());
             let mut output: Vec<usize> = utils::vec_filled_with(0, work.n_items());
-            let _queue_event = queue.sync_enqueue_kernel(&k, &work).expect("failed to sync_enqueue_kernel");
-            let _read_event = queue.read_buffer(&mem_result, &mut output).expect("failed to read transpose_2d mem_out buffer");
-            let expected: Vec<usize> = vec![
-                1, 2, 3, 4,
-                1, 2, 3, 4,
-                1, 2, 3, 4,
-            ];
+            let _queue_event = queue
+                .sync_enqueue_kernel(&k, &work)
+                .expect("failed to sync_enqueue_kernel");
+            let _read_event = queue
+                .read_buffer(&mem_result, &mut output)
+                .expect("failed to read transpose_2d mem_out buffer");
+            let expected: Vec<usize> = vec![1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4];
             assert_eq!(output, expected);
         })
     }

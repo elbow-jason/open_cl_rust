@@ -1,15 +1,14 @@
 use crate::ffi::{
-    cl_kernel_info,
-    cl_kernel_work_group_info,
     cl_kernel_arg_access_qualifier,
-    cl_kernel_arg_type_qualifier,
     cl_kernel_arg_address_qualifier,
     cl_kernel_arg_info,
     // v2.0+
     // cl_kernel_sub_group_info,
     // cl_kernel_exec_info,
+    cl_kernel_arg_type_qualifier,
+    cl_kernel_info,
+    cl_kernel_work_group_info,
 };
-
 
 crate::__codes_enum!(KernelInfo, cl_kernel_info, {
     FunctionName => 0x1190,
@@ -45,7 +44,6 @@ crate::__codes_enum!(KernelArgTypeQualifier, cl_kernel_arg_type_qualifier, {
     Volatile => 4,
     Pipe => 8
 });
-
 
 crate::__codes_enum!(KernelArgAddressQualifier, cl_kernel_arg_address_qualifier, {
     Global => 0x119B,

@@ -48,8 +48,7 @@ fn run() -> Result<(), Error> {
     let mem_a = DeviceMem::create_read_write(&context, len)?;
     let mem_b = DeviceMem::create_read_write(&context, len)?;
     let mem_c = DeviceMem::create_read_write(&context, len)?;
-&
-    println!("fetching_kernel simple_add");
+    &println!("fetching_kernel simple_add");
     let simple_add = Kernel::create(&program, "simple_add")?;
 
     println!("writing buffer a...");
@@ -71,7 +70,7 @@ fn run() -> Result<(), Error> {
 
     println!("calling sync_enqueue_kernel on simple_add");
     let _exec_event = command_queue.sync_enqueue_kernel(&simple_add, &work)?;
-    
+
     println!("done putting event into WaitList...");
     let mut vec_c: Vec<isize> = vec![0; len];
 

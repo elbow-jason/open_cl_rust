@@ -46,7 +46,7 @@ impl Dims {
         match *self {
             One(x) => Two(1, x),
             Two(x, y) => Two(y, x),
-            Three(x, y, z) => Three(x, z, y)
+            Three(x, y, z) => Three(x, z, y),
         }
     }
 }
@@ -57,20 +57,17 @@ impl From<usize> for Dims {
     }
 }
 
-
 impl From<(usize,)> for Dims {
     fn from((x,): (usize,)) -> Dims {
         Dims::One(x)
     }
 }
 
-
 impl From<(usize, usize)> for Dims {
     fn from((x, y): (usize, usize)) -> Dims {
         Dims::Two(x, y)
     }
 }
-
 
 impl From<(usize, usize, usize)> for Dims {
     fn from((x, y, z): (usize, usize, usize)) -> Dims {

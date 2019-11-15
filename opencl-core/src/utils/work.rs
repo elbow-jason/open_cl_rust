@@ -1,13 +1,12 @@
-use std::marker::PhantomData;
 use super::dims::Dims;
 use super::volume::Volume;
+use std::marker::PhantomData;
 
 #[derive(Debug, Fail, Clone, Eq, PartialEq)]
 pub enum VolumetricError {
     #[fail(display = "Volumetric does not allow a zero value for its dimenions")]
     DimCannotBeZero,
 }
-
 
 /// Volumetric is a representation of 1, 2, or 3 dimensions.
 ///
@@ -89,7 +88,7 @@ impl From<Dims> for Volumetric {
         };
         v_result.expect("Failed to convert from Dims to Volumetric")
     }
-} 
+}
 
 impl From<usize> for Volumetric {
     fn from(num: usize) -> Volumetric {

@@ -1,8 +1,8 @@
 use std::fmt::Debug;
 
 pub mod flags;
-pub mod low_level;
 pub mod kernel_arg;
+pub mod low_level;
 
 pub use kernel_arg::{KernelArg, KernelArgSizeAndPointer};
 
@@ -39,11 +39,16 @@ pub enum KernelError {
     )]
     BuilderWrongArgCount { required: u32, specified: u32 },
 
-    #[fail(display = "The kernel name '{}' could not be represented as a CString.",_0)]
+    #[fail(
+        display = "The kernel name '{}' could not be represented as a CString.",
+        _0
+    )]
     CStringInvalidKernelName(String),
 
-    #[fail(display = "Kernel cannot be retained. It is short lived and only creatable as already.")]
-    CannotBeRetained
+    #[fail(
+        display = "Kernel cannot be retained. It is short lived and only creatable as already."
+    )]
+    CannotBeRetained,
 }
 
 impl From<KernelError> for Error {
@@ -61,13 +66,17 @@ fn kernel_cannot_be_retained(_k: cl_kernel) -> Output<()> {
 // load the kernel with args then immediately enqueue.
 // Do not keep long lived kernels. Not worth the headache.
 __impl_unconstructable_cl_wrapper!(Kernel, cl_kernel);
-__impl_cl_object_for_wrapper!(Kernel, cl_kernel, kernel_cannot_be_retained, cl_release_kernel);
+__impl_cl_object_for_wrapper!(
+    Kernel,
+    cl_kernel,
+    kernel_cannot_be_retained,
+    cl_release_kernel
+);
 // Should we even implement clone? No for now.
 // __impl_clone_for_cl_object_wrapper!(Kernel, cl_retain_kernel);
 __impl_drop_for_cl_object_wrapper!(Kernel, cl_release_kernel);
 
 impl Kernel {
-
     pub fn create(program: &Program, name: &str) -> Output<Kernel> {
         low_level::cl_create_kernel(program, name)
     }
@@ -79,4 +88,3 @@ impl Kernel {
         low_level::cl_set_kernel_arg(self, arg_index, arg)
     }
 }
-

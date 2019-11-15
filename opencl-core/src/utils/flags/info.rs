@@ -1,7 +1,4 @@
-use crate::ffi::{
-    cl_image_info,
-    cl_sampler_info,
-};
+use crate::ffi::{cl_image_info, cl_sampler_info};
 
 crate::__codes_enum!(ImageInfo, cl_image_info, {
     Format => 0x1110,

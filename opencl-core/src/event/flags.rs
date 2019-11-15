@@ -1,6 +1,4 @@
-use crate::ffi::{
-    cl_profiling_info,
-};
+use crate::ffi::cl_profiling_info;
 
 crate::__codes_enum!(ProfilingInfo, cl_profiling_info, {
     Queued => 0x1280,

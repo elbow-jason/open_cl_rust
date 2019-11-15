@@ -21,23 +21,22 @@ mod macros;
 
 // pub mod utils;
 
-
 pub extern crate opencl_sys as ffi;
 
 extern crate num;
 
+pub mod cl;
 pub mod command_queue;
 pub mod context;
 pub mod device;
 pub mod device_mem;
+pub mod error;
 pub mod event;
 pub mod kernel;
 pub mod platform;
 pub mod program;
-pub mod utils;
-pub mod error;
-pub mod cl;
 pub mod session;
+pub mod utils;
 
 pub use command_queue::CommandQueue;
 pub use context::Context;
@@ -50,12 +49,10 @@ pub use platform::Platform;
 pub use program::Program;
 pub use session::Session;
 
-pub use utils::work::Work;
 pub use utils::status_code::StatusCode;
-pub use utils::Volumetric;
+pub use utils::work::Work;
 pub use utils::Dims;
-
-
+pub use utils::Volumetric;
 
 #[cfg(test)]
 mod tests;

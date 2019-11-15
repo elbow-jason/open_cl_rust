@@ -1,14 +1,10 @@
-
-
 extern crate bindgen;
 extern crate which;
 
-use std::fs;
 use std::env;
+use std::fs;
 use std::path::PathBuf;
 use which::which;
-
-
 
 fn main() {
     #[cfg(all(target_os = "macos", debug_assertions))]
@@ -16,9 +12,7 @@ fn main() {
 
     #[cfg(not(debug_assertions))]
     build_release();
-
 }
-
 
 fn build_dev(bindings_file: PathBuf) {
     if !path_exists(bindings_file.to_str().unwrap()) {
@@ -45,13 +39,9 @@ fn gen_and_save_bindings(bindings_file: PathBuf) {
         .expect("Couldn't write bindings!");
 }
 
-
 fn path_exists(path: &str) -> bool {
     fs::metadata(path).is_ok()
 }
-
-
-
 
 fn link_opencl() {
     #[cfg(target_os = "macos")]

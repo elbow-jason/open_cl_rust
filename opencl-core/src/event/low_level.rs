@@ -1,22 +1,16 @@
 use crate::ffi::{
-    cl_ulong,
-    cl_event,
-    cl_profiling_info,
-    cl_event_info,
-    clGetEventInfo,
-    clGetEventProfilingInfo,
+    clGetEventInfo, clGetEventProfilingInfo, cl_event, cl_event_info, cl_profiling_info, cl_ulong,
 };
 
+use crate::cl::{cl_get_info5, ClObject, ClPointer};
 use crate::error::Output;
 use crate::utils::StatusCode;
-use crate::cl::{ClPointer, ClObject, cl_get_info5};
 
-use super::Event;
 use super::event_info::EventInfo;
 use super::flags::ProfilingInfo;
+use super::Event;
 
 __release_retain!(event, Event);
-
 
 // NOTE: Fix cl_profiling_info arg // should be a bitflag or enum.
 pub fn cl_get_event_profiling_info(event: &Event, info: ProfilingInfo) -> Output<u64> {
@@ -38,7 +32,7 @@ pub fn cl_get_event_info<T: Copy>(event: &Event, info_flag: EventInfo) -> Output
         cl_get_info5(
             event.raw_cl_object(),
             info_flag as cl_event_info,
-            clGetEventInfo
+            clGetEventInfo,
         )
     }
 }

@@ -1,13 +1,9 @@
-use crate::ffi::{
-    cl_event,
-    cl_uint,
-    clWaitForEvents,
-};
-use crate::event::{Event};
-use crate::event::low_level::cl_release_event;
-use crate::utils::StatusCode;
 use crate::cl::ClObject;
 use crate::error::{Error, Output};
+use crate::event::low_level::cl_release_event;
+use crate::event::Event;
+use crate::ffi::{clWaitForEvents, cl_event, cl_uint};
+use crate::utils::StatusCode;
 
 pub fn cl_wait_for_events(wait_list: WaitList) -> Output<()> {
     let err_code = unsafe {
@@ -34,7 +30,7 @@ impl WaitList {
         }
     }
 
-    // Here we hand ownership of the `cl_event` of the 
+    // Here we hand ownership of the `cl_event` of the
     pub fn push(&mut self, event: Event) {
         let cl_object: cl_event = unsafe { event.raw_cl_object() };
         std::mem::forget(event);
@@ -70,7 +66,6 @@ impl WaitList {
 }
 
 impl Drop for WaitList {
-
     /// Don't panic early when dropping.
     /// Release all the events, accumulate the errors *then* panic if anything when wrong.
     fn drop(&mut self) {

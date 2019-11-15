@@ -6,7 +6,6 @@ macro_rules! size_t {
     };
 }
 
-
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __codes_enum {
@@ -16,7 +15,6 @@ macro_rules! __codes_enum {
         $crate::__test_enum_converter!($enum_name, $cl_type, $body);
     };
 }
-
 
 #[doc(hidden)]
 #[macro_export]
@@ -99,7 +97,6 @@ macro_rules! __test_enum_converter {
 #[macro_export]
 macro_rules! __impl_cl_object_for_wrapper {
     ($wrapper:ident, $cl_object_type:ty, $retain_func:ident, $release_func:ident) => {
-
         impl $wrapper {
             #[inline]
             pub unsafe fn retain_raw_cl_object(handle: &$cl_object_type) -> Output<()> {
@@ -118,10 +115,9 @@ macro_rules! __impl_cl_object_for_wrapper {
             }
 
             unsafe fn new(cl_object: $cl_object_type) -> Output<$wrapper> {
-                
                 if cl_object.is_null() {
-                    use crate::error::Error;
                     use crate::cl::ClObjectError;
+                    use crate::error::Error;
                     let wrapper_name = stringify!($wrapper).to_string();
                     let e = Error::ClObjectError(ClObjectError::ClObjectCannotBeNull(wrapper_name));
                     return Err(e);
@@ -134,8 +130,8 @@ macro_rules! __impl_cl_object_for_wrapper {
 
             unsafe fn new_retained(cl_object: $cl_object_type) -> Output<$wrapper> {
                 if cl_object.is_null() {
-                    use crate::error::Error;
                     use crate::cl::ClObjectError;
+                    use crate::error::Error;
                     let wrapper_name = stringify!($wrapper).to_string();
                     let e = Error::ClObjectError(ClObjectError::ClObjectCannotBeNull(wrapper_name));
                     return Err(e);
@@ -145,12 +141,10 @@ macro_rules! __impl_cl_object_for_wrapper {
                     inner: cl_object,
                     _unconstructable: (),
                 })
-
             }
         }
     };
 }
-
 
 #[doc(hidden)]
 #[macro_export]
@@ -178,7 +172,7 @@ macro_rules! __impl_drop_for_cl_object_wrapper {
                 use $crate::cl::ClObject;
                 // println!("Dropping {:?}", self);
                 unsafe {
-                    $release_func(self.raw_cl_object()).unwrap_or_else(|e|{
+                    $release_func(self.raw_cl_object()).unwrap_or_else(|e| {
                         panic!("Failed to drop {:?} due to {:?}", self, e);
                     })
                 }
@@ -186,18 +180,14 @@ macro_rules! __impl_drop_for_cl_object_wrapper {
         }
 
         impl $wrapper {
-
             // Decrements the reference count of the underlying cl object.
             // Incorrect usage of this function can cause a SEGFAULT.
             pub unsafe fn release_cl_object(self) -> Output<()> {
                 $release_func(self.inner)
             }
-        }    
+        }
     };
 }
-
-
-
 
 #[doc(hidden)]
 #[macro_export]
@@ -210,9 +200,7 @@ macro_rules! __impl_unconstructable_cl_wrapper {
             _unconstructable: (),
         }
 
-        impl $wrapper {
-            
-        }
+        impl $wrapper {}
     };
 }
 
@@ -239,8 +227,6 @@ macro_rules! __release_retain {
         }
     };
 }
-
-
 
 // #[macro_export]
 // macro_rules! inspect {

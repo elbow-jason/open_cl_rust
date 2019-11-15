@@ -1,13 +1,7 @@
-
-
 use std::fmt::Debug;
 
 use crate::ffi::{
-    cl_buffer_create_type,
-    cl_mem_flags,
-    cl_mem_info,
-    cl_mem_object_type,
-    cl_mem_migration_flags,
+    cl_buffer_create_type, cl_mem_flags, cl_mem_info, cl_mem_migration_flags, cl_mem_object_type,
 };
 
 crate::__codes_enum!(MemMigrationFlags, cl_mem_migration_flags, {

@@ -1,18 +1,16 @@
-
 use std::default::Default;
 
 pub mod device_info;
-pub mod low_level;
 pub mod flags;
+pub mod low_level;
 
 pub use flags::DeviceType;
 
-use low_level::{cl_retain_device_id, cl_release_device_id};
+use low_level::{cl_release_device_id, cl_retain_device_id};
 
-use crate::ffi::cl_device_id;
 use crate::error::{Error, Output};
+use crate::ffi::cl_device_id;
 use crate::platform::Platform;
-
 
 /// NOTE: UNUSABLE_DEVICE_ID might be osx specific? or OpenCL
 /// implementation specific?
@@ -43,7 +41,12 @@ impl From<DeviceError> for Error {
 }
 
 __impl_unconstructable_cl_wrapper!(Device, cl_device_id);
-__impl_cl_object_for_wrapper!(Device, cl_device_id, cl_retain_device_id, cl_release_device_id);
+__impl_cl_object_for_wrapper!(
+    Device,
+    cl_device_id,
+    cl_retain_device_id,
+    cl_release_device_id
+);
 __impl_clone_for_cl_object_wrapper!(Device, cl_retain_device_id);
 __impl_drop_for_cl_object_wrapper!(Device, cl_release_device_id);
 
@@ -51,7 +54,6 @@ unsafe impl Send for Device {}
 unsafe impl Sync for Device {}
 
 impl Device {
-
     pub fn is_usable(&self) -> bool {
         self.inner != UNUSABLE_DEVICE_ID
     }
@@ -64,15 +66,13 @@ impl Device {
         }
     }
 
-  
     pub fn count_by_type(platform: &Platform, device_type: DeviceType) -> Output<u32> {
         low_level::cl_get_device_count(platform, device_type)
     }
 
     pub fn all_by_type(platform: &Platform, device_type: DeviceType) -> Output<Vec<Device>> {
-        low_level::cl_get_device_ids(platform, device_type).and_then(|ret| {
-            unsafe { ret.into_many_retained_wrappers() }
-        })
+        low_level::cl_get_device_ids(platform, device_type)
+            .and_then(|ret| unsafe { ret.into_many_retained_wrappers() })
     }
 
     pub fn default_devices(platform: &Platform) -> Output<Vec<Device>> {
@@ -111,30 +111,37 @@ impl Device {
 
 impl Default for Device {
     fn default() -> Device {
-        Platform::default().default_device().expect("Failed to find default device")
+        Platform::default()
+            .default_device()
+            .expect("Failed to find default device")
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::ffi::cl_device_id;
     use super::{Device, DeviceError, DeviceType};
-    use crate::error::Error;
-    use crate::platform::Platform;
     use crate::cl::ClObject;
+    use crate::error::Error;
+    use crate::ffi::cl_device_id;
+    use crate::platform::Platform;
 
     #[test]
     fn unusable_device_id_is_unusable() {
         let unusable_device_id = 0xFFFF_FFFF as cl_device_id;
-        let device = unsafe{ Device::new(unusable_device_id).expect("Failed to create new device!") };
+        let device =
+            unsafe { Device::new(unusable_device_id).expect("Failed to create new device!") };
         assert_eq!(device.is_usable(), false);
     }
 
     #[test]
     fn unusable_device_check_errors_for_unusable_device_id() {
         let unusable_device_id = 0xFFFF_FFFF as cl_device_id;
-        let device = unsafe{ Device::new(unusable_device_id).expect("Failed to create new device!") };
-        assert_eq!(device.usability_check(), Err(Error::DeviceError(DeviceError::UnusableDevice)));
+        let device =
+            unsafe { Device::new(unusable_device_id).expect("Failed to create new device!") };
+        assert_eq!(
+            device.usability_check(),
+            Err(Error::DeviceError(DeviceError::UnusableDevice))
+        );
     }
 
     #[test]

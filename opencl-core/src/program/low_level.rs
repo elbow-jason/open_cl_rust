@@ -1,25 +1,17 @@
 use crate::ffi::{
-    cl_uint,
-    cl_device_id,
-    cl_program,
-    cl_program_build_info,
-    cl_program_info,
-    clGetProgramInfo,
-    clBuildProgram,
-    clGetProgramBuildInfo,
-    clCreateProgramWithBinary,
-    clCreateProgramWithSource,
+    clBuildProgram, clCreateProgramWithBinary, clCreateProgramWithSource, clGetProgramBuildInfo,
+    clGetProgramInfo, cl_device_id, cl_program, cl_program_build_info, cl_program_info, cl_uint,
 };
 
 use crate::cl::ClObject;
-use crate::utils::StatusCode;
-use crate::device::Device;
-use crate::error::Output; 
+use crate::cl::{cl_get_info5, cl_get_info6, ClPointer};
 use crate::context::Context;
+use crate::device::Device;
+use crate::error::Output;
 use crate::utils::strings;
-use crate::cl::{ClPointer, cl_get_info5, cl_get_info6};
+use crate::utils::StatusCode;
 
-use super::{ProgramError, Program, flags};
+use super::{flags, Program, ProgramError};
 use flags::ProgramInfo;
 
 __release_retain!(program, Program);
@@ -35,7 +27,7 @@ pub fn cl_build_program(program: &Program, devices: &[&Device]) -> Output<()> {
             cl_devices.as_mut_ptr(),
             std::ptr::null(),
             std::mem::transmute(std::ptr::null::<fn()>()), // pfn_notify
-            std::ptr::null_mut(), // user_data
+            std::ptr::null_mut(),                          // user_data
         )
     };
     StatusCode::build_output(err_code, ())
@@ -52,7 +44,7 @@ pub fn cl_get_program_build_log(
             program.raw_cl_object(),
             device.raw_cl_object(),
             info_flag as cl_program_build_info,
-            clGetProgramBuildInfo
+            clGetProgramBuildInfo,
         )
     }
 }
@@ -76,7 +68,7 @@ pub fn cl_create_program_with_source(context: &Context, src: &str) -> Output<Pro
             &mut err_code,
         )
     };
-    
+
     let checked_program = StatusCode::build_output(err_code, program)?;
     unsafe { Program::new(checked_program) }
 }
@@ -90,7 +82,8 @@ pub fn cl_create_program_with_binary(
     binary: &str,
 ) -> Output<Program> {
     device.usability_check()?;
-    let src = strings::to_c_string(binary).ok_or_else(|| ProgramError::CStringInvalidProgramBinary)?;
+    let src =
+        strings::to_c_string(binary).ok_or_else(|| ProgramError::CStringInvalidProgramBinary)?;
     let mut err_code = 0;
     let program = unsafe {
         clCreateProgramWithBinary(
@@ -108,13 +101,12 @@ pub fn cl_create_program_with_binary(
     unsafe { Program::new(checked_program) }
 }
 
-
 pub fn cl_get_program_info<T: Copy>(program: &Program, flag: ProgramInfo) -> Output<ClPointer<T>> {
-   unsafe {
+    unsafe {
         cl_get_info5(
             program.raw_cl_object(),
             flag as cl_program_info,
-            clGetProgramInfo
+            clGetProgramInfo,
         )
     }
 }

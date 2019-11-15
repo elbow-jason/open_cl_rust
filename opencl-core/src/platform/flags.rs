@@ -1,7 +1,5 @@
-
 use crate::ffi::cl_platform_info;
 
- 
 // All return these flags return chars except perhaps HostTimerResolution.
 crate::__codes_enum!(PlatformInfo, cl_platform_info, {
     Profile => 0x0900,

@@ -18,6 +18,3 @@ include!("../dev_bindings/macos_dev_bindings.rs");
 
 #[cfg(not(debug_assertions))]
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
-
-
-
