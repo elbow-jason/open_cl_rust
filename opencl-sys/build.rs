@@ -11,18 +11,18 @@ fn main() {
     // build_dev(PathBuf::from("./dev_bindings/macos_dev_bindings.rs"));
 
     // #[cfg(not(debug_assertions))]
-    build_release();
+    build();
 }
 
-fn build_dev(bindings_file: PathBuf) {
-    if !path_exists(bindings_file.to_str().unwrap()) {
-        setup_llvm();
-        link_opencl();
-        gen_and_save_bindings(bindings_file);
-    }
-}
+// fn build_dev(bindings_file: PathBuf) {
+//     if !path_exists(bindings_file.to_str().unwrap()) {
+//         setup_llvm();
+//         link_opencl();
+//         gen_and_save_bindings(bindings_file);
+//     }
+// }
 
-fn _build_release() {
+fn build() {
     setup_llvm();
     link_opencl();
     let bindings_file = PathBuf::from(env::var("OUT_DIR").unwrap()).join("bindings.rs");
