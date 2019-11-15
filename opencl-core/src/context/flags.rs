@@ -12,10 +12,8 @@ crate::__codes_enum!(ContextProperties, cl_context_properties, {
     InteropUserSync => 0x1085
 });
 
-
+// NOTE: Add support for d3d and khr flags
 // https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clCreateContext.html
-// CL_CONTEXT_PLATFORM 	            cl_platform_id
-// CL_CONTEXT_INTEROP_USER_SYNC 	cl_bool                             default: false
 // CL_CONTEXT_D3D10_DEVICE_KHR 	    ID3D10Device* 	                    default: NULL
 // CL_GL_CONTEXT_KHR 	            0, OpenGL context handle 	        (available if the cl_khr_gl_sharing extension is enabled)
 // CL_EGL_DISPLAY_KHR 	            EGL_NO_DISPLAY, EGLDisplay handle 	(available if the cl_khr_gl_sharing extension is enabled)

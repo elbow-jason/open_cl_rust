@@ -5,7 +5,6 @@ use crate::utils::volume;
 use crate::cl::{
     ClObject,
     ClPointer,
-    // ClReturn,
     cl_get_info5,
 };
 
@@ -26,19 +25,13 @@ use crate::ffi::{
 };
 use crate::event::{Event, WaitList};
 use crate::{
-    // BufferOpConfig,
     DeviceMem,
     Device,
     Context,
     Kernel,
     Output,
 };
-
 use crate::utils::StatusCode;
-// use crate::utils;
-// use crate::error::Error;
-// use crate::cl::ClValueError;
-
 use super::{CommandQueue, CommandQueueOptions};
 use super::flags::CommandQueueInfo;
 

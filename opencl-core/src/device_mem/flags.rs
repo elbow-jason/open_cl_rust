@@ -47,35 +47,7 @@ crate::__codes_enum!(BufferCreateType, cl_buffer_create_type, {
     CreateTypeRegion => 0x1220
 });
 
-
-// CL_MEM_READ_WRITE
-//
-//   - The OpenCL Kernels will both read and write the buffer
-//
-// CL_MEM_WRITE_ONLY
-//
-//   - The OpenCL Kernels will only read the buffer
-//
-// CL_MEM_READ_ONLY
-//
-//   - The OpenCL Kernels will only write the buffer
-//
-//   - The above three flags are mutually exclusive. Only one should be
-//     specified. If none are specified then CL_MEM_READ_WRITE is assumed. These
-//     flags indicate to the OpenCL runtime how the buffer will be accessed from
-//     the perspective of OpenCL C kernels running on the device. When read only
-//     or write only is specified, some coherency operations may be skipped for
-//     performance.
-
-
 bitflags! {
-    /// NOTE: Due to the mutual exclusion of some of the combinations of the flags
-    /// of MemFlags. There is a better way. We _could_ compose the desired result
-    /// as a struct of enums (e.g. RW::ReadWrite, RW::WriteOnly, RW::ReadWrite),
-    /// carrying around the valid state of the buffer creation and generating the
-    /// cl_bitfield immediately before the call to clCreateBuffer.
-    /// 
-    /// Details: https://www.khronos.org/registry/OpenCL/sdk/1.0/docs/man/xhtml/clCreateBuffer.html
     pub struct MemFlags: cl_mem_flags {
         const READ_WRITE = 1 << 0;
         const WRITE_ONLY = 1 << 1;

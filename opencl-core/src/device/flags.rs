@@ -52,7 +52,7 @@ bitflags! {
 crate::__codes_enum!(DevicePartitionProperty, cl_device_partition_property, {
     Equally => 0x1086,
     ByCounts => 0x1087,
-    // This is not a valid property. The 0 is used as a signal that the
+    // This is not a valid variant. The 0 is used as a signal that the
     // list of cl_device_partition_propertys is at an end.
     // ByCountsListEnd => 0x0,
     ByAffinityDomain => 0x1088
@@ -80,7 +80,7 @@ bitflags! {
 }
 
 
-// NOTE: Version for cl_device_svm?
+// NOTE: Version for cl_device_svm? 2.0?
 // crate::__codes_enum!(DeviceSvm, cl_device_svm, {
 //     CoarseGrainBuffer => 1,
 //     FineGrainBuffer => 2,

@@ -17,7 +17,7 @@ use super::event_info::EventInfo;
 __release_retain!(event, Event);
 
 
-// NOTE: Fix cl_profiling_info arg 
+// NOTE: Fix cl_profiling_info arg // should be a bitflag or enum.
 pub fn cl_get_event_profiling_info(event: &cl_event, info: cl_profiling_info) -> Output<u64> {
     let mut time: cl_ulong = 0;
     let err_code = unsafe {

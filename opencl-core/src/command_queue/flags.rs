@@ -8,8 +8,6 @@ use crate::ffi::{
     cl_uint,
 };
 
-// use crate::utils::cl_value::{ClReturn};
-
 bitflags! {
     pub struct CommandQueueProperties: cl_command_queue_properties {
         const OutOfOrderExecModeEnable = 1 << 0;
@@ -51,48 +49,3 @@ impl CommandQueueInfo {
     }
 }
 
-// impl CommandQueueInfo {
-//     pub unsafe fn into_cl_return(&self, cl_ptr: *mut libc::c_void) -> ClReturn {
-//         match self {
-//             F::Context => ClReturn::ClContext(cl_ptr as cl_context),
-//             F::Device => ClReturn::ClDeviceId(cl_ptr as cl_device_id),
-//             F::ReferenceCount => ClReturn::ClUint(cl_ptr as cl_uint),
-//             F::Properties => ClReturn::ClCommandQueueProperties(cl_ptr as cl_command_queue_properties),
-//         }
-//     }
-// }
-
-// #[derive(Debug, Eq, PartialEq, Clone)]
-// pub enum CommandQueueInfo {
-//     Context(Context),
-//     Device(Device),
-//     ReferenceCount(usize),
-//     Properties(CommandQueueProperties)
-// }
-
-// impl CommandQueueInfo {
-//     pub unsafe fn from_raw_parts(
-//         info_flag: CommandQueueInfoFlag,
-//         return_value: *mut libc::c_void
-//     ) -> CommandQueueInfo {
-//         use CommandQueueInfoFlag as F;
-
-//         match info_flag {
-//             F::Context => {
-//                 let ctx = Context::new(return_value as cl_context);
-//                 CommandQueueInfo::Context(ctx)
-//             },
-//             F::Device => {
-//                 let device = Device::new(return_value as cl_device_id);
-//                 CommandQueueInfo::Device(device)
-//             },
-//             F::ReferenceCount => CommandQueueInfo::ReferenceCount(return_value as usize),
-
-//             F::Properties => {
-//                 let cq_props = CommandQueueProperties::from_bits(return_value as u64)
-//                     .expect("failed to cast CommandQueueProperties from return_value");
-//                 CommandQueueInfo::Properties(cq_props)
-//             }
-//         }
-//     }
-// }

@@ -49,14 +49,6 @@ __impl_clone_for_cl_object_wrapper!(Event, cl_retain_event);
 __impl_drop_for_cl_object_wrapper!(Event, cl_release_event);
 
 
-// impl CopyClObject<cl_event> for Event {
-//     // Super duper unsafe
-//     unsafe fn copy_cl_object_ref(&self) -> cl_event {
-//         cl_retain_event(&self.inner)
-//         self.inner
-//     }
-// }
-
 use flags::ProfilingInfo;
 use EventInfo as Info;
 

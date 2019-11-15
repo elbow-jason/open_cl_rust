@@ -57,8 +57,9 @@ fn kernel_cannot_be_retained(_k: &cl_kernel) -> Output<()> {
 }
 
 // cl_kernel is not thread-safe.
-// cl_kernel should be a short lived, generate as needed structure;
-// to be loaded with args then immediately enqueued and disposed of.
+// cl_kernel should be a short lived, generate as needed;
+// load the kernel with args then immediately enqueue.
+// Do not keep long lived kernels. Not worth the headache.
 __impl_unconstructable_cl_wrapper!(Kernel, cl_kernel);
 __impl_cl_object_for_wrapper!(Kernel, cl_kernel, kernel_cannot_be_retained, cl_release_kernel);
 // Should we even implement clone? No for now.
