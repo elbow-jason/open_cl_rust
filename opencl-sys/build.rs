@@ -7,10 +7,10 @@ use std::path::PathBuf;
 use which::which;
 
 fn main() {
-    #[cfg(all(target_os = "macos", debug_assertions))]
-    build_dev(PathBuf::from("./dev_bindings/macos_dev_bindings.rs"));
+    // #[cfg(all(target_os = "macos", debug_assertions))]
+    // build_dev(PathBuf::from("./dev_bindings/macos_dev_bindings.rs"));
 
-    #[cfg(not(debug_assertions))]
+    // #[cfg(not(debug_assertions))]
     build_release();
 }
 
