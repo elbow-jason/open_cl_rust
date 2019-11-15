@@ -13,7 +13,7 @@ use crate::cl::ClPointer;
 
 use flags::{ProgramInfo};
 
-/// An error related to an Event or WaitList.
+/// An error related to Program.
 #[derive(Debug, Fail, PartialEq, Eq, Clone)]
 pub enum ProgramError {
     #[fail(display = "The given source code was not a valid CString")]
@@ -125,13 +125,11 @@ mod tests {
         *i += 1;
     }
     ";
-
     
     fn get_session() -> Session {
         let device = Device::default();
         Session::create(device, TEST_SRC).expect("Failed to create Session")
     }
-
 
     #[test]
     fn program_method_reference_count_works() {
@@ -157,7 +155,6 @@ mod tests {
     fn program_method_devices_works() {
         let session = get_session();
         let output: Vec<Device> = session.program().devices().expect("Failed to call program.devices()");
-        inspect!(output);
         assert_eq!(output.len(), 1);
     }
 

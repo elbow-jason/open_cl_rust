@@ -14,7 +14,7 @@ pub struct Session {
     // the (command_queue/program) must be dropped before
     // the context must be dropped before
     // the device.
-    // Else... SEGFAULT.
+    // Else... SEGFAULT :(
     command_queue: CommandQueue,
     program: Program,
     context: Context,

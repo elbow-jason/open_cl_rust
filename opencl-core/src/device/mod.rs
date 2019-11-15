@@ -71,10 +71,7 @@ impl Device {
 
     pub fn all_by_type(platform: &Platform, device_type: DeviceType) -> Output<Vec<Device>> {
         low_level::cl_get_device_ids(platform, device_type).and_then(|ret| {
-            inspect!(ret);
-            let out = unsafe { ret.into_many_retained_wrappers() };
-            inspect!(out);
-            out
+            unsafe { ret.into_many_retained_wrappers() }
         })
     }
 
@@ -143,8 +140,6 @@ mod tests {
     #[test]
     fn device_all_lists_all_devices() {
         let platform = Platform::default();
-        let name = platform.name().expect("Failed to get platform.name()");
-        println!("Platform name: {:?}", name);
         let devices = Device::all(&platform).expect("Failed to list all devices");
         assert!(devices.len() > 0);
     }

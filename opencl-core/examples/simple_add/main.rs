@@ -22,7 +22,6 @@ fn run() -> Result<(), Error> {
     let platform = platforms.remove(0);
     let mut devices = platform.all_devices()?;
 
-    // println!("all_devices {:?}", devices);
     if devices.len() == 0 {
         panic!("No devices found!!!");
     }

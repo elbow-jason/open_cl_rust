@@ -26,7 +26,6 @@ __release_retain!(program, Program);
 
 pub fn cl_build_program(program: &Program, devices: &[&Device]) -> Output<()> {
     let err_code = unsafe {
-        // We'll see...
         let mut cl_devices: Vec<cl_device_id> = devices.iter().map(|d| d.raw_cl_object()).collect();
 
         clBuildProgram(

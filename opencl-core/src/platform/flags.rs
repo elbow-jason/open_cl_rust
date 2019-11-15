@@ -2,7 +2,7 @@
 use crate::ffi::cl_platform_info;
 
  
-// All return chars so no need for custom ClReturn mapping
+// All return these flags return chars except perhaps HostTimerResolution.
 crate::__codes_enum!(PlatformInfo, cl_platform_info, {
     Profile => 0x0900,
     Version => 0x0901,

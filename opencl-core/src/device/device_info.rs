@@ -1010,10 +1010,8 @@ mod tests {
     #[test]
     fn device_method_reference_count_works() {
         let device = Device::default();
-        println!("getting reference count");
         let count: u64 = device.reference_count()
             .expect("Device method test for reference_count failed");
-        println!("done reference_count");
         // NOTE: I have no idea why 191 is here...
         assert_eq!(count, 191);
     }

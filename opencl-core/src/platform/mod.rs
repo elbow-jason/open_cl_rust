@@ -22,7 +22,7 @@ use crate::device::{Device, DeviceType};
 use crate::error::{Output, Error};
 use flags::PlatformInfo;
 
-/// An error related to an Event or WaitList.
+/// An error related to Platform.
 #[derive(Debug, Fail, PartialEq, Eq, Clone)]
 pub enum PlatformError {
     #[fail(display = "The platform has no useable devices")]
@@ -61,19 +61,15 @@ unsafe impl Sync for Platform {}
 
 // NOTE: cl_platform_id is host mem?
 // https://stackoverflow.com/questions/17711407/opencl-releasing-platform-object
-// so no retain or release for platform 
+// so no retain or release necessary/possible for platform! 
 __impl_unconstructable_cl_wrapper!(Platform, cl_platform_id);
 __impl_cl_object_for_wrapper!(Platform, cl_platform_id, platform_cannot_be_retained, platform_cannot_be_released);
-
 
 
 impl Platform {
 
     pub fn all() -> Output<Vec<Platform>> {
-        cl_get_platforms().and_then(|ret| {
-            inspect!(ret);
-            unsafe { ret.into_many_wrappers() }
-        })
+        cl_get_platforms().and_then(|ret| unsafe { ret.into_many_wrappers() })
     }
 
     pub fn all_devices(&self) -> Output<Vec<Device>> {

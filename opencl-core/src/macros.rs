@@ -166,17 +166,6 @@ macro_rules! __impl_clone_for_cl_object_wrapper {
                 }
             }
         }
-
-        // impl $crate::cl::ClRetain for $wrapper {
-
-        //     // Increments the reference count of the underlying cl object.
-        //     // Incorrect usage of this function can cause a memory leak.
-        //     unsafe fn cl_retain(self) -> $wrapper {
-        //         // println!("retain_cl_object called for {:?}", self);
-        //         $retain_func(&self.inner);
-        //         self
-        //     }
-        // }    
     };
 }
 
@@ -253,14 +242,14 @@ macro_rules! __release_retain {
 
 
 
-#[macro_export]
-macro_rules! inspect {
-    ($item:expr) => {
-        println!("INSPECT: {}:{}:{}
-            {}: {:?}
-        ", file!(), line!(), column!(), stringify!($item), $item);
-    }
-}
+// #[macro_export]
+// macro_rules! inspect {
+//     ($item:expr) => {
+//         println!("INSPECT: {}:{}:{}
+//             {}: {:?}
+//         ", file!(), line!(), column!(), stringify!($item), $item);
+//     }
+// }
 
 #[macro_export]
 macro_rules! panic_once {

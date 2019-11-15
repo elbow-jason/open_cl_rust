@@ -30,7 +30,13 @@ pub fn cl_get_platforms() -> Output<ClPointer<cl_platform_id>> {
     let platform_lock = PLATFORM_ACCESS.lock();
     // transactional access to the platform Mutex requires one lock.
     let mut num_platforms: cl_uint = 0;
-    let e1 = unsafe { clGetPlatformIDs(0, std::ptr::null_mut(), &mut num_platforms) };
+    let e1 = unsafe {
+        clGetPlatformIDs(
+            0,
+            std::ptr::null_mut(),
+            &mut num_platforms
+        )
+    };
     let mut ids: Vec<cl_platform_id> = utils::vec_filled_with(0 as cl_platform_id, num_platforms as usize);
     let () = StatusCode::into_output(e1, ())?;
     let e2 = unsafe {

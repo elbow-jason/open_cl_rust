@@ -20,7 +20,7 @@ use flags::{
 use crate::error::{Error, Output};
 
 
-/// An error related to an Event or WaitList.
+/// An error related to DeviceMems.
 #[derive(Debug, Fail, PartialEq, Eq, Clone)]
 pub enum DeviceMemError {
     #[fail(display = "Given DeviceMem<T> has no associated cl_mem object")]
