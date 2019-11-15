@@ -1,4 +1,4 @@
-# open_cl_bindings
+# open_cl_rust
 
 A safe, fast, no nonsense Rust lib for interacting with OpenCL.
 
