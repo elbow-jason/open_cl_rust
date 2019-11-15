@@ -4,7 +4,7 @@ A safe, fast, no nonsense Rust lib for interacting with OpenCL.
 
 NOTE: As of right now this library is very alpha software. Use at your own risk!
 
-NOTE: As of right now this library only works on Mac. Sorry! My linux box is down in the garage.
+NOTE: As of right now this library has only been used on my Macbook. Linux and Windows have not been tried. 
 
 ## C FFI Philosophy
 
