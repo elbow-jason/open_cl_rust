@@ -34,7 +34,7 @@ fn run() -> Result<(), Error> {
     let program: Program = Program::create_with_source(&context, &src)?;
 
     println!("building program on device {}...", name);
-    let () = program.build_on_one_device(&device)?;
+    program.build_on_one_device(&device)?;
 
     let vec_a = vec![1isize, 2, 3];
     let vec_b = vec![0isize, -1, -2];

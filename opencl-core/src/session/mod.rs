@@ -49,3 +49,32 @@ impl Session {
         &self.command_queue
     }
 }
+
+impl Clone for Session {
+    fn clone(&self) -> Session {
+        Session {
+            device: self.device.clone(),
+            context: self.context.clone(),
+            program: self.program.clone(),
+            command_queue: self.command_queue.clone(),
+            _unconstructable: (),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Device, Session};
+
+    fn get_session() -> Session {
+        let src = "__kernel void test(__global int *i) { *i += 1; }";
+        let device = Device::default();
+        Session::create(device, src).expect("Failed to create Session")
+    }
+
+    #[test]
+    fn session_implements_clone() {
+        let session = get_session();
+        let _other = session.clone();
+    } 
+}
