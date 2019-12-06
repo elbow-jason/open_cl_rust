@@ -47,6 +47,9 @@ impl<T: Debug> Drop for DeviceMem<T> {
     }
 }
 
+unsafe impl<T> Send for DeviceMem<T> where T: Send + Debug {}
+unsafe impl<T> Sync for DeviceMem<T> where T: Sync + Debug {}
+
 impl<T: Debug> Clone for DeviceMem<T> {
     fn clone(&self) -> DeviceMem<T> {
         unsafe {
