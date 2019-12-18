@@ -10,10 +10,7 @@ pub trait KernelArg {
     unsafe fn as_kernel_arg(&self) -> KernelArgSizeAndPointer;
 }
 
-impl<T> KernelArg for DeviceMem<T>
-where
-    T: Debug,
-{
+impl<T> KernelArg for DeviceMem<T> where T: Debug + Sync + Send {
     unsafe fn as_kernel_arg(&self) -> KernelArgSizeAndPointer {
         (
             std::mem::size_of::<cl_mem>() as size_t,

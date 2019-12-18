@@ -24,10 +24,7 @@ pub fn cl_create_buffer_from_slice<T>(
     context: &Context,
     mem_flags: MemFlags,
     slice: &[T],
-) -> Output<DeviceMem<T>>
-where
-    T: Debug,
-{
+) -> Output<DeviceMem<T>> where T: Debug + Sync + Send {
     unsafe {
         let (buffer_mem_size, buffer_ptr) = buffer_mem_size_and_ptr(slice);
         _cl_create_buffer(
@@ -43,10 +40,7 @@ pub fn cl_create_buffer_with_len<T>(
     context: &Context,
     mem_flags: MemFlags,
     len: usize,
-) -> Output<DeviceMem<T>>
-where
-    T: Debug,
-{
+) -> Output<DeviceMem<T>>  where T: Debug + Sync + Send {
     unsafe {
         _cl_create_buffer(
             context,
@@ -62,10 +56,7 @@ unsafe fn _cl_create_buffer<T>(
     mem_flags: MemFlags,
     size_in_bytes: usize,
     ptr: *mut libc::c_void,
-) -> Output<DeviceMem<T>>
-where
-    T: Debug,
-{
+) -> Output<DeviceMem<T>> where T: Debug + Sync + Send {
     let mut err_code: cl_int = 0;
     let mut cl_mem_object: cl_mem = clCreateBuffer(
         context.raw_cl_object(),
@@ -84,7 +75,7 @@ pub fn cl_get_mem_object_info<T, P>(
     flag: MemInfo,
 ) -> Output<ClPointer<P>>
 where
-    T: Debug,
+    T: Debug + Sync + Send,
     P: Copy,
 {
     unsafe {

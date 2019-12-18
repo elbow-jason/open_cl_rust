@@ -27,17 +27,20 @@ impl From<DeviceMemError> for Error {
     }
 }
 
+unsafe impl<T> Send for DeviceMem<T> where T: Sync + Send + Debug {}
+unsafe impl<T> Sync for DeviceMem<T> where T: Sync + Send + Debug {}
+
+
 #[repr(C)]
 #[derive(Eq, PartialEq, Hash)]
 pub struct DeviceMem<T>
-where
-    T: Debug,
+where T: Debug + Sync + Send
 {
     handle: cl_mem,
     _phantom: PhantomData<T>,
 }
 
-impl<T: Debug> Drop for DeviceMem<T> {
+impl<T> Drop for DeviceMem<T> where T: Debug + Sync + Send {
     fn drop(&mut self) {
         unsafe {
             cl_release_mem(self.raw_cl_object()).unwrap_or_else(|e| {
@@ -47,10 +50,10 @@ impl<T: Debug> Drop for DeviceMem<T> {
     }
 }
 
-unsafe impl<T> Send for DeviceMem<T> where T: Send + Debug {}
-unsafe impl<T> Sync for DeviceMem<T> where T: Sync + Debug {}
+// unsafe impl<T> Send for DeviceMem<T> where T: Send + Debug {}
+// unsafe impl<T> Sync for DeviceMem<T> where T: Sync + Debug {}
 
-impl<T: Debug> Clone for DeviceMem<T> {
+impl<T> Clone for DeviceMem<T> where T: Debug + Sync + Send {
     fn clone(&self) -> DeviceMem<T> {
         unsafe {
             DeviceMem::new_retained(self.raw_cl_object()).unwrap_or_else(|e| {
@@ -60,7 +63,7 @@ impl<T: Debug> Clone for DeviceMem<T> {
     }
 }
 
-impl<T: Debug> ClObject<cl_mem> for DeviceMem<T> {
+impl<T> ClObject<cl_mem> for DeviceMem<T> where T: Debug + Sync + Send {
     unsafe fn raw_cl_object(&self) -> cl_mem {
         self.handle
     }
@@ -91,16 +94,13 @@ impl<T: Debug> ClObject<cl_mem> for DeviceMem<T> {
     }
 }
 
-impl<T> DeviceMem<T>
-where
-    T: Debug,
-{
+impl<T> DeviceMem<T> where T: Debug + Sync + Send {
     pub unsafe fn ptr_to_cl_object(&self) -> *const cl_mem {
         &self.handle as *const cl_mem
     }
 }
 
-impl<T: Debug> fmt::Debug for DeviceMem<T> {
+impl<T> Debug for DeviceMem<T> where T: Debug + Sync + Send {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -115,20 +115,14 @@ impl<T: Debug> fmt::Debug for DeviceMem<T> {
 
 use flags::{MemFlags, MemInfo};
 
-impl<T: Debug> DeviceMem<T> {
-    pub fn create_with_len(context: &Context, flags: MemFlags, len: usize) -> Output<DeviceMem<T>>
-    where
-        T: Debug,
-    {
+impl<T: Debug> DeviceMem<T> where T: Debug + Sync + Send {
+    pub fn create_with_len(context: &Context, flags: MemFlags, len: usize) -> Output<DeviceMem<T>> where T: Debug + Sync + Send {
         let device_mem: DeviceMem<T> =
             low_level::cl_create_buffer_with_len::<T>(context, flags, len)?;
         Ok(device_mem)
     }
 
-    pub fn create_from(context: &Context, flags: MemFlags, slice: &[T]) -> Output<DeviceMem<T>>
-    where
-        T: Debug,
-    {
+    pub fn create_from(context: &Context, flags: MemFlags, slice: &[T]) -> Output<DeviceMem<T>> {
         let device_mem: DeviceMem<T> =
             low_level::cl_create_buffer_from_slice::<T>(context, flags, slice)?;
         Ok(device_mem)
@@ -259,7 +253,7 @@ impl<T: Debug> DeviceMem<T> {
 
 macro_rules! __impl_mem_info {
     ($name:ident, $flag:ident, $output_t:ty) => {
-        impl<T: Debug> DeviceMem<T> {
+        impl<T> DeviceMem<T> where T: Debug + Sync + Send {
             pub fn $name(&self) -> Output<$output_t> {
                 self.get_info(MemInfo::$flag)
                     .map(|ret| unsafe { ret.into_one() })

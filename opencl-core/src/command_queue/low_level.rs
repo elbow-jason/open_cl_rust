@@ -99,10 +99,7 @@ pub fn cl_enqueue_read_buffer<T>(
     device_mem: &DeviceMem<T>,
     buffer: &mut [T],
     command_queue_opts: CommandQueueOptions,
-) -> Output<Event>
-where
-    T: Debug,
-{
+) -> Output<Event> where T: Debug + Sync + Send {
     let mut tracking_event = new_tracking_event();
     let err_code = unsafe {
         let (wait_list_len, wait_list_ptr_ptr) = command_queue_opts.wait_list.len_and_ptr_ptr();
@@ -140,10 +137,7 @@ pub fn cl_enqueue_write_buffer<T>(
     device_mem: &DeviceMem<T>,
     buffer: &[T],
     command_queue_opts: CommandQueueOptions,
-) -> Output<Event>
-where
-    T: Debug,
-{
+) -> Output<Event> where T: Debug + Sync + Send {
     let mut tracking_event = new_tracking_event();
     let err_code = unsafe {
         let (wait_list_len, wait_list_ptr_ptr) = command_queue_opts.wait_list.len_and_ptr_ptr();

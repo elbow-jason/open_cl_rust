@@ -54,7 +54,7 @@ impl CommandQueue {
     /// the OpenCL cl_mem pointer inside `d_mem: &DeviceMem<T>`.
     pub fn write_buffer<T>(&self, device_mem: &DeviceMem<T>, host_buffer: &[T]) -> Output<Event>
     where
-        T: Sized + Debug + Num,
+        T: Sized + Debug + Num + Sync + Send,
     {
         let command_queue_opts = CommandQueueOptions::default();
         low_level::cl_enqueue_write_buffer(self, device_mem, host_buffer, command_queue_opts)
@@ -69,7 +69,7 @@ impl CommandQueue {
         command_queue_opts: CommandQueueOptions,
     ) -> Output<Event>
     where
-        T: Sized + Debug + Num,
+        T: Sized + Debug + Num + Sync + Send 
     {
         low_level::cl_enqueue_write_buffer(self, device_mem, host_buffer, command_queue_opts)
     }
@@ -78,7 +78,7 @@ impl CommandQueue {
     /// inside `&DeviceMem<T>`) into a `host_buffer` (`&mut [T]`).
     pub fn read_buffer<T>(&self, device_mem: &DeviceMem<T>, host_buffer: &mut [T]) -> Output<Event>
     where
-        T: Sized + Debug + Num,
+        T: Sized + Debug + Num + Sync + Send 
     {
         let command_queue_opts = CommandQueueOptions::default();
         low_level::cl_enqueue_read_buffer(self, device_mem, host_buffer, command_queue_opts)
@@ -91,7 +91,7 @@ impl CommandQueue {
         command_queue_opts: CommandQueueOptions,
     ) -> Output<Event>
     where
-        T: Sized + Debug + Num,
+        T: Sized + Debug + Num + Sync + Send,
     {
         low_level::cl_enqueue_read_buffer(self, device_mem, host_buffer, command_queue_opts)
     }
