@@ -44,7 +44,7 @@ pub use device::Device;
 pub use device_mem::DeviceMem;
 pub use error::{Error, Output};
 pub use event::Event;
-pub use kernel::Kernel;
+pub use kernel::{Kernel, KernelArg, KernelArgSizeAndPointer};
 pub use platform::Platform;
 pub use program::Program;
 pub use session::Session;
