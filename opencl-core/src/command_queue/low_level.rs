@@ -106,15 +106,6 @@ pub fn cl_enqueue_read_buffer<T>(
 
         let (buffer_mem_size, buffer_ptr) = buffer_mem_size_and_ptr(buffer);
 
-        println!(
-            "
-            buffer.len() {:?}
-            device_mem.len().unwrap() {:?}
-            ",
-            buffer.len(),
-            device_mem.len()
-        );
-
         debug_assert!(buffer.len() == device_mem.len());
 
         clEnqueueReadBuffer(
