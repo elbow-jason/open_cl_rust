@@ -33,8 +33,14 @@ where
 
         assert!(devices.len() > 0, "No usable devices found");
         for device in devices.iter() {
-            let context = Context::create(device).unwrap();
-            let queue = CommandQueue::create(&context, device, None).unwrap();
+            let context = Context::create(device)
+                .unwrap_or_else(|e| {
+                    panic!("Failed to Context::create with device {:?} due to {:?}", device, e);
+                });
+            let queue = CommandQueue::create(&context, device, None)
+                .unwrap_or_else(|e| {
+                    panic!("Failed to CommandQueue::create due to {:?}", e);
+                });
             test(device, &context, &queue);
         }
     }
