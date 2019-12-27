@@ -30,6 +30,7 @@ impl From<ProgramError> for Error {
 }
 
 __impl_unconstructable_cl_wrapper!(Program, cl_program);
+__impl_default_debug_for!(Program);
 __impl_cl_object_for_wrapper!(Program, cl_program, cl_retain_program, cl_release_program);
 __impl_clone_for_cl_object_wrapper!(Program, cl_retain_program);
 __impl_drop_for_cl_object_wrapper!(Program, cl_release_program);

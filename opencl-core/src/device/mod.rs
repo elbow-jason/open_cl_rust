@@ -41,6 +41,7 @@ impl From<DeviceError> for Error {
 }
 
 __impl_unconstructable_cl_wrapper!(Device, cl_device_id);
+__impl_default_debug_for!(Device);
 __impl_cl_object_for_wrapper!(
     Device,
     cl_device_id,

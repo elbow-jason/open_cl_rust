@@ -194,14 +194,29 @@ macro_rules! __impl_drop_for_cl_object_wrapper {
 macro_rules! __impl_unconstructable_cl_wrapper {
     ($wrapper:ident, $cl_object_type:ty) => {
         #[repr(C)]
-        #[derive(Debug, Eq, PartialEq, Hash)]
+        #[derive(Eq, PartialEq, Hash)]
         pub struct $wrapper {
             inner: $cl_object_type,
             _unconstructable: (),
         }
-
-        impl $wrapper {}
     };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __impl_default_debug_for {
+    ($wrapper:ident) => {
+        impl std::fmt::Debug for $wrapper {
+            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                write!(
+                    f,
+                    "#OpenCL::{}<[{:?}]>",
+                    stringify!($wrapper),
+                    self.inner
+                )
+            }
+        }
+    }
 }
 
 // all cl_release_* and cl_retain_* functions take a raw reference to the

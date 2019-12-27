@@ -66,6 +66,7 @@ fn kernel_cannot_be_retained(_k: cl_kernel) -> Output<()> {
 // load the kernel with args then immediately enqueue.
 // Do not keep long lived kernels. Not worth the headache.
 __impl_unconstructable_cl_wrapper!(Kernel, cl_kernel);
+__impl_default_debug_for!(Kernel);
 __impl_cl_object_for_wrapper!(
     Kernel,
     cl_kernel,

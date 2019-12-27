@@ -66,7 +66,7 @@ impl Clone for Session {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Device, Session};
+    use crate::{Device, Session, Platform};
 
     fn get_session() -> Session {
         let src = "__kernel void test(__global int *i) { *i += 1; }";
@@ -78,5 +78,27 @@ mod tests {
     fn session_implements_clone() {
         let session = get_session();
         let _other = session.clone();
-    } 
+    }
+
+    #[test]
+    fn session_fmt_works() {
+        let src = "__kernel void test(__global int *i) { *i += 1; }";
+        let mut sessions = Vec::new();
+        let platforms = Platform::all().unwrap();
+        for p in platforms.iter() {
+            let devices: Vec<Device> = p.all_devices().unwrap();
+            for (i, d) in devices.into_iter().enumerate() {
+                if d.is_usable() {
+                    let session = Session::create(d, src).expect("Failed to create Session");
+                    sessions.push(session);
+                } else {
+                    println!("unsable device on platform {:?} at index {:?}", p, i);
+                }
+                
+            }
+        }
+        for session in sessions {
+            println!("Session printing: {:?}", session);
+        }
+    }
 }

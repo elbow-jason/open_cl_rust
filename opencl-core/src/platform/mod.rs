@@ -59,6 +59,7 @@ unsafe impl Sync for Platform {}
 // https://stackoverflow.com/questions/17711407/opencl-releasing-platform-object
 // so no retain or release necessary/possible for platform!
 __impl_unconstructable_cl_wrapper!(Platform, cl_platform_id);
+__impl_default_debug_for!(Platform);
 __impl_cl_object_for_wrapper!(
     Platform,
     cl_platform_id,

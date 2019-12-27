@@ -35,6 +35,7 @@ impl From<EventError> for Error {
 }
 
 __impl_unconstructable_cl_wrapper!(Event, cl_event);
+__impl_default_debug_for!(Event);
 __impl_cl_object_for_wrapper!(Event, cl_event, cl_retain_event, cl_release_event);
 __impl_clone_for_cl_object_wrapper!(Event, cl_retain_event);
 __impl_drop_for_cl_object_wrapper!(Event, cl_release_event);

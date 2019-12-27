@@ -18,6 +18,7 @@ use helpers::CommandQueueOptions;
 use low_level::{cl_release_command_queue, cl_retain_command_queue};
 
 __impl_unconstructable_cl_wrapper!(CommandQueue, cl_command_queue);
+__impl_default_debug_for!(CommandQueue);
 __impl_cl_object_for_wrapper!(
     CommandQueue,
     cl_command_queue,
