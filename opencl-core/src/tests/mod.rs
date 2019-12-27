@@ -22,11 +22,15 @@ pub fn test_all<F>(test: &mut F)
 where
     F: FnMut(&Device, &Context, &CommandQueue),
 {
-    let platforms = Platform::all().unwrap();
+    let platforms = Platform::all().unwrap_or_else(|e| {
+        panic!("Failed to retrieve plaforms via Platform::all() due to {:?}", e);
+    });
     for p in platforms.iter() {
         let devices: Vec<Device> = p
             .all_devices()
-            .unwrap()
+            .unwrap_or_else(|e| {
+                panic!("Failed list all devices for {:?} due to {:?}", p, e);
+            })
             .into_iter()
             .filter(|d| d.is_usable())
             .collect();
