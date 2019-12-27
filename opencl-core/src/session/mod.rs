@@ -4,12 +4,14 @@ use crate::{CommandQueue, Context, Device, Output, Program};
 #[derive(Debug)]
 pub struct Session {
     // preserve the ordering of these fields
-    // the (command_queue/program) must be dropped before
-    // the context must be dropped before
-    // the device.
+    // The drop order must be:
+    // 1) program
+    // 2) command_queue
+    // 3) context
+    // 4) device
     // Else... SEGFAULT :(
-    command_queue: CommandQueue,
     program: Program,
+    command_queue: CommandQueue,
     context: Context,
     device: Device,
     _unconstructable: (),
