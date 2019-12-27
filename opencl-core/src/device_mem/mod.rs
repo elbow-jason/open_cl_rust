@@ -102,12 +102,19 @@ impl<T> DeviceMem<T> where T: Debug + Sync + Send {
 
 impl<T> Debug for DeviceMem<T> where T: Debug + Sync + Send {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mem_object_type = self.mem_type().unwrap_or_else(|e| {
+            panic!("Failed to retrieve DeviceMem mem_type for {:?} due to {:?}", self.handle, e);
+        });
+        let size = self.size().unwrap_or_else(|e| {
+            panic!("Failed to retrieve DeviceMem size for {:?} due to {:?}", self.handle, e);
+        });
+
         write!(
             f,
             "DeviceMem<[handle: {:?}, mem_type: {:?}, size: {:?}, type_size: {:?}]>",
             self.handle,
-            self.mem_type().unwrap(),
-            self.size().unwrap(),
+            mem_object_type,
+            size,
             std::mem::size_of::<T>(),
         )
     }
