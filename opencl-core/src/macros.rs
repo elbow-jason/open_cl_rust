@@ -179,13 +179,13 @@ macro_rules! __impl_drop_for_cl_object_wrapper {
             }
         }
 
-        impl $wrapper {
-            // Decrements the reference count of the underlying cl object.
-            // Incorrect usage of this function can cause a SEGFAULT.
-            pub unsafe fn release_cl_object(self) -> Output<()> {
-                $release_func(self.inner)
-            }
-        }
+        // impl $wrapper {
+        //     // Decrements the reference count of the underlying cl object.
+        //     // Incorrect usage of this function can cause a SEGFAULT.
+        //     pub unsafe fn release_cl_object(&mut self) -> Output<()> {
+        //         $release_func(*self.inner)
+        //     }
+        // }
     };
 }
 
