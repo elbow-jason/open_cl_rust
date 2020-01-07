@@ -1,6 +1,6 @@
+use std::mem::ManuallyDrop;
 use crate::{CommandQueue, Context, Device, Output, Program};
 
-#[repr(C)]
 #[derive(Debug)]
 pub struct Session {
     // preserve the ordering of these fields
@@ -10,10 +10,10 @@ pub struct Session {
     // 3) context
     // 4) device
     // Else... SEGFAULT :(
-    program: Program,
-    command_queue: CommandQueue,
-    context: Context,
-    device: Device,
+    program: ManuallyDrop<Program>,
+    command_queue: ManuallyDrop<CommandQueue>,
+    context: ManuallyDrop<Context>,
+    device: ManuallyDrop<Device>,
     _unconstructable: (),
 }
 
@@ -27,10 +27,10 @@ impl Session {
         program.build_on_one_device(&device)?;
         let command_queue: CommandQueue = CommandQueue::create(&context, &device, None)?;
         Ok(Session {
-            device,
-            context,
-            program,
-            command_queue,
+            device: ManuallyDrop::new(device),
+            context: ManuallyDrop::new(context),
+            program: ManuallyDrop::new(program),
+            command_queue: ManuallyDrop::new(command_queue),
             _unconstructable: (),
         })
     }
@@ -60,6 +60,17 @@ impl Clone for Session {
             program: self.program.clone(),
             command_queue: self.command_queue.clone(),
             _unconstructable: (),
+        }
+    }
+}
+
+impl Drop for Session {
+    fn drop(&mut self) {
+        unsafe {
+            ManuallyDrop::drop(&mut self.program);
+            ManuallyDrop::drop(&mut self.command_queue);
+            ManuallyDrop::drop(&mut self.context);
+            ManuallyDrop::drop(&mut self.device);
         }
     }
 }
