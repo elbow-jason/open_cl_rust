@@ -35,12 +35,7 @@ pub unsafe fn cl_build_program<D>(mut unbuilt: UnbuiltProgram, device: &D) -> Ou
     let program_device: Device = Device::new(device.device_ptr())?;
     let (context_ptr, program_ptr): (cl_context, cl_program) = unbuilt.decompose();
     let program_context: Context = Context::from_retained(context_ptr)?;
-    let built_program: Program = Program::new(
-        program_ptr,
-        program_context,
-        program_device,
-    );
-    Ok(built_program)
+    Program::new(program_ptr, program_context, program_device)
 }
     
 pub fn cl_get_program_build_log(

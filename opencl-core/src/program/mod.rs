@@ -7,12 +7,13 @@ use std::fmt;
 use crate::ffi::{cl_program, cl_context};
 
 use crate::{
+    utils,
     Context, ContextRefCount,
     Device, DevicePtr, DeviceRefCount,
     Error, Output
 };
 
-use low_level::{cl_release_program, cl_retain_program};
+// use low_level::{cl_release_program, cl_retain_program};
 
 use crate::cl::ClPointer;
 
@@ -99,29 +100,49 @@ pub trait ProgramPtr: Sized {
     }
 }
 
+pub unsafe fn release_program(program: cl_program) {
+    low_level::cl_release_program(program).unwrap_or_else(|e| {
+        panic!("Failed to release cl_program {:?} due to {:?}", program, e);
+    });
+}
+
+pub unsafe fn retain_program(program: cl_program) {
+    low_level::cl_retain_program(program).unwrap_or_else(|e| {
+        panic!("Failed to retain cl_program {:?} due to {:?}", program, e);
+    });
+}
+    
+
 struct ProgramObject {
-    pub object: cl_program,
+    object: cl_program,
+    _unconstructable: ()
+}
+
+impl ProgramObject {
+    pub unsafe fn unchecked_new(program: cl_program) -> ProgramObject {
+        ProgramObject{
+            object: program,
+            _unconstructable: (),
+        }
+    }
+
+    unsafe fn from_retained(prog: cl_program) -> Output<ProgramObject> {
+        utils::null_check(prog, "ProgramObject::from_retained")?;
+        Ok(ProgramObject::unchecked_new(prog))
+    }
 }
 
 impl Drop for ProgramObject {
     fn drop(&mut self) {
-        unsafe {
-            cl_release_program(self.object).unwrap_or_else(|e| {
-                panic!("Failed to release cl_program s{:?}", e);
-            });
-        }
+        unsafe { release_program(self.object) };
     }
 }
 
 impl Clone for ProgramObject {
     fn clone(&self) -> ProgramObject {
         unsafe {
-            cl_retain_program(self.object).unwrap_or_else(|e| {
-                panic!("Failed to retain cl_program {:?}", e);
-            });
-        }
-        ProgramObject{
-            object: self.object
+            retain_program(self.object);
+            ProgramObject::unchecked_new(self.object)
         }
     }
 }
@@ -136,7 +157,7 @@ impl UnbuiltProgram {
     pub unsafe fn new(program: cl_program, context: Context) -> UnbuiltProgram {
         UnbuiltProgram{
             context: ManuallyDrop::new(context),
-            inner: ManuallyDrop::new(ProgramObject{object: program}),
+            inner: ManuallyDrop::new(ProgramObject::unchecked_new(program)),
             _unconstructable: (),
         }
     }
@@ -288,28 +309,27 @@ impl ProgramPtr for &mut Program {
 }
 
 impl Program {
-    // pub unsafe fn consume_unbuilt_program(unbuilt_program: UnbuiltProgram) -> Program {
-    //     let (ctx, prog): (cl_context, cl_program) = unbuilt_program.decompose();
-    //     Program::new(prog, Context::new(ctx))
-    // }
-
-    // pub unsafe fn into_cl_program(mut self) -> cl_program {
-    //     let program_ptr: cl_program = self.program_ptr();
-    //     // take ownership of context so it can drop.
-    //     ManuallyDrop::drop(&mut self._context);
-    //     ManuallyDrop::drop(&mut self._device);
-    //     std::mem::forget(self);
-    //     program_ptr
-    // }
-
-    pub unsafe fn new(object: cl_program, context: Context, device: Device) -> Program {
-        Program {
-            inner: ManuallyDrop::new(ProgramObject{object}), 
-            _context: ManuallyDrop::new(context),
-            _device: ManuallyDrop::new(device),
-            _unconstructable: (),
+    pub unsafe fn new(object: cl_program, mut context: Context, mut device: Device) -> Output<Program> {
+        match ProgramObject::from_retained(object) {
+            Err(e) => {
+                // If an error occures we have to drop the parents in the correct order.
+                std::mem::drop(&mut context);
+                std::mem::drop(&mut device);
+                std::mem::forget(context);
+                std::mem::forget(device);
+                return Err(e)
+            },
+            Ok(program_object) => {
+                Ok(Program {
+                    inner: ManuallyDrop::new(program_object), 
+                    _context: ManuallyDrop::new(context),
+                    _device: ManuallyDrop::new(device),
+                    _unconstructable: (),
+                })
+            }
         }
     }
+
     pub fn get_log(program: &Program, device: &Device) -> Output<String> {
         let flag = flags::ProgramBuildInfo::Log;
         low_level::cl_get_program_build_log(program, device, flag)

@@ -56,7 +56,7 @@ impl SessionInner {
 }
 
 unsafe impl Send for SessionInner {}
-unsafe impl Sync for SessionInner {}
+// unsafe impl Sync for SessionInner {}
 
 impl Clone for SessionInner {
     fn clone(&self) -> SessionInner {
