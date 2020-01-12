@@ -19,6 +19,7 @@ __release_retain!(program, Program);
 pub const DEVICE_LIST_CANNOT_BE_EMPTY: Error = Error::ProgramError(ProgramError::CannotBuildProgramWithEmptyDevicesList);
 
 #[allow(clippy::transmuting_null)]
+#[allow(unused_mut)]
 pub unsafe fn cl_build_program<D>(mut unbuilt: UnbuiltProgram, device: &D) -> Output<Program> where D: DevicePtr {
     let device_id: *const cl_device_id = &device.device_ptr() as *const cl_device_id;
     
