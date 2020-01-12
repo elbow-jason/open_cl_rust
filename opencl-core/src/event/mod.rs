@@ -18,12 +18,11 @@ pub use wait_list::WaitList;
 use crate::cl::{
     ClObject,
     ClPointer,
-    // CopyClObject,
 };
-// use crate::command_queue::CommandQueue;
 
-use crate::context::Context;
-use crate::error::{Error, Output};
+
+use crate::{Context, ContextRefCount, Error, Output};
+
 
 /// An error related to an Event or WaitList.
 #[derive(Debug, Fail, PartialEq, Eq, Clone)]
@@ -90,7 +89,7 @@ impl Event {
 
     pub fn context(&self) -> Output<Context> {
         self.info::<cl_context>(Info::Context)
-            .and_then(|ret| unsafe { Context::from_unretained_object(ret.into_one()) })
+            .and_then(|cl_ptr| unsafe { Context::from_unretained(cl_ptr.into_one()) })
     }
 
     pub fn command_execution_status(&self) -> Output<CommandExecutionStatus> {

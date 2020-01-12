@@ -77,8 +77,8 @@ mod basic_tests {
         test_all(&mut |device, context, queue| {
             let unbuilt_program = UnbuiltProgram::create_with_source(context, src).unwrap();
             let devices = vec![device];
-            let program = unbuilt_program.build(&devices[..]).unwrap();
-            let k = Kernel::create(&program, "test").unwrap();
+            let programs = unbuilt_program.build(&devices[..]).unwrap();
+            let k = Kernel::create(&programs[0], "test").unwrap();
             let mut v1: Vec<isize> = vec![1];
             let mem1 = DeviceMem::create_read_write(context, v1.len()).unwrap();
             let work_size = v1.len();
@@ -112,9 +112,9 @@ mod basic_tests {
         test_all(&mut |device, context, queue| {
             let unbuilt_program = UnbuiltProgram::create_with_source(context, src).unwrap();
             let devices = vec![device];
-            let program = unbuilt_program.build(&devices[..]).unwrap();
+            let programs = unbuilt_program.build(&devices[..]).unwrap();
 
-            let add_scalar_var: Kernel = Kernel::create(&program, "test").unwrap();
+            let add_scalar_var: Kernel = Kernel::create(&programs[0], "test").unwrap();
             let initial_values = vec![1i32];
             let mem1 = DeviceMem::create_write_only(context, initial_values.len()).unwrap();
             let _write_event = queue.write_buffer(&mem1, &initial_values[..]).unwrap();
@@ -151,11 +151,11 @@ mod basic_tests {
         test_all(&mut |device, context, queue| {
             let unbuilt_program = UnbuiltProgram::create_with_source(context, src).unwrap();
             let devices = vec![device];
-            let program = unbuilt_program
+            let programs = unbuilt_program
                 .build(&devices[..])
                 .expect("failed to build_one_on_device");
 
-            let k = Kernel::create(&program, "test").expect("failed to create 'test' kernel");
+            let k = Kernel::create(&programs[0], "test").expect("failed to create 'test' kernel");
             let v1 = vec![1isize, 2, 3, 4, 5, 6, 7, 8, 9];
             let b1 = DeviceMem::create_read_only_from(context, &v1).unwrap();
             let work = Work::new((3, 3));
@@ -249,9 +249,9 @@ mod basic_tests {
 
             let unbuilt_program = UnbuiltProgram::create_with_source(context, src).unwrap();
             let devices = vec![device];
-            let program = unbuilt_program.build(&devices[..]).expect("failed to build_one_on_device");
+            let programs = unbuilt_program.build(&devices[..]).expect("failed to build_one_on_device");
 
-            let k = Kernel::create(&program, "transpose_2d")
+            let k = Kernel::create(&programs[0], "transpose_2d")
                 .expect("failed to create 'transpose_2d' kernel");
             let () = k
                 .set_arg(0, &mem_in)

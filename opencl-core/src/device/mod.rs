@@ -102,7 +102,24 @@ impl Clone for Device {
 }
 
 impl Device {
-      pub unsafe fn new(device_id: cl_device_id) -> Output<Device> {
+    pub fn clone_slice<D: DevicePtr>(devices: &[D]) -> Output<Vec<Device>> {
+        devices
+            .iter()
+            .map(|d| {
+                // TODO: This approach is not sound. FIX ME.
+                // This is super dangerous. A Device is contstructed and droppable
+                // before the ptr is reference counted. Device needs a `from_unretained`.
+                unsafe { 
+                    Device::new(d.device_ptr())
+                    .map(|dangerously_constructed_device| {
+                        dangerously_constructed_device.clone()
+                    })
+                }
+            })
+            .collect()
+    }
+    
+    pub unsafe fn new(device_id: cl_device_id) -> Output<Device> {
         utils::null_check(device_id, "Device::new")?;
         device_usability_check(device_id)?;
 

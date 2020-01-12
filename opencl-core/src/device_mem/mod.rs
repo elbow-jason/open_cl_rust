@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 
 use crate::cl::{ClObject, ClObjectError, ClPointer};
-use crate::context::Context;
+use crate::context::{Context, ContextRefCount};
 use crate::ffi::{cl_context, cl_mem};
 
 pub mod flags;
@@ -251,7 +251,7 @@ impl<T: Debug> DeviceMem<T> where T: Debug + Sync + Send {
 
     pub fn context(&self) -> Output<Context> {
         self.get_info::<cl_context>(MemInfo::Context)
-            .and_then(|ret| unsafe { Context::from_unretained_object(ret.into_one()) })
+            .and_then(|cl_ptr| unsafe { Context::from_unretained(cl_ptr.into_one()) })
     }
 
     pub fn reference_count(&self) -> Output<u32> {

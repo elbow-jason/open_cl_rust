@@ -35,8 +35,10 @@ fn run() -> Result<(), Error> {
     let unbuilt_program: UnbuiltProgram = UnbuiltProgram::create_with_source(&context, src)?;
 
     println!("building program on device {}...", name);
-    let program = unbuilt_program.build(&[device])?;
-
+    let mut programs: Vec<Program> = unbuilt_program.build(&[device])?;
+    assert_eq!(programs.len(), 1);
+    let program = programs.remove(0);
+    
     let vec_a = vec![1isize, 2, 3];
     let vec_b = vec![0isize, -1, -2];
 

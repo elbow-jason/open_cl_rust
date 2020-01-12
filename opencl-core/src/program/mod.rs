@@ -6,11 +6,11 @@ use std::fmt;
 
 use crate::ffi::{cl_program, cl_context};
 
-use crate::context::Context;
+use crate::{Context, ContextRefCount};
 use crate::device::{Device, DevicePtr};
 use crate::error::{Error, Output};
 
-use low_level::{cl_release_program, cl_retain_program, };
+use low_level::{cl_release_program, cl_retain_program};
 
 use crate::cl::ClPointer;
 
@@ -52,7 +52,7 @@ pub trait ProgramPtr: Sized {
 
     fn context(&self) -> Output<Context> {
         get_info(self, ProgramInfo::Context)
-            .and_then(|ret| unsafe { Context::from_unretained_object(ret.into_one()) })
+            .and_then(|cl_ptr| unsafe { Context::from_unretained(cl_ptr.into_one()) })
     }
 
     fn num_devices(&self) -> Output<u32> {
@@ -210,14 +210,31 @@ impl UnbuiltProgram {
         low_level::cl_create_program_with_binary(context, device, binary)
     }
 
-    pub fn build<D>(self, devices: &[D]) -> Output<Program> where D: DevicePtr  {
-        println!("UP1");
-        low_level::cl_build_program(self, devices)
+    pub fn build<D>(self, devices: &[D]) -> Output<Vec<Program>> where D: DevicePtr  {
+        let len = devices.len() ;
+        match len {
+            0 => Err(DEVICE_LIST_CANNOT_BE_EMPTY),
+            n => {
+                let mut built_programs: Vec<Program> = Vec::with_capacity(devices.len());
+                for i in 0..(n - 1) {
+                    let built_prog: Program = unsafe {
+                        low_level::cl_build_program(self.clone(), &devices[i])
+                    }?;
+                    built_programs.push(built_prog);
+                }
+                let last_program = unsafe {
+                    low_level::cl_build_program(self.clone(), &devices[len - 1])
+                }?;
+                built_programs.push(last_program);
+                Ok(built_programs)
+            }
+        }
     }
 }
 
 pub struct Program {
-    context: ManuallyDrop<Context>,
+    _context: ManuallyDrop<Context>,
+    _device: ManuallyDrop<Device>,
     inner: ManuallyDrop<ProgramObject>,
     _unconstructable: (),
 }
@@ -226,7 +243,8 @@ impl Drop for Program {
     fn drop(&mut self) {
         unsafe {
             ManuallyDrop::drop(&mut self.inner);
-            ManuallyDrop::drop(&mut self.context);
+            ManuallyDrop::drop(&mut self._context);
+            ManuallyDrop::drop(&mut self._device);
         }
     }
 }
@@ -234,7 +252,9 @@ impl Drop for Program {
 impl Clone for Program {
     fn clone(&self) -> Program {
         Program{
-            context: self.context.clone(),
+            _device: ManuallyDrop::new((*self._device).clone()),
+            _context: self._context.clone(),
+            
             inner: ManuallyDrop::new((*self.inner).clone()),
             _unconstructable: ()
         }
@@ -269,23 +289,25 @@ impl ProgramPtr for &mut Program {
 }
 
 impl Program {
-    pub unsafe fn consume_unbuilt_program(built_program: UnbuiltProgram) -> Program {
-        let (ctx, prog): (cl_context, cl_program) = built_program.decompose();
-        Program::new(prog, Context::new(ctx))
-    }
+    // pub unsafe fn consume_unbuilt_program(unbuilt_program: UnbuiltProgram) -> Program {
+    //     let (ctx, prog): (cl_context, cl_program) = unbuilt_program.decompose();
+    //     Program::new(prog, Context::new(ctx))
+    // }
 
-    pub unsafe fn into_cl_program(mut self) -> cl_program {
-        let program_ptr: cl_program = self.program_ptr();
-        // take ownership of context so it can drop.
-        std::mem::drop(&mut self.context);
-        std::mem::forget(self);
-        program_ptr
-    }
+    // pub unsafe fn into_cl_program(mut self) -> cl_program {
+    //     let program_ptr: cl_program = self.program_ptr();
+    //     // take ownership of context so it can drop.
+    //     ManuallyDrop::drop(&mut self._context);
+    //     ManuallyDrop::drop(&mut self._device);
+    //     std::mem::forget(self);
+    //     program_ptr
+    // }
 
-    pub unsafe fn new(object: cl_program, context: Context) -> Program {
+    pub unsafe fn new(object: cl_program, context: Context, device: Device) -> Program {
         Program {
             inner: ManuallyDrop::new(ProgramObject{object}), 
-            context: ManuallyDrop::new(context),
+            _context: ManuallyDrop::new(context),
+            _device: ManuallyDrop::new(device),
             _unconstructable: (),
         }
     }
@@ -294,7 +316,13 @@ impl Program {
         low_level::cl_get_program_build_log(program, device, flag)
             .map(|ret| unsafe { ret.into_string() })
     }
+    pub fn device(&self) -> &Device {
+        &self._device
+    }
 
+    pub fn context(&self) -> &Context {
+        &self._context
+    }
 }
 
 #[cfg(test)]
@@ -324,10 +352,7 @@ mod tests {
     #[test]
     fn program_method_context_works() {
         let session = get_session();
-        let _output: Context = session
-            .program()
-            .context()
-            .expect("Failed to call program.context()");
+        let _output: &Context = session.program().context();
     }
 
     #[test]

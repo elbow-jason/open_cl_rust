@@ -16,7 +16,7 @@ use crate::ffi::{
     cl_device_id,
 };
 
-use crate::{Context, Device, DeviceMem, Event, Kernel, Output, Work, DevicePtr};
+use crate::{Context, ContextRefCount, Device, DevicePtr, DeviceMem, Event, Kernel, Output, Work};
 
 use crate::cl::ClPointer;
 use crate::cl::ClObjectError;
@@ -241,10 +241,9 @@ impl CommandQueue {
     }
 
     pub fn context(&self) -> Output<Context> {
-        // The OpenCL context gives an non-reference counted pointer.
-        // What an absolute joy.
-        // Manually increase the reference count.
-        self.info(CQInfo::Context).and_then(|ret| unsafe { Context::from_unretained_object(ret.into_one()) })
+        self.info(CQInfo::Context).and_then(|cl_ptr| unsafe {
+            Context::from_unretained(cl_ptr.into_one())
+        })
     }
 
     pub fn device(&self) -> Output<Device> {

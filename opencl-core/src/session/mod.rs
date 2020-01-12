@@ -3,7 +3,8 @@ use std::sync::Arc;
 use crate::{
     CommandQueue,
     Context,
-    Device, Output, UnbuiltProgram, Program, ProgramPtr};
+    Device, Output, UnbuiltProgram, Program, DevicePtr,
+};
 
 
 // preserve the ordering of these fields
@@ -15,10 +16,8 @@ use crate::{
 // Else... SEGFAULT :(
 #[derive(Debug)]
 struct SessionInner {
-    program: ManuallyDrop<Program>,
-    command_queue: ManuallyDrop<CommandQueue>,
-    context: ManuallyDrop<Context>,
-    device: ManuallyDrop<Device>,
+    _program: ManuallyDrop<Program>,
+    _command_queue: ManuallyDrop<CommandQueue>,
     _unconstructable: (),
 }
 
@@ -32,20 +31,26 @@ impl SessionInner {
         debug_assert!(devices.len() > 0);
         // println!("kernel_names: {:?}", unbuilt_program.kernel_names());
         // let device: &Device = &devices[0];
-        let program = unbuilt_program.build(&devices[..])?;
+        let programs: Vec<Program> = unbuilt_program.build(&devices[..])?;
         println!("S4");
         
         let mut sessions: Vec<SessionInner> = Vec::with_capacity(devices.len());
         println!("S5");
-        for device in devices.into_iter() {
+        for program in programs.into_iter() {
             println!("S6");
-            let command_queue = CommandQueue::create(&context, &device, None)?;
+            let device: &Device = program.device();
+            let name = device.name();
+            let context: &Context = program.context();
+            let ctx_device_names: Output<Vec<String>> = context.devices().into_iter().map(|d| d.name()).collect();
+            println!("S6 device name: {:?}", name);
+            println!("S6 ctx_device_names: {:?}", ctx_device_names);
+
+            
+            let command_queue = CommandQueue::create(&context, device, None)?;
             println!("S7");
             let session_inner = SessionInner {
-                device: ManuallyDrop::new(device),
-                context: ManuallyDrop::new(context.clone()),
-                program: ManuallyDrop::new(program.clone()),
-                command_queue: ManuallyDrop::new(command_queue),
+                _program: ManuallyDrop::new(program),
+                _command_queue: ManuallyDrop::new(command_queue),
                 _unconstructable: (),
             };
             println!("S8");
@@ -55,6 +60,18 @@ impl SessionInner {
         println!("S10");
         Ok(sessions)
     }
+
+    fn context(&self) -> &Context {
+        self._program.context()
+    }
+
+    fn command_queue(&self) -> &CommandQueue {
+        &self._command_queue
+    }
+
+    fn program(&self) -> &Program {
+        &self._program
+    }
 }
 
 unsafe impl Send for SessionInner {}
@@ -62,15 +79,15 @@ unsafe impl Sync for SessionInner {}
 
 impl Clone for SessionInner {
     fn clone(&self) -> SessionInner {
-        let device = (*self.device).clone();
-        let context = (*self.context).clone();
-        let program = (*self.program).clone();
-        let command_queue = (*self.command_queue).clone();
+        // let device = (*self.device).clone();
+        // let context = (*self.context).clone();
+        let program = (*self._program).clone();
+        let command_queue = (*self._command_queue).clone();
         SessionInner {
-            device: ManuallyDrop::new(device),
-            context: ManuallyDrop::new(context),
-            program: ManuallyDrop::new(program),
-            command_queue: ManuallyDrop::new(command_queue),
+            // device: ManuallyDrop::new(device),
+            // context: ManuallyDrop::new(context),
+            _program: ManuallyDrop::new(program),
+            _command_queue: ManuallyDrop::new(command_queue),
             _unconstructable: (),
         }
     }
@@ -79,10 +96,8 @@ impl Clone for SessionInner {
 impl Drop for SessionInner {
     fn drop(&mut self) {
         unsafe {
-            ManuallyDrop::drop(&mut self.device);
-            ManuallyDrop::drop(&mut self.context);
-            ManuallyDrop::drop(&mut self.program);
-            ManuallyDrop::drop(&mut self.command_queue);
+            ManuallyDrop::drop(&mut self._command_queue);
+            ManuallyDrop::drop(&mut self._program);
         }
     }
 }
@@ -111,20 +126,24 @@ impl Session {
         Ok(sessions)
     }
 
+    fn inner(&self) -> &SessionInner {
+        &*self.inner
+    }
+
     pub fn device(&self) -> &Device {
-        &self.inner.device
+        self.program().device()
     }
 
     pub fn context(&self) -> &Context {
-        &self.inner.context
+        self.inner().context()
     }
 
     pub fn program(&self) -> &Program {
-        &self.inner.program
+        self.inner().program()
     }
 
     pub fn command_queue(&self) -> &CommandQueue {
-        &self.inner.command_queue
+        self.inner().command_queue()
     }
 }
 

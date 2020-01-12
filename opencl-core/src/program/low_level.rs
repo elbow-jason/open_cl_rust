@@ -1,10 +1,11 @@
 use crate::ffi::{
     clBuildProgram, clCreateProgramWithBinary, clCreateProgramWithSource, clGetProgramBuildInfo,
-    clGetProgramInfo, cl_device_id, cl_program, cl_program_build_info, cl_program_info, cl_uint,
+    clGetProgramInfo, cl_device_id, cl_program, cl_program_build_info, cl_program_info,
+    cl_context
 };
 
 use crate::cl::{cl_get_info5, cl_get_info6, ClPointer};
-use crate::context::Context;
+use crate::context::{Context, ContextRefCount};
 use crate::device::{Device, DevicePtr};
 use crate::error::{Error, Output};
 use crate::utils::strings;
@@ -18,33 +19,29 @@ __release_retain!(program, Program);
 pub const DEVICE_LIST_CANNOT_BE_EMPTY: Error = Error::ProgramError(ProgramError::CannotBuildProgramWithEmptyDevicesList);
 
 #[allow(clippy::transmuting_null)]
-pub fn cl_build_program<D>(program: UnbuiltProgram, devices: &[D]) -> Output<Program> where D: DevicePtr {
-    if devices.len() == 0 {
-        return Err(DEVICE_LIST_CANNOT_BE_EMPTY);
-    }
-    let err_code = unsafe {
-        println!("cl_build_program devices {:?}", devices);
-        let cl_devices: Vec<cl_device_id> = devices.iter().map(|d| d.device_ptr()).collect();
-        println!("cl_build_program cl_devices {:?}", cl_devices);
-        println!("cl_build_program program {:?}", program);
-        let ptr: *const cl_device_id = (&cl_devices).as_ptr() as *const cl_device_id;
-
-        println!("cl_build_program ptr {:?}", ptr);
-        clBuildProgram(
-            program.program_ptr(),
-            cl_devices.len() as u32,
-            ptr,
-            std::ptr::null(),
-            std::mem::transmute(std::ptr::null::<fn()>()), // pfn_notify
-            std::ptr::null_mut(),                          // user_data
-        )
-    };
-    println!("cl_build_program err_code {:?}", err_code);
-    StatusCode::build_output(err_code, ()).map(|_| {
-        unsafe { Program::consume_unbuilt_program(program) }
-    })
+pub unsafe fn cl_build_program<D>(mut unbuilt: UnbuiltProgram, device: &D) -> Output<Program> where D: DevicePtr {
+    let device_id: *const cl_device_id = &device.device_ptr() as *const cl_device_id;
+    
+    let err_code = clBuildProgram(
+        unbuilt.program_ptr(),
+        1u32,
+        device_id,
+        std::ptr::null(),
+        std::mem::transmute(std::ptr::null::<fn()>()), // pfn_notify
+        std::ptr::null_mut(),                          // user_data
+    );
+    StatusCode::build_output(err_code, ())?;
+    let program_device: Device = Device::new(device.device_ptr())?;
+    let (context_ptr, program_ptr): (cl_context, cl_program) = unbuilt.decompose();
+    let program_context: Context = Context::from_retained(context_ptr)?;
+    let built_program: Program = Program::new(
+        program_ptr,
+        program_context,
+        program_device,
+    );
+    Ok(built_program)
 }
-
+    
 pub fn cl_get_program_build_log(
     program: &Program,
     device: &Device,

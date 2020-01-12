@@ -8,6 +8,7 @@ use super::DeviceError;
 use super::low_level::cl_get_device_info;
 use super::flags::{DeviceExecCapabilities, DeviceLocalMemType, DeviceMemCacheType, DeviceType, DeviceAffinityDomain};
 use super::{UNUSABLE_DEVICE_ID};
+
 macro_rules! info_fn {
     ($name:ident, $flag:ident, String) => {
         fn $name(&self) -> Output<String> {

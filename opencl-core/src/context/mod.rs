@@ -3,36 +3,73 @@ use std::fmt;
 
 pub mod flags;
 pub mod low_level;
-use crate::device::DevicePtr;
+pub use flags::ContextInfo;
+
+use crate::device::{DevicePtr, Device};
 use crate::error::Output;
-use crate::cl::ClObjectError;
+// use crate::cl::ClObjectError;
 use crate::ffi::{cl_context, cl_device_id};
+use crate::cl::ClPointer;
 
-use low_level::{cl_create_context, cl_release_context, cl_retain_context};
 
-pub trait ContextPtr {
+fn get_info<T: Copy, C: ContextPtr>(context: &C, flag: ContextInfo) -> Output<ClPointer<T>> {
+    low_level::cl_get_context_info(unsafe { context.context_ptr() }, flag)
+}
+
+
+pub trait ContextPtr: Sized {
     unsafe fn context_ptr(&self) -> cl_context;
 
+    fn load_devices(&self) -> Output<Vec<Device>> {
+        get_info::<cl_device_id, Self>(self, ContextInfo::Devices).map(|cl_ptr| {
+            unsafe {
+                cl_ptr
+                    .into_vec()
+                    .into_iter()
+                    .map(|device| Device::new(device).unwrap().clone())
+                    .collect()
+            }
+        })
+    }
+}
+
+pub trait ContextRefCount: ContextPtr {
+    unsafe fn from_retained(ctx: cl_context) -> Output<Self>;
+    unsafe fn from_unretained(ctx: cl_context) -> Output<Self>;
+
     unsafe fn release_context(&mut self) {
-        cl_release_context(self.context_ptr()).unwrap_or_else(|e| {
+        low_level::cl_release_context(self.context_ptr()).unwrap_or_else(|e| {
             panic!("Failed to release cl_context {:?}", e);
         });
     }
 
     unsafe fn retain_context(&self) {
-        cl_retain_context(self.context_ptr()).unwrap_or_else(|e| {
+        low_level::cl_retain_context(self.context_ptr()).unwrap_or_else(|e| {
             panic!("Failed to retain cl_context {:?}", e);
         });
     }
+
 }
 
-struct ContextObject {
+
+pub struct ContextObject {
     object: cl_context,
 }
 
 impl ContextPtr for ContextObject {
     unsafe fn context_ptr(&self) -> cl_context {
         self.object
+    }
+}
+impl ContextRefCount for ContextObject {
+    unsafe fn from_unretained(object: cl_context) -> Output<ContextObject> {
+        let new_self: Self = ContextObject { object };
+        new_self.retain_context();
+        Ok(new_self)
+    }
+
+    unsafe fn from_retained(object: cl_context) -> Output<ContextObject> {
+        Ok(ContextObject { object })
     }
 }
 
@@ -56,14 +93,16 @@ impl Clone for ContextObject {
 
 pub struct Context {
     inner: ManuallyDrop<ContextObject>,
-    // devices: Vec<Device>,
+    _devices: ManuallyDrop<Vec<Device>>,
     _unconstructable: ()
 }
 
 impl Clone for Context {
     fn clone(&self) -> Context {
+        let cloned_devices = self._devices.iter().map(Clone::clone).collect();
         Context {
             inner: ManuallyDrop::new((*self.inner).clone()),
+            _devices: ManuallyDrop::new(cloned_devices),
             _unconstructable: ()
         }
     }
@@ -80,23 +119,56 @@ impl Drop for Context {
 unsafe impl Send for Context {}
 unsafe impl Sync for Context {}
 
-impl Context {
-    pub unsafe fn new(ctx: cl_context) -> Context {//, devices: Vec<Device>) -> Output<Context> {
-        Context {
-            inner: ManuallyDrop::new(ContextObject{object: ctx}),
-            // devices,
-            _unconstructable: (),
-        }
+impl ContextPtr for Context {
+    unsafe fn context_ptr(&self) -> cl_context {
+        self.inner.context_ptr()
+    }
+}
+impl ContextRefCount for Context {
+    unsafe fn from_unretained(ctx: cl_context) -> Output<Context> {
+        let context_object = ContextObject::from_unretained(ctx)?;
+        let devices: Vec<Device> = context_object.load_devices()?;
+        Ok(Context::build(context_object, devices))
     }
 
-    pub unsafe fn from_unretained_object(obj: cl_context) -> Output<Context> {
-         if obj.is_null() {
-            let error = ClObjectError::ClObjectCannotBeNull("DeviceMem<T>".to_string());
-            return Err(error.into());
-        }
+    unsafe fn from_retained(raw_ctx: cl_context) -> Output<Context> {
+        let context_object = ContextObject::from_retained(raw_ctx)?;
+        let devices: Vec<Device> = context_object.load_devices()?;
+        Ok(Context::build(context_object, devices))
+    }
+}
 
-        cl_retain_context(obj)?;
-        Ok(Context::new(obj))
+
+
+// Identify uncounted references.
+
+
+impl Context {
+
+    // pub unsafe fn new(ctx: cl_context, devices: Vec<Device>) -> Context {//, devices: Vec<Device>) -> Output<Context> {
+    //     let context_object = ContextObject::from_retained(ctx);
+    //     Context::build(context_object, devices)
+    // }
+
+    // pub unsafe fn from_cl_pointer(cl_ptr: ClPointer<cl_context>) -> Output<Context> {
+    //     let ctx_obj = ContextObject::from_unretained(cl_ptr.into_one());
+    //     Context::from_context_object(ctx_obj)
+    // }
+
+    // unsafe fn from_context_object(obj: ContextObject) -> Output<Context> {//, devices: Vec<Device>) -> Output<Context> {
+    //     let devices: Vec<Device> = obj.load_devices()?;
+    //     Ok(Context::build(obj, devices))
+    // }
+
+    /// This call is safe because all structures should be reference counted
+    /// and droppable. If there is a memory error from opencl it will not be in
+    /// this function.
+    fn build(obj: ContextObject, devices: Vec<Device>) -> Context {
+        Context {
+            inner: ManuallyDrop::new(obj),
+            _devices: ManuallyDrop::new(devices),
+            _unconstructable: (),
+        }
     }
 
     pub unsafe fn context_ptr(&self) -> cl_context {
@@ -104,15 +176,18 @@ impl Context {
     }
 
     pub fn create<D: DevicePtr>(
-        devices: &[D],
+        device_ptrs: &[D],
     ) -> Output<Context> {
-        let device_ptrs: Vec<cl_device_id> = devices.iter().map(|d| unsafe { (*d).device_ptr() }).collect();
-        cl_create_context(&device_ptrs[..])
+        let obj: ContextObject = unsafe { low_level::cl_create_context(device_ptrs) }?;
+        let devices = Device::clone_slice(device_ptrs)?;
+        Ok(Context::build(obj, devices))
+    }
+
+    pub fn devices(&self) -> &[Device] {
+        &self._devices[..]
     }
 }
-    // pub fn device(&self) -> &[Device] {
-    //     &self.devices[..]
-    // }
+   
 
 impl fmt::Debug for Context {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

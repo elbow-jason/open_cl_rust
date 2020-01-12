@@ -39,7 +39,7 @@ pub mod session;
 pub mod utils;
 
 pub use command_queue::CommandQueue;
-pub use context::Context;
+pub use context::{Context, ContextObject, ContextPtr, ContextRefCount};
 pub use device::{Device, DevicePtr, DeviceType, DeviceInfo};
 pub use device_mem::DeviceMem;
 pub use error::{Error, Output};
