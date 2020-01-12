@@ -72,6 +72,19 @@ mod testing {
             .remove(0)
     }
 
+    pub fn all_sessions(src: &str) -> Vec<Session> {
+        let mut sessions = Vec::new();
+        let platforms = Platform::all().unwrap();
+        for p in platforms.iter() {
+            let devices: Vec<Device> = p.all_devices().unwrap();
+            let more_sessions: Vec<Session> = Session::create_sessions(&devices[..], src)
+                .unwrap_or_else(|e| panic!("Failed to create Session: {:?}", e));
+            sessions.extend(more_sessions);
+        }
+        sessions
+    }
+        
+
     fn get_device() -> Device {
         let platform = Platform::default();
         let mut devices: Vec<Device> = Device::all_by_type(&platform, DeviceType::ALL).expect("Failed to list all devices");

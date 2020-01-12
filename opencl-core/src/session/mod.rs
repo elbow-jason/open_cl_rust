@@ -60,13 +60,9 @@ unsafe impl Sync for SessionInner {}
 
 impl Clone for SessionInner {
     fn clone(&self) -> SessionInner {
-        // let device = (*self.device).clone();
-        // let context = (*self.context).clone();
         let program = (*self._program).clone();
         let command_queue = (*self._command_queue).clone();
         SessionInner {
-            // device: ManuallyDrop::new(device),
-            // context: ManuallyDrop::new(context),
             _program: ManuallyDrop::new(program),
             _command_queue: ManuallyDrop::new(command_queue),
             _unconstructable: (),
@@ -135,34 +131,21 @@ impl Clone for Session {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Device, Session, Platform};
+    use crate::testing;
 
-    fn get_session() -> Session {
-        let src = "__kernel void test(__global int *i) { *i += 1; }";
-        let device = Device::default();
-        Session::create_sessions(&[device], src).expect("Failed to create Session").pop().unwrap()
-    }
+    const SRC: &'static str = "__kernel void test(__global int *i) { *i += 1; }";
 
     #[test]
     fn session_implements_clone() {
-        let session = get_session();
+        let session = testing::get_session(SRC);
         let _other = session.clone();
     }
 
     #[test]
-    fn session_fmt_works() {
-        let src = "__kernel void test(__global int *i) { *i += 1; }";
-        let mut sessions = Vec::new();
-        let platforms = Platform::all().unwrap();
-        for p in platforms.iter() {
-            let devices: Vec<Device> = p.all_devices().unwrap();
-            println!("devices {:?}", devices);
-            let more_sessions: Vec<Session> = Session::create_sessions(&devices[..], src)
-                .expect("Failed to create Session");
-            sessions.extend(more_sessions);
-        }
-        for session in sessions {
-            println!("Session printing: {:?}", session);
+    fn session_implementation_of_fmt_debug_works() {
+        for session in testing::all_sessions(SRC) {
+            let formatted = format!("{:?}", session);
+            assert!(formatted.starts_with("Session"), "Formatted did not start with the correct value. Got: {:?}", formatted);
         }
     }
 }
