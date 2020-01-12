@@ -7,7 +7,6 @@ pub use flags::ContextInfo;
 
 use crate::device::{DevicePtr, Device};
 use crate::error::Output;
-// use crate::cl::ClObjectError;
 use crate::ffi::{cl_context, cl_device_id};
 use crate::cl::ClPointer;
 
