@@ -5,7 +5,11 @@ pub mod wait_list;
 
 use low_level::{cl_release_event, cl_retain_event};
 
-use crate::ffi::{cl_command_queue, cl_context, cl_event};
+use crate::ffi::{
+    // cl_command_queue,
+    cl_context,
+    cl_event
+};
 
 use event_info::{CommandExecutionStatus, EventInfo};
 
@@ -16,7 +20,7 @@ use crate::cl::{
     ClPointer,
     // CopyClObject,
 };
-use crate::command_queue::CommandQueue;
+// use crate::command_queue::CommandQueue;
 
 use crate::context::Context;
 use crate::error::{Error, Output};
@@ -79,14 +83,14 @@ impl Event {
         self.info(Info::ReferenceCount)
             .map(|ret| unsafe { ret.into_one() })
     }
-    pub fn command_queue(&self) -> Output<CommandQueue> {
-        self.info::<cl_command_queue>(Info::CommandQueue)
-            .and_then(|ret| unsafe { ret.into_retained_wrapper::<CommandQueue>() })
-    }
+    // pub fn command_queue(&self) -> Output<CommandQueue> {
+    //     self.info::<cl_command_queue>(Info::CommandQueue)
+    //         .and_then(|ret| unsafe { ret.into_retained_wrapper::<CommandQueue>() })
+    // }
 
     pub fn context(&self) -> Output<Context> {
         self.info::<cl_context>(Info::Context)
-            .and_then(|ret| unsafe { ret.into_retained_wrapper::<Context>() })
+            .and_then(|ret| unsafe { Context::from_unretained_object(ret.into_one()) })
     }
 
     pub fn command_execution_status(&self) -> Output<CommandExecutionStatus> {

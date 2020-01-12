@@ -1,39 +1,133 @@
 pub mod flags;
 pub mod helpers;
 pub mod low_level;
-
+use std::mem::ManuallyDrop;
+use std::fmt;
 use std::fmt::Debug;
 
 use num::Num;
 
 use flags::{CommandQueueInfo, CommandQueueProperties};
 
-use crate::ffi::{cl_command_queue, cl_command_queue_properties};
+use crate::ffi::{
+    cl_command_queue,
+    cl_command_queue_properties,
+    cl_context,
+    cl_device_id,
+};
 
-use crate::{Context, Device, DeviceMem, Event, Kernel, Output, Work};
+use crate::{Context, Device, DeviceMem, Event, Kernel, Output, Work, DevicePtr};
 
-use crate::cl::{ClObject, ClPointer};
+use crate::cl::ClPointer;
+use crate::cl::ClObjectError;
+use crate::error::Error;
 
 use helpers::CommandQueueOptions;
-use low_level::{cl_release_command_queue, cl_retain_command_queue};
+use low_level::{cl_release_command_queue}; //, cl_retain_command_queue};
 
-__impl_unconstructable_cl_wrapper!(CommandQueue, cl_command_queue);
-__impl_default_debug_for!(CommandQueue);
-__impl_cl_object_for_wrapper!(
-    CommandQueue,
-    cl_command_queue,
-    cl_retain_command_queue,
-    cl_release_command_queue
-);
-__impl_clone_for_cl_object_wrapper!(CommandQueue, cl_retain_command_queue);
-__impl_drop_for_cl_object_wrapper!(CommandQueue, cl_release_command_queue);
+pub trait CommandQueuePtr {
+    fn command_queue_ptr(&self) -> cl_command_queue;
+}
+
+
+pub struct CommandQueue {
+    inner: ManuallyDrop<cl_command_queue>,
+    context: Context,
+    device: Device,
+    _unconstructable: (),
+}
+
+
+impl CommandQueuePtr for CommandQueue {
+    fn command_queue_ptr(&self) -> cl_command_queue {
+        *self.inner
+    }
+}
+
+impl fmt::Debug for CommandQueue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "CommandQueue{{{:?}}}", self.command_queue_ptr())
+    }
+}
+
+impl Drop for CommandQueue {
+    fn drop(&mut self) {
+        unsafe {
+            cl_release_command_queue(self.command_queue_ptr()).unwrap_or_else(|e| {
+                panic!("Failed to release cl_command_queue {:?} {:?}", self, e);
+            })
+        }
+    }
+}
+
+impl Clone for CommandQueue {
+    fn clone(&self) -> CommandQueue {
+        let props = self.properties().unwrap_or_else(|e| {
+                panic!("Failed to retrieve existing command queue properties! {:?} {:?}", self, e);
+            });
+        CommandQueue::create(
+            &self.context,
+            &self.device,
+            Some(props)
+        ).unwrap_or_else(|e| {
+            panic!("Failed to clone CommandQueue {:?} {:?}", self, e);
+        })
+
+    }
+}
+
+
+// impl ClObject<cl_command_queue> for CommandQueue {
+    // unsafe fn raw_cl_object(&self) -> cl_command_queue {
+    //     self.inner
+    // }
+
+    // unsafe fn new_retained(cl_object: $cl_object_type) -> Output<$wrapper> {
+    //     if cl_object.is_null() {
+    //         use crate::cl::ClObjectError;
+    //         use crate::error::Error;
+    //         let wrapper_name = stringify!($wrapper).to_string();
+    //         let e = Error::ClObjectError(ClObjectError::ClObjectCannotBeNull(wrapper_name));
+    //         return Err(e);
+    //     }
+    //     let () = $retain_func(cl_object)?;
+    //     Ok($wrapper {
+    //         inner: cl_object,
+    //         _unconstructable: (),
+    //     })
+    // }
+// }
+
+// __impl_unconstructable_cl_wrapper!(CommandQueue, cl_command_queue);
+// __impl_default_debug_for!(CommandQueue);
+// __impl_cl_object_for_wrapper!(
+//     CommandQueue,
+//     cl_command_queue,
+//     cl_retain_command_queue,
+//     cl_release_command_queue
+// );
+// __impl_clone_for_cl_object_wrapper!(CommandQueue, cl_retain_command_queue);
+// __impl_drop_for_cl_object_wrapper!(CommandQueue, cl_release_command_queue);
 
 unsafe impl Send for CommandQueue {}
-unsafe impl Sync for CommandQueue {}
+// unsafe impl Sync for CommandQueue {}
 
 use CommandQueueInfo as CQInfo;
 
 impl CommandQueue {
+     unsafe fn new(queue: cl_command_queue, context: Context, device: Device) -> Output<CommandQueue> {
+        if queue.is_null() {
+            let e = Error::ClObjectError(ClObjectError::ClObjectCannotBeNull("CommandQueue".to_string()));
+            return Err(e);
+        }
+        Ok(CommandQueue {
+            inner: ManuallyDrop::new(queue),
+            context,
+            device,
+            _unconstructable: (),
+        })
+    }
+
     pub fn create(
         context: &Context,
         device: &Device,
@@ -48,7 +142,13 @@ impl CommandQueue {
             &device,
             properties.bits() as cl_command_queue_properties,
         )?;
-        unsafe { CommandQueue::new(command_queue) }
+        unsafe { CommandQueue::new(command_queue, context.clone(), device.clone()) }
+    }
+
+    pub unsafe fn decompose(self) -> (cl_context, cl_device_id, cl_command_queue) {
+        let parts = (self.context.context_ptr(), self.device.device_ptr(), *self.inner);
+        std::mem::forget(self);
+        parts
     }
 
     /// write_buffer is used to ,ove data from the host buffer (buffer: &[T]) to
@@ -144,13 +244,12 @@ impl CommandQueue {
         // The OpenCL context gives an non-reference counted pointer.
         // What an absolute joy.
         // Manually increase the reference count.
-        self.info(CQInfo::Context)
-            .and_then(|ret| unsafe { ret.into_retained_wrapper::<Context>() })
+        self.info(CQInfo::Context).and_then(|ret| unsafe { Context::from_unretained_object(ret.into_one()) })
     }
 
     pub fn device(&self) -> Output<Device> {
         self.info(CQInfo::Device)
-            .and_then(|ret| unsafe { ret.into_retained_wrapper::<Device>() })
+            .and_then(|ret| unsafe { Device::from_unretained_object(ret.into_one()) })
     }
 
     pub fn reference_count(&self) -> Output<u32> {
@@ -171,8 +270,8 @@ mod tests {
 
     fn get_session() -> Session {
         let src = "__kernel void test(__global int *i) { *i += 1; }";
-        let device = Device::default();
-        Session::create(device, src).expect("Failed to create Session")
+        let devices = [Device::default()];
+        Session::create_sessions(&devices, src).expect("Failed to create Session").remove(0)
     }
 
     #[test]

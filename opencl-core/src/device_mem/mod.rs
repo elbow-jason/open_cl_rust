@@ -123,6 +123,21 @@ impl<T> Debug for DeviceMem<T> where T: Debug + Sync + Send {
 use flags::{MemFlags, MemInfo};
 
 impl<T: Debug> DeviceMem<T> where T: Debug + Sync + Send {
+
+    pub unsafe fn from_unretained_object(obj: cl_mem) -> Output<DeviceMem<T>> {
+        if obj.is_null() {
+            let error = ClObjectError::ClObjectCannotBeNull("DeviceMem<T>".to_string());
+            return Err(error.into());
+        }
+
+        cl_retain_mem(obj)?;
+
+        Ok(DeviceMem {
+            handle: obj,
+            _phantom: PhantomData,
+        })
+    }
+
     pub fn create_with_len(context: &Context, flags: MemFlags, len: usize) -> Output<DeviceMem<T>> where T: Debug + Sync + Send {
         let device_mem: DeviceMem<T> =
             low_level::cl_create_buffer_with_len::<T>(context, flags, len)?;
@@ -218,14 +233,14 @@ impl<T: Debug> DeviceMem<T> where T: Debug + Sync + Send {
                 // if host_vec.as_ptr() as usize == 1 {
                 //     return None;
                 // }
-                Some(ret.into_many())
+                Some(ret.into_vec())
             }
         })
     }
 
     pub fn associated_memobject(&self) -> Output<DeviceMem<T>> {
         self.get_info::<cl_mem>(MemInfo::AssociatedMemobject)
-            .and_then(|ret| unsafe { ret.into_retained_wrapper::<DeviceMem<T>>() })
+            .and_then(|ret| unsafe { DeviceMem::from_unretained_object(ret.into_one()) })
             .map_err(|e| match e {
                 Error::ClObjectError(ClObjectError::ClObjectCannotBeNull(..)) => {
                     DeviceMemError::NoAssociatedMemObject.into()
@@ -236,7 +251,7 @@ impl<T: Debug> DeviceMem<T> where T: Debug + Sync + Send {
 
     pub fn context(&self) -> Output<Context> {
         self.get_info::<cl_context>(MemInfo::Context)
-            .and_then(|ret| unsafe { ret.into_retained_wrapper::<Context>() })
+            .and_then(|ret| unsafe { Context::from_unretained_object(ret.into_one()) })
     }
 
     pub fn reference_count(&self) -> Output<u32> {
@@ -281,7 +296,8 @@ mod tests {
     fn get_session() -> Session {
         let src = "__kernel void test(__global int *i) { *i += 1; }";
         let device = Device::default();
-        Session::create(device, src).expect("Failed to create Session")
+        let devices = vec![device];
+        Session::create_sessions(&devices[..], src).expect("Failed to create Session").remove(0)
     }
 
     fn get_device_mem() -> (Session, DeviceMem<usize>) {

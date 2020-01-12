@@ -3,34 +3,46 @@ use crate::ffi::{
     clGetProgramInfo, cl_device_id, cl_program, cl_program_build_info, cl_program_info, cl_uint,
 };
 
-use crate::cl::ClObject;
 use crate::cl::{cl_get_info5, cl_get_info6, ClPointer};
 use crate::context::Context;
-use crate::device::Device;
-use crate::error::Output;
+use crate::device::{Device, DevicePtr};
+use crate::error::{Error, Output};
 use crate::utils::strings;
 use crate::utils::StatusCode;
 
-use super::{flags, Program, ProgramError};
+use super::{flags, UnbuiltProgram, ProgramError, Program, ProgramPtr};
 use flags::ProgramInfo;
 
 __release_retain!(program, Program);
 
-#[allow(clippy::transmuting_null)]
-pub fn cl_build_program(program: &Program, devices: &[&Device]) -> Output<()> {
-    let err_code = unsafe {
-        let mut cl_devices: Vec<cl_device_id> = devices.iter().map(|d| d.raw_cl_object()).collect();
+pub const DEVICE_LIST_CANNOT_BE_EMPTY: Error = Error::ProgramError(ProgramError::CannotBuildProgramWithEmptyDevicesList);
 
+#[allow(clippy::transmuting_null)]
+pub fn cl_build_program<D>(program: UnbuiltProgram, devices: &[D]) -> Output<Program> where D: DevicePtr {
+    if devices.len() == 0 {
+        return Err(DEVICE_LIST_CANNOT_BE_EMPTY);
+    }
+    let err_code = unsafe {
+        println!("cl_build_program devices {:?}", devices);
+        let cl_devices: Vec<cl_device_id> = devices.iter().map(|d| d.device_ptr()).collect();
+        println!("cl_build_program cl_devices {:?}", cl_devices);
+        println!("cl_build_program program {:?}", program);
+        let ptr: *const cl_device_id = (&cl_devices).as_ptr() as *const cl_device_id;
+
+        println!("cl_build_program ptr {:?}", ptr);
         clBuildProgram(
-            program.raw_cl_object(),
-            cl_devices.len() as cl_uint,
-            cl_devices.as_mut_ptr(),
+            program.program_ptr(),
+            cl_devices.len() as u32,
+            ptr,
             std::ptr::null(),
             std::mem::transmute(std::ptr::null::<fn()>()), // pfn_notify
             std::ptr::null_mut(),                          // user_data
         )
     };
-    StatusCode::build_output(err_code, ())
+    println!("cl_build_program err_code {:?}", err_code);
+    StatusCode::build_output(err_code, ()).map(|_| {
+        unsafe { Program::consume_unbuilt_program(program) }
+    })
 }
 
 pub fn cl_get_program_build_log(
@@ -41,22 +53,23 @@ pub fn cl_get_program_build_log(
     device.usability_check()?;
     unsafe {
         cl_get_info6(
-            program.raw_cl_object(),
-            device.raw_cl_object(),
+            program.program_ptr(),
+            device.device_ptr(),
             info_flag as cl_program_build_info,
             clGetProgramBuildInfo,
         )
     }
 }
 
-pub fn cl_create_program_with_source(context: &Context, src: &str) -> Output<Program> {
+
+pub fn cl_create_program_with_source(context: &Context, src: &str) -> Output<UnbuiltProgram> {
     let src = strings::to_c_string(src).ok_or_else(|| ProgramError::CStringInvalidSourceCode)?;
     let mut src_list = vec![src.as_ptr()];
 
     let mut err_code = 0;
     let program: cl_program = unsafe {
         clCreateProgramWithSource(
-            context.raw_cl_object(),
+            context.context_ptr(),
             // the count that _literally_ has no description in the docs.
             1,
             // const char **strings
@@ -69,8 +82,10 @@ pub fn cl_create_program_with_source(context: &Context, src: &str) -> Output<Pro
         )
     };
 
-    let checked_program = StatusCode::build_output(err_code, program)?;
-    unsafe { Program::new(checked_program) }
+    println!("cl_build_program created {:?}", program);
+
+    StatusCode::build_output(err_code, ())?;
+    Ok(unsafe { UnbuiltProgram::new(program, context.clone()) })
 }
 
 // the dereferncing of the pointer happens on the _other_ _side_ of the C FFI.
@@ -80,16 +95,16 @@ pub fn cl_create_program_with_binary(
     context: &Context,
     device: &Device,
     binary: &str,
-) -> Output<Program> {
+) -> Output<UnbuiltProgram> {
     device.usability_check()?;
     let src =
         strings::to_c_string(binary).ok_or_else(|| ProgramError::CStringInvalidProgramBinary)?;
     let mut err_code = 0;
     let program = unsafe {
         clCreateProgramWithBinary(
-            context.raw_cl_object(),
+            context.context_ptr(),
             1,
-            device.raw_cl_object() as *const cl_device_id,
+            device.device_ptr() as *const cl_device_id,
             binary.len() as *const libc::size_t,
             src.as_ptr() as *mut *const u8,
             std::ptr::null_mut(),
@@ -98,13 +113,13 @@ pub fn cl_create_program_with_binary(
     };
     let checked_program = StatusCode::build_output(err_code, program)?;
     debug_assert!(!checked_program.is_null());
-    unsafe { Program::new(checked_program) }
+    Ok(unsafe { UnbuiltProgram::new(checked_program, context.clone()) })
 }
 
-pub fn cl_get_program_info<T: Copy>(program: &Program, flag: ProgramInfo) -> Output<ClPointer<T>> {
+pub fn cl_get_program_info<T: Copy, P: ProgramPtr>(program: &P, flag: ProgramInfo) -> Output<ClPointer<T>> {
     unsafe {
         cl_get_info5(
-            program.raw_cl_object(),
+            program.program_ptr(),
             flag as cl_program_info,
             clGetProgramInfo,
         )

@@ -8,11 +8,11 @@
 ///
 /// NOTE: Platform is tested!
 use std::default::Default;
-
+use std::fmt;
 pub mod flags;
 pub mod low_level;
 
-use crate::device::{Device, DeviceType};
+use crate::device::{Device, DeviceType, DevicePtr};
 use crate::error::{Error, Output};
 use crate::ffi::cl_platform_id;
 use flags::PlatformInfo;
@@ -26,16 +26,6 @@ pub enum PlatformError {
 
     #[fail(display = "The given platform had no default Device")]
     NoDefaultDevice,
-
-    #[fail(
-        display = "All cl_platform_id objects are part of host memory and cannot be retained by OpenCL."
-    )]
-    CannotBeRetained,
-
-    #[fail(
-        display = "All cl_platform_id objects are part of host memory and cannot be released by OpenCL."
-    )]
-    CannotBeReleased,
 }
 
 impl From<PlatformError> for Error {
@@ -44,32 +34,26 @@ impl From<PlatformError> for Error {
     }
 }
 
-fn platform_cannot_be_retained(_platform_id: cl_platform_id) -> Output<()> {
-    Err(PlatformError::CannotBeRetained.into())
-}
-
-fn platform_cannot_be_released(_platform_id: cl_platform_id) -> Output<()> {
-    Err(PlatformError::CannotBeReleased.into())
-}
-
 unsafe impl Send for Platform {}
 unsafe impl Sync for Platform {}
 
-// NOTE: cl_platform_id is host mem?
-// https://stackoverflow.com/questions/17711407/opencl-releasing-platform-object
-// so no retain or release necessary/possible for platform!
-__impl_unconstructable_cl_wrapper!(Platform, cl_platform_id);
-__impl_default_debug_for!(Platform);
-__impl_cl_object_for_wrapper!(
-    Platform,
-    cl_platform_id,
-    platform_cannot_be_retained,
-    platform_cannot_be_released
-);
+pub struct Platform {
+    object: cl_platform_id
+}
 
 impl Platform {
+    pub fn new(object: cl_platform_id) -> Platform {
+        Platform {object}
+    }
+
+    pub fn platform_ptr(&self) -> cl_platform_id {
+        self.object
+    }
+
     pub fn all() -> Output<Vec<Platform>> {
-        cl_get_platforms().and_then(|ret| unsafe { ret.into_many_wrappers() })
+        cl_get_platforms().map(|ret| {
+            unsafe { ret.into_vec() }.into_iter().map(|p| Platform::new(p)).collect()
+        })
     }
 
     pub fn all_devices(&self) -> Output<Vec<Device>> {
@@ -165,10 +149,16 @@ impl Default for Platform {
     }
 }
 
+impl fmt::Debug for Platform {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Platform{{{:?}}}", self.platform_ptr())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::Platform;
-    use crate::device::{Device, DeviceType};
+    use crate::device::{Device, DeviceType, DevicePtr};
 
     fn get_platform() -> Platform {
         Platform::default()
@@ -197,15 +187,10 @@ mod tests {
     #[test]
     fn platform_can_list_devices_by_type() {
         let platform = get_platform();
-        let cpus = platform
-            .all_devices_by_type(DeviceType::CPU)
-            .expect("failed to list CPU platform devices by DeviceType");
-
-        assert!(cpus.len() > 0);
-
+        let _cpus = platform.all_devices_by_type(DeviceType::CPU);
         let _gpus = platform.all_devices_by_type(DeviceType::GPU);
         let _accelerators = platform.all_devices_by_type(DeviceType::ACCELERATOR);
-        let _accelerators = platform.all_devices_by_type(DeviceType::CUSTOM);
+        let _custom = platform.all_devices_by_type(DeviceType::CUSTOM);
     }
 
     #[test]

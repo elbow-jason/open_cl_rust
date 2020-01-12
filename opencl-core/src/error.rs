@@ -34,4 +34,10 @@ pub enum Error {
     StatusCode(isize, ClError),
 }
 
+impl Error {
+    pub fn panic(e: Error) {
+        panic!("{:?}", e);
+    }
+}
+
 pub type Output<T> = Result<T, Error>;

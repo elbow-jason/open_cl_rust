@@ -4,7 +4,7 @@ use crate::ffi::{clCreateKernel, clSetKernelArg, cl_kernel, cl_uint};
 
 use crate::cl::ClObject;
 use crate::error::Output;
-use crate::program::Program;
+use crate::program::{Program, ProgramPtr};
 use crate::utils::strings;
 use crate::utils::StatusCode;
 
@@ -36,7 +36,7 @@ pub fn cl_create_kernel(program: &Program, name: &str) -> Output<Kernel> {
     let mut err_code = 0;
     let c_name = strings::to_c_string(name)
         .ok_or_else(|| KernelError::CStringInvalidKernelName(name.to_string()))?;
-    let kernel = unsafe { clCreateKernel(program.raw_cl_object(), c_name.as_ptr(), &mut err_code) };
+    let kernel = unsafe { clCreateKernel(program.program_ptr(), c_name.as_ptr(), &mut err_code) };
     StatusCode::build_output(err_code, ())?;
     unsafe { Kernel::new(kernel) }
 }

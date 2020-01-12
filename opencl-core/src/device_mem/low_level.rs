@@ -59,7 +59,7 @@ unsafe fn _cl_create_buffer<T>(
 ) -> Output<DeviceMem<T>> where T: Debug + Sync + Send {
     let mut err_code: cl_int = 0;
     let mut cl_mem_object: cl_mem = clCreateBuffer(
-        context.raw_cl_object(),
+        context.context_ptr(),
         mem_flags.bits() as cl_mem_flags,
         size_in_bytes,
         ptr,

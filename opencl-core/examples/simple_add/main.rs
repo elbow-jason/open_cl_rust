@@ -25,16 +25,17 @@ fn run() -> Result<(), Error> {
     if devices.len() == 0 {
         panic!("No devices found!!!");
     }
-    let device = devices.remove(1);
-    let context = Context::create(&device)?;
+    let device = devices.remove(0);
+    let context = Context::create(&[&device])?;
+
     let command_queue: CommandQueue = CommandQueue::create(&context, &device, None)?;
     let name = device.name()?;
 
     println!("creating program...");
-    let program: Program = Program::create_with_source(&context, &src)?;
+    let unbuilt_program: UnbuiltProgram = UnbuiltProgram::create_with_source(&context, src)?;
 
     println!("building program on device {}...", name);
-    program.build_on_one_device(&device)?;
+    let program = unbuilt_program.build(&[device])?;
 
     let vec_a = vec![1isize, 2, 3];
     let vec_b = vec![0isize, -1, -2];

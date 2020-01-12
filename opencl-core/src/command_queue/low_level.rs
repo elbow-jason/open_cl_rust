@@ -5,7 +5,7 @@ use crate::utils::volume;
 use crate::cl::{cl_get_info5, ClObject, ClPointer};
 
 use super::flags::CommandQueueInfo;
-use super::{CommandQueue, CommandQueueOptions};
+use super::{CommandQueue, CommandQueueOptions, CommandQueuePtr};
 use crate::event::{Event, WaitList};
 use crate::ffi::{
     clCreateCommandQueue, clEnqueueNDRangeKernel, clEnqueueReadBuffer, clEnqueueWriteBuffer,
@@ -13,7 +13,7 @@ use crate::ffi::{
     cl_command_queue_properties, cl_event, cl_int,
 };
 use crate::utils::StatusCode;
-use crate::{Context, Device, DeviceMem, Kernel, Output};
+use crate::{Context, Device, DeviceMem, Kernel, Output, DevicePtr};
 
 __release_retain!(command_queue, CommandQueue);
 
@@ -26,8 +26,8 @@ pub fn cl_create_command_queue(
     let mut err_code = 0;
     let command_queue = unsafe {
         clCreateCommandQueue(
-            context.raw_cl_object(),
-            device.raw_cl_object(),
+            context.context_ptr(),
+            device.device_ptr(),
             flags,
             &mut err_code,
         )
@@ -36,7 +36,7 @@ pub fn cl_create_command_queue(
 }
 
 pub fn cl_finish(queue: &CommandQueue) -> Output<()> {
-    StatusCode::build_output(unsafe { clFinish(queue.raw_cl_object()) }, ())
+    StatusCode::build_output(unsafe { clFinish(queue.command_queue_ptr()) }, ())
 }
 
 pub fn cl_enqueue_nd_range_kernel(
@@ -57,7 +57,7 @@ pub fn cl_enqueue_nd_range_kernel(
         let local_work_size_ptr = volume::option_to_ptr(local_work_size);
 
         clEnqueueNDRangeKernel(
-            queue.raw_cl_object(),
+            queue.command_queue_ptr(),
             kernel.raw_cl_object(),
             u32::from(work_dim),
             global_work_offset_ptr,
@@ -95,7 +95,7 @@ fn into_event(err_code: cl_int, tracking_event: cl_event) -> Output<Event> {
 }
 
 pub fn cl_enqueue_read_buffer<T>(
-    queue: &CommandQueue,
+    command_queue: &CommandQueue,
     device_mem: &DeviceMem<T>,
     buffer: &mut [T],
     command_queue_opts: CommandQueueOptions,
@@ -109,7 +109,7 @@ pub fn cl_enqueue_read_buffer<T>(
         debug_assert!(buffer.len() == device_mem.len());
 
         clEnqueueReadBuffer(
-            queue.raw_cl_object(),
+            command_queue.command_queue_ptr(),
             device_mem.raw_cl_object(),
             command_queue_opts.is_blocking as cl_bool,
             command_queue_opts.offset,
@@ -136,7 +136,7 @@ pub fn cl_enqueue_write_buffer<T>(
         let (buffer_mem_size, buffer_ptr) = buffer_mem_size_and_ptr(buffer);
 
         clEnqueueWriteBuffer(
-            command_queue.raw_cl_object(),
+            command_queue.command_queue_ptr(),
             device_mem.raw_cl_object(),
             command_queue_opts.is_blocking as cl_bool,
             command_queue_opts.offset,
@@ -156,7 +156,7 @@ pub fn cl_get_command_queue_info<T: Copy>(
 ) -> Output<ClPointer<T>> {
     unsafe {
         cl_get_info5(
-            command_queue.raw_cl_object(),
+            command_queue.command_queue_ptr(),
             flag as cl_command_queue_info,
             clGetCommandQueueInfo,
         )

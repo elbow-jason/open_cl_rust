@@ -36,16 +36,16 @@ where
             .collect();
 
         assert!(devices.len() > 0, "No usable devices found");
-        for device in devices.iter() {
-            let context = Context::create(device)
+        let context = Context::create(&devices[..])
                 .unwrap_or_else(|e| {
-                    panic!("Failed to Context::create with device {:?} due to {:?}", device, e);
+                    panic!("Failed to Context::create with devices {:?} due to {:?}", devices, e);
                 });
-            let queue = CommandQueue::create(&context, device, None)
+        for device in devices {
+            let queue = CommandQueue::create(&context, &device, None)
                 .unwrap_or_else(|e| {
                     panic!("Failed to CommandQueue::create due to {:?}", e);
                 });
-            test(device, &context, &queue);
+            test(&device, &context, &queue);
         }
     }
 }
@@ -60,8 +60,9 @@ mod basic_tests {
                    *i += 1; \
                    }";
         test_all(&mut |device, context, _| {
-            let prog = Program::create_with_source(context, src).unwrap();
-            prog.build_on_one_device(&device).unwrap();
+            let prog = UnbuiltProgram::create_with_source(context, src).unwrap();
+            let devices = vec![device];
+            prog.build(&devices[..]).unwrap();
         })
     }
 
@@ -74,8 +75,9 @@ mod basic_tests {
         use event::event_info::CommandExecutionStatus;
 
         test_all(&mut |device, context, queue| {
-            let program = Program::create_with_source(context, src).unwrap();
-            program.build_on_one_device(&device).unwrap();
+            let unbuilt_program = UnbuiltProgram::create_with_source(context, src).unwrap();
+            let devices = vec![device];
+            let program = unbuilt_program.build(&devices[..]).unwrap();
             let k = Kernel::create(&program, "test").unwrap();
             let mut v1: Vec<isize> = vec![1];
             let mem1 = DeviceMem::create_read_write(context, v1.len()).unwrap();
@@ -108,8 +110,9 @@ mod basic_tests {
         }";
 
         test_all(&mut |device, context, queue| {
-            let program = Program::create_with_source(context, src).unwrap();
-            program.build_on_one_device(device).unwrap();
+            let unbuilt_program = UnbuiltProgram::create_with_source(context, src).unwrap();
+            let devices = vec![device];
+            let program = unbuilt_program.build(&devices[..]).unwrap();
 
             let add_scalar_var: Kernel = Kernel::create(&program, "test").unwrap();
             let initial_values = vec![1i32];
@@ -146,10 +149,10 @@ mod basic_tests {
                    N[i * s + j] = i * j;
         }";
         test_all(&mut |device, context, queue| {
-            let program = Program::create_with_source(context, src).unwrap();
-
-            let () = program
-                .build_on_one_device(device)
+            let unbuilt_program = UnbuiltProgram::create_with_source(context, src).unwrap();
+            let devices = vec![device];
+            let program = unbuilt_program
+                .build(&devices[..])
                 .expect("failed to build_one_on_device");
 
             let k = Kernel::create(&program, "test").expect("failed to create 'test' kernel");
@@ -244,11 +247,9 @@ mod basic_tests {
             let mem_result: DeviceMem<usize> = DeviceMem::create_read_write(context, data.len())
                 .expect("Failed to create_read_write with len");
 
-            let program = Program::create_with_source(context, src).unwrap();
-
-            let () = program
-                .build_on_one_device(device)
-                .expect("failed to build_one_on_device");
+            let unbuilt_program = UnbuiltProgram::create_with_source(context, src).unwrap();
+            let devices = vec![device];
+            let program = unbuilt_program.build(&devices[..]).expect("failed to build_one_on_device");
 
             let k = Kernel::create(&program, "transpose_2d")
                 .expect("failed to create 'transpose_2d' kernel");

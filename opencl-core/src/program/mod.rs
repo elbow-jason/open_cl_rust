@@ -1,17 +1,23 @@
 pub mod flags;
 pub mod low_level;
 
-use crate::ffi::cl_program;
+use std::mem::ManuallyDrop;
+use std::fmt;
+
+use crate::ffi::{cl_program, cl_context};
 
 use crate::context::Context;
-use crate::device::Device;
+use crate::device::{Device, DevicePtr};
 use crate::error::{Error, Output};
 
-use low_level::{cl_release_program, cl_retain_program};
+use low_level::{cl_release_program, cl_retain_program, };
 
 use crate::cl::ClPointer;
 
 use flags::ProgramInfo;
+
+
+pub const DEVICE_LIST_CANNOT_BE_EMPTY: Error = Error::ProgramError(ProgramError::CannotBuildProgramWithEmptyDevicesList);
 
 /// An error related to Program.
 #[derive(Debug, Fail, PartialEq, Eq, Clone)]
@@ -21,6 +27,9 @@ pub enum ProgramError {
 
     #[fail(display = "The given program binary was not a valid CString")]
     CStringInvalidProgramBinary,
+
+    #[fail(display = "Cannot build a program with an empty list of devices")]
+    CannotBuildProgramWithEmptyDevicesList,
 }
 
 impl From<ProgramError> for Error {
@@ -29,17 +38,167 @@ impl From<ProgramError> for Error {
     }
 }
 
-__impl_unconstructable_cl_wrapper!(Program, cl_program);
-__impl_default_debug_for!(Program);
-__impl_cl_object_for_wrapper!(Program, cl_program, cl_retain_program, cl_release_program);
-__impl_clone_for_cl_object_wrapper!(Program, cl_retain_program);
-__impl_drop_for_cl_object_wrapper!(Program, cl_release_program);
+fn get_info<T: Copy, P: ProgramPtr>(program: &P, flag: ProgramInfo) -> Output<ClPointer<T>> {
+    low_level::cl_get_program_info(program, flag)
+}
 
-unsafe impl Send for Program {}
-unsafe impl Sync for Program {}
+pub trait ProgramPtr: Sized {
+    unsafe fn program_ptr(&self) -> cl_program;
 
-impl Program {
-    pub fn create_with_source(context: &Context, src: &str) -> Output<Program> {
+    fn reference_count(&self) -> Output<u32> {
+        get_info(self, ProgramInfo::ReferenceCount)
+            .map(|ret| unsafe { ret.into_one() })
+    }
+
+    fn context(&self) -> Output<Context> {
+        get_info(self, ProgramInfo::Context)
+            .and_then(|ret| unsafe { Context::from_unretained_object(ret.into_one()) })
+    }
+
+    fn num_devices(&self) -> Output<u32> {
+        get_info(self, ProgramInfo::NumDevices)
+            .map(|ret| unsafe { ret.into_one() })
+    }
+
+    fn devices(&self) -> Output<Vec<Device>> {
+        get_info(self, ProgramInfo::Devices)
+            .and_then(|ret| unsafe {
+                ret.into_vec()
+                    .into_iter()
+                    .map(|d| Device::from_unretained_object(d))
+                    .collect()
+            })
+    }
+
+    fn source(&self) -> Output<String> {
+        get_info(self, ProgramInfo::Source)
+            .map(|ret| unsafe { ret.into_string() })
+    }
+    fn binary_sizes(&self) -> Output<Vec<usize>> {
+        get_info(self, ProgramInfo::BinarySizes)
+            .map(|ret| unsafe { ret.into_vec() })
+    }
+
+    fn binaries(&self) -> Output<Vec<u8>> {
+        get_info(self, ProgramInfo::Binaries)
+            .map(|ret| unsafe { ret.into_vec() })
+    }
+
+    fn num_kernels(&self) -> Output<usize> {
+        get_info(self, ProgramInfo::NumKernels)
+            .map(|ret| unsafe { ret.into_one() })
+    }
+
+    fn kernel_names(&self) -> Output<Vec<String>> {
+        println!("K0");
+        get_info(self, ProgramInfo::KernelNames).map(|ret| {
+            println!("K1");
+            let kernels: String = unsafe { ret.into_string() };
+            println!("K2");
+            kernels.split(';').map(|s| s.to_string()).collect()
+        })
+    }
+}
+
+struct ProgramObject {
+    pub object: cl_program,
+}
+
+impl Drop for ProgramObject {
+    fn drop(&mut self) {
+        unsafe {
+            cl_release_program(self.object).unwrap_or_else(|e| {
+                panic!("Failed to release cl_program s{:?}", e);
+            });
+        }
+    }
+}
+
+impl Clone for ProgramObject {
+    fn clone(&self) -> ProgramObject {
+        unsafe {
+            cl_retain_program(self.object).unwrap_or_else(|e| {
+                panic!("Failed to retain cl_program {:?}", e);
+            });
+        }
+        ProgramObject{
+            object: self.object
+        }
+    }
+}
+
+pub struct UnbuiltProgram {
+    context: ManuallyDrop<Context>,
+    inner: ManuallyDrop<ProgramObject>,
+    _unconstructable: (),
+}
+
+impl UnbuiltProgram {
+    pub unsafe fn new(program: cl_program, context: Context) -> UnbuiltProgram {
+        UnbuiltProgram{
+            context: ManuallyDrop::new(context),
+            inner: ManuallyDrop::new(ProgramObject{object: program}),
+            _unconstructable: (),
+        }
+    }
+}
+
+impl ProgramPtr for UnbuiltProgram {
+      unsafe fn program_ptr(&self) -> cl_program {
+        (*self.inner).object
+    }
+}
+
+
+impl ProgramPtr for &mut UnbuiltProgram {
+      unsafe fn program_ptr(&self) -> cl_program {
+        (*self.inner).object
+    }
+}
+
+
+impl ProgramPtr for &UnbuiltProgram {
+      unsafe fn program_ptr(&self) -> cl_program {
+        (*self.inner).object
+    }
+}
+
+unsafe impl Send for UnbuiltProgram {}
+
+impl Drop for UnbuiltProgram {
+    fn drop(&mut self) {
+        unsafe {
+            ManuallyDrop::drop(&mut self.inner);
+            ManuallyDrop::drop(&mut self.context);
+        }
+    }
+}
+
+impl Clone for UnbuiltProgram {
+    fn clone(&self) -> UnbuiltProgram {
+        UnbuiltProgram {
+            context: self.context.clone(),
+            inner: ManuallyDrop::new((*self.inner).clone()),
+            _unconstructable: (),
+        }
+    }
+}
+
+impl fmt::Debug for UnbuiltProgram {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "UnbuiltProgram{{{:?}}}", unsafe { self.program_ptr() })
+    }
+}
+
+impl UnbuiltProgram {
+    pub unsafe fn decompose(self) -> (cl_context, cl_program) {
+        let program_ptr = self.program_ptr();
+        let context_ptr = self.context.context_ptr();
+        std::mem::forget(self);
+        (context_ptr, program_ptr)
+    }
+
+    pub fn create_with_source(context: &Context, src: &str) -> Output<UnbuiltProgram> {
         low_level::cl_create_program_with_source(context, src)
     }
 
@@ -47,78 +206,100 @@ impl Program {
         context: &Context,
         device: &Device,
         binary: &str,
-    ) -> Output<Program> {
+    ) -> Output<UnbuiltProgram> {
         low_level::cl_create_program_with_binary(context, device, binary)
     }
 
-    pub fn build_on_many_devices(&self, devices: &[&Device]) -> Output<()> {
+    pub fn build<D>(self, devices: &[D]) -> Output<Program> where D: DevicePtr  {
+        println!("UP1");
         low_level::cl_build_program(self, devices)
     }
+}
 
-    pub fn build_on_one_device(&self, device: &Device) -> Output<()> {
-        low_level::cl_build_program(self, &[device])
+pub struct Program {
+    context: ManuallyDrop<Context>,
+    inner: ManuallyDrop<ProgramObject>,
+    _unconstructable: (),
+}
+
+impl Drop for Program {
+    fn drop(&mut self) {
+        unsafe {
+            ManuallyDrop::drop(&mut self.inner);
+            ManuallyDrop::drop(&mut self.context);
+        }
+    }
+}
+
+impl Clone for Program {
+    fn clone(&self) -> Program {
+        Program{
+            context: self.context.clone(),
+            inner: ManuallyDrop::new((*self.inner).clone()),
+            _unconstructable: ()
+        }
+    }
+}
+
+impl fmt::Debug for Program {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Program{{{:?}}}", unsafe { self.program_ptr() })
+    }
+}
+
+unsafe impl Sync for Program {}
+unsafe impl Send for Program {}
+
+impl ProgramPtr for Program {
+      unsafe fn program_ptr(&self) -> cl_program {
+        (*self.inner).object
+    }
+}
+
+impl ProgramPtr for &Program {
+      unsafe fn program_ptr(&self) -> cl_program {
+        (*self.inner).object
+    }
+}
+
+impl ProgramPtr for &mut Program {
+      unsafe fn program_ptr(&self) -> cl_program {
+        (*self.inner).object
+    }
+}
+
+impl Program {
+    pub unsafe fn consume_unbuilt_program(built_program: UnbuiltProgram) -> Program {
+        let (ctx, prog): (cl_context, cl_program) = built_program.decompose();
+        Program::new(prog, Context::new(ctx))
     }
 
+    pub unsafe fn into_cl_program(mut self) -> cl_program {
+        let program_ptr: cl_program = self.program_ptr();
+        // take ownership of context so it can drop.
+        std::mem::drop(&mut self.context);
+        std::mem::forget(self);
+        program_ptr
+    }
+
+    pub unsafe fn new(object: cl_program, context: Context) -> Program {
+        Program {
+            inner: ManuallyDrop::new(ProgramObject{object}), 
+            context: ManuallyDrop::new(context),
+            _unconstructable: (),
+        }
+    }
     pub fn get_log(program: &Program, device: &Device) -> Output<String> {
         let flag = flags::ProgramBuildInfo::Log;
         low_level::cl_get_program_build_log(program, device, flag)
             .map(|ret| unsafe { ret.into_string() })
     }
 
-    fn get_info<T: Copy>(&self, flag: ProgramInfo) -> Output<ClPointer<T>> {
-        low_level::cl_get_program_info(self, flag)
-    }
-
-    pub fn reference_count(&self) -> Output<u32> {
-        self.get_info(ProgramInfo::ReferenceCount)
-            .map(|ret| unsafe { ret.into_one() })
-    }
-
-    pub fn context(&self) -> Output<Context> {
-        self.get_info(ProgramInfo::Context)
-            .and_then(|ret| unsafe { ret.into_retained_wrapper::<Context>() })
-    }
-
-    pub fn num_devices(&self) -> Output<u32> {
-        self.get_info(ProgramInfo::NumDevices)
-            .map(|ret| unsafe { ret.into_one() })
-    }
-
-    pub fn devices(&self) -> Output<Vec<Device>> {
-        self.get_info(ProgramInfo::Devices)
-            .and_then(|ret| unsafe { ret.into_many_retained_wrappers() })
-    }
-
-    pub fn source(&self) -> Output<String> {
-        self.get_info(ProgramInfo::Source)
-            .map(|ret| unsafe { ret.into_string() })
-    }
-    pub fn binary_sizes(&self) -> Output<Vec<usize>> {
-        self.get_info(ProgramInfo::BinarySizes)
-            .map(|ret| unsafe { ret.into_many() })
-    }
-
-    pub fn binaries(&self) -> Output<Vec<u8>> {
-        self.get_info(ProgramInfo::Binaries)
-            .map(|ret| unsafe { ret.into_many() })
-    }
-
-    pub fn num_kernels(&self) -> Output<usize> {
-        self.get_info(ProgramInfo::NumKernels)
-            .map(|ret| unsafe { ret.into_one() })
-    }
-
-    pub fn kernel_names(&self) -> Output<Vec<String>> {
-        self.get_info(ProgramInfo::KernelNames).map(|ret| {
-            let kernels: String = unsafe { ret.into_string() };
-            kernels.split(';').map(|s| s.to_string()).collect()
-        })
-    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{Context, Device, Session};
+    use crate::*;
 
     const TEST_SRC: &str = "
     __kernel void test(__global int *i) {        
@@ -127,8 +308,7 @@ mod tests {
     ";
 
     fn get_session() -> Session {
-        let device = Device::default();
-        Session::create(device, TEST_SRC).expect("Failed to create Session")
+        Session::create_sessions(&[Device::default()], TEST_SRC).expect("Failed to create Session").remove(0)
     }
 
     #[test]

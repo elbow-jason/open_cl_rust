@@ -5,7 +5,7 @@ use crate::ffi::{clGetPlatformIDs, clGetPlatformInfo, cl_platform_id, cl_platfor
 use crate::cl::{
     cl_get_info5,
     // ClReturn,
-    ClObject,
+    // ClObject,
     ClPointer,
 };
 use crate::error::Output;
@@ -39,7 +39,7 @@ pub fn cl_get_platform_info<T: Copy>(
 ) -> Output<ClPointer<T>> {
     unsafe {
         cl_get_info5(
-            platform.raw_cl_object(),
+            platform.platform_ptr(),
             info_flag as cl_platform_info,
             clGetPlatformInfo,
         )
@@ -55,7 +55,7 @@ mod tests {
     fn test_cl_get_platforms() {
         let cl_pointer: ClPointer<cl_platform_id> =
             cl_get_platforms().unwrap_or_else(|e| panic!("cl_get_platforms failed with {:?}", e));
-        let platforms: Vec<cl_platform_id> = unsafe { cl_pointer.into_many() };
+        let platforms: Vec<cl_platform_id> = unsafe { cl_pointer.into_vec() };
         assert!(platforms.len() > 0);
 
         for p in platforms {

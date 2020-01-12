@@ -107,6 +107,8 @@ macro_rules! __impl_cl_object_for_wrapper {
             pub unsafe fn release_raw_cl_object(handle: &$cl_object_type) -> Output<()> {
                 $release_func(*handle)
             }
+            
+            
         }
 
         impl $crate::cl::ClObject<$cl_object_type> for $wrapper {
@@ -142,6 +144,8 @@ macro_rules! __impl_cl_object_for_wrapper {
                     _unconstructable: (),
                 })
             }
+
+
         }
     };
 }

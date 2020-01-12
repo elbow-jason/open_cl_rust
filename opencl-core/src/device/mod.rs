@@ -1,16 +1,22 @@
 use std::default::Default;
+use std::mem::ManuallyDrop;
+use std::fmt;
 
-pub mod device_info;
+// pub mod device_info;
+pub mod device_ptr;
 pub mod flags;
 pub mod low_level;
 
-pub use flags::DeviceType;
+pub use flags::{DeviceType, DeviceInfo};
+pub use device_ptr::DevicePtr;
 
 use low_level::{cl_release_device_id, cl_retain_device_id};
 
 use crate::error::{Error, Output};
-use crate::ffi::cl_device_id;
 use crate::platform::Platform;
+use crate::utils;
+
+pub use crate::ffi::cl_device_id;
 
 /// NOTE: UNUSABLE_DEVICE_ID might be osx specific? or OpenCL
 /// implementation specific?
@@ -19,7 +25,19 @@ use crate::platform::Platform;
 /// powersaving mode enables. Apparently the OpenCL platform can still
 /// see the device, instead of a "legit" cl_device_id the inactive
 /// device's cl_device_id is listed as 0xFFFF_FFFF.
-const UNUSABLE_DEVICE_ID: cl_device_id = 0xFFFF_FFFF as *mut usize as cl_device_id;
+pub const UNUSABLE_DEVICE_ID: cl_device_id = 0xFFFF_FFFF as *mut usize as cl_device_id;
+
+pub const UNUSABLE_DEVICE_ERROR: Error = Error::DeviceError(DeviceError::UnusableDevice);
+
+pub const NO_PARENT_DEVICE_ERROR: Error = Error::DeviceError(DeviceError::NoParentDevice);
+
+pub fn device_usability_check(device_id: cl_device_id) -> Result<(), Error> {
+    if device_id == UNUSABLE_DEVICE_ID {
+        Err(UNUSABLE_DEVICE_ERROR)
+    } else {
+        Ok(())
+    }    
+}
 
 /// An error related to a Device.
 #[derive(Debug, Fail, PartialEq, Eq, Clone)]
@@ -40,31 +58,63 @@ impl From<DeviceError> for Error {
     }
 }
 
-__impl_unconstructable_cl_wrapper!(Device, cl_device_id);
-__impl_default_debug_for!(Device);
-__impl_cl_object_for_wrapper!(
-    Device,
-    cl_device_id,
-    cl_retain_device_id,
-    cl_release_device_id
-);
-__impl_clone_for_cl_object_wrapper!(Device, cl_retain_device_id);
-__impl_drop_for_cl_object_wrapper!(Device, cl_release_device_id);
+#[derive(Debug, PartialEq, Eq, Hash)]
+struct DeviceObject {
+    object: cl_device_id,
+}
 
-unsafe impl Send for Device {}
-unsafe impl Sync for Device {}
+impl Drop for DeviceObject {
+    fn drop(&mut self) {
+        unsafe {
+            cl_release_device_id(self.object).unwrap_or_else(|e| {
+                panic!("Failed to release cl_context {:?}", e);
+            });
+        }
+    }
+}
+
+impl Clone for DeviceObject {
+    fn clone(&self) -> DeviceObject {
+        unsafe {
+            cl_retain_device_id(self.object).unwrap_or_else(|e| {
+                panic!("Failed to retain cl_context {:?}", e);
+            });
+        }
+        DeviceObject{
+            object: self.object
+        }
+    }
+}
+
+#[derive(Hash)]
+pub struct Device {
+    inner: ManuallyDrop<DeviceObject>,
+    _unconstructable: ()
+}
+
+impl Clone for Device {
+    fn clone(&self) -> Device {
+        Device {
+            inner: ManuallyDrop::new((*self.inner).clone()),
+            _unconstructable: ()
+        }
+    }
+}
 
 impl Device {
-    pub fn is_usable(&self) -> bool {
-        self.inner != UNUSABLE_DEVICE_ID
+      pub unsafe fn new(device_id: cl_device_id) -> Output<Device> {
+        utils::null_check(device_id, "Device::new")?;
+        device_usability_check(device_id)?;
+
+        Ok(Device {
+            inner: ManuallyDrop::new(DeviceObject{object: device_id}),
+            _unconstructable: ()
+        })
     }
 
-    pub fn usability_check(&self) -> Output<()> {
-        if self.is_usable() {
-            Ok(())
-        } else {
-            Err(DeviceError::UnusableDevice.into())
-        }
+    pub unsafe fn from_unretained_object(ptr: cl_device_id) -> Output<Device> {
+        cl_retain_device_id(ptr).unwrap();
+        Device::new(ptr)
     }
 
     pub fn count_by_type(platform: &Platform, device_type: DeviceType) -> Output<u32> {
@@ -73,15 +123,24 @@ impl Device {
 
     pub fn all_by_type(platform: &Platform, device_type: DeviceType) -> Output<Vec<Device>> {
         low_level::cl_get_device_ids(platform, device_type)
-            .and_then(|ret| unsafe { ret.into_many_retained_wrappers() })
+            .map(|cl_ptr| unsafe {
+                cl_ptr
+                    .into_vec()
+                    .into_iter()
+                    .map(|d| Device::new(d))
+                    .filter_map(Result::ok)
+                    .collect()
+            })
     }
 
     pub fn default_devices(platform: &Platform) -> Output<Vec<Device>> {
         let ret = low_level::cl_get_device_ids(platform, DeviceType::DEFAULT)?;
         let devices: Vec<Device> = unsafe {
-            ret.into_many_retained_wrappers().unwrap_or_else(|e| {
-                panic!("Failed to get default devices due to {:?}", e);
-            })
+            ret.into_vec()
+                .into_iter()
+                .map(|d| Device::new(d))
+                .filter_map(Result::ok)
+                .collect()
         };
         match devices.len() {
             0 => Err(DeviceError::NoDefaultDevice.into()),
@@ -110,39 +169,69 @@ impl Device {
     }
 }
 
+impl DevicePtr for Device {
+    unsafe fn device_ptr(&self) -> cl_device_id {
+        (*self.inner).object
+    }
+}
+
+impl DevicePtr for &Device {
+    unsafe fn device_ptr(&self) -> cl_device_id {
+        (*self.inner).object
+    }
+}
+
+unsafe impl Send for Device {}
+unsafe impl Sync for Device {}
+
 impl Default for Device {
     fn default() -> Device {
-        Platform::default()
+        let device = Platform::default()
             .default_device()
-            .expect("Failed to find default device")
+            .unwrap_or_else(|e| panic!("Failed to find default device {:?}", e));
+
+        device.usability_check().unwrap();
+        device
+    }
+}
+
+impl PartialEq for Device {
+    fn eq(&self, other: &Self) -> bool {
+        unsafe { std::ptr::eq(self.device_ptr(), other.device_ptr()) }
+    }
+}
+
+impl Eq for Device {}
+
+
+ impl fmt::Debug for Device {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let name = self.name().unwrap();
+        let ptr = unsafe { self.device_ptr() };
+        write!(f, "Device{{ptr: {:?}, name: {}}}", ptr, name)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Device, DeviceError, DeviceType};
-    use crate::cl::ClObject;
-    use crate::error::Error;
+    use super::Device as Device;
+    use super::{DeviceType, UNUSABLE_DEVICE_ERROR, DevicePtr};
     use crate::ffi::cl_device_id;
     use crate::platform::Platform;
 
-    #[test]
-    fn unusable_device_id_is_unusable() {
-        let unusable_device_id = 0xFFFF_FFFF as cl_device_id;
-        let device =
-            unsafe { Device::new(unusable_device_id).expect("Failed to create new device!") };
-        assert_eq!(device.is_usable(), false);
+    fn get_device() -> Device {
+        let platform = Platform::default();
+        let mut devices: Vec<Device> = Device::all_by_type(&platform, DeviceType::ALL).expect("Failed to list all devices");
+        assert!(devices.len() > 0);
+        devices.remove(0)
     }
 
     #[test]
-    fn unusable_device_check_errors_for_unusable_device_id() {
+    fn unusable_device_id_results_in_an_unusable_device_error() {
         let unusable_device_id = 0xFFFF_FFFF as cl_device_id;
-        let device =
-            unsafe { Device::new(unusable_device_id).expect("Failed to create new device!") };
-        assert_eq!(
-            device.usability_check(),
-            Err(Error::DeviceError(DeviceError::UnusableDevice))
-        );
+        let error =
+            unsafe { Device::new(unusable_device_id) };
+        assert_eq!(error, Err(UNUSABLE_DEVICE_ERROR));
     }
 
     #[test]
@@ -177,5 +266,19 @@ mod tests {
         let _ = Device::all_by_type(&platform, DeviceType::GPU);
         let _ = Device::all_by_type(&platform, DeviceType::ACCELERATOR);
         let _ = Device::all_by_type(&platform, DeviceType::CUSTOM);
+    }
+
+    #[test]
+    fn device_fmt_works() {
+        let device = get_device();
+        let formatted = format!("{:?}", device);
+        assert!(formatted.starts_with("Device{ptr: 0x")); //== "".contains("Device{"));
+    }
+
+    #[test]
+    fn device_name_works() {
+        let device = get_device();
+        let name: String = device.name().unwrap();
+        assert!(name.len() > 0);
     }
 }

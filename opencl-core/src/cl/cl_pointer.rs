@@ -1,13 +1,8 @@
 use std::fmt;
 use std::marker::PhantomData;
 
-use super::cl_object::ClObject;
-
 use crate::utils::strings;
-
-use crate::error::Output;
-use crate::ffi::{cl_bool, cl_platform_id};
-use crate::platform::Platform;
+use crate::ffi::cl_bool;
 
 /// ClPointer is a very short-lived struct that is used to homogenize the returns from
 /// many of the CL API calls. If a call to an OpenCL C function successfully returns
@@ -24,30 +19,36 @@ pub struct ClPointer<T: Copy> {
 /// Only u8 ClPointers can become String
 impl ClPointer<u8> {
     pub unsafe fn into_string(self) -> String {
-        strings::to_utf8_string(self.into_many())
+        strings::to_utf8_string(self.into_vec())
+    }
+}
+
+impl From<ClPointer<u8>> for String {
+    fn from(p: ClPointer<u8>) -> String {
+        strings::to_utf8_string(unsafe { p.into_vec() })
     }
 }
 
 /// Special case for cl_platform_id and Platform.
-impl ClPointer<cl_platform_id> {
-    /// cl_platform_id is the only cl_wrapper that does not have a cl* function
-    /// for retaining or releaseing. cl_platform_id is part of the host memory not
-    /// the device memory and is therefore not managed by OpenCL.
-    pub unsafe fn into_many_wrappers(self) -> Output<Vec<Platform>> {
-        let mut output: Vec<Platform> = Vec::with_capacity(self.count);
-        for cl_obj in self.into_many().into_iter() {
-            match Platform::new(cl_obj) {
-                Ok(wrapper) => output.push(wrapper),
-                Err(e) => return Err(e),
-            }
-        }
-        Ok(output)
-    }
-}
+// impl ClPointer<cl_platform_id> {
+//     /// cl_platform_id is the only cl_wrapper that does not have a cl* function
+//     /// for retaining or releaseing. cl_platform_id is part of the host memory not
+//     /// the device memory and is therefore not managed by OpenCL.
+//     pub unsafe fn into_many_wrappers(self) -> Output<Vec<Platform>> {
+//         let mut output: Vec<Platform> = Vec::with_capacity(self.count);
+//         for cl_obj in self.into_many().into_iter() {
+//             match Platform::new(cl_obj) {
+//                 Ok(wrapper) => output.push(wrapper),
+//                 Err(e) => return Err(e),
+//             }
+//         }
+//         Ok(output)
+//     }
+// }
 
-impl ClPointer<cl_bool> {
-    pub unsafe fn into_bool(self) -> bool {
-        match self.into_one() {
+impl From<ClPointer<cl_bool>> for bool {
+    fn from(p: ClPointer<cl_bool>) -> bool {
+        match unsafe { p.into_one() } {
             0 => false,
             1 => true,
             invalid_cl_bool => panic!("cl_bool was neither 0 nor 1: {:?}", invalid_cl_bool),
@@ -87,57 +88,38 @@ impl<T: Copy> ClPointer<T> {
         self.ptr.is_null()
     }
 
-    fn consume(&mut self) {
-        self.is_consumed = true;
-    }
 
     #[inline]
-    pub unsafe fn into_one(mut self) -> T {
+    pub unsafe fn into_one(self) -> T {
         self.ptr_cannot_be_null();
         self.count_must_be_one();
         let owned_ptr = self.ptr.to_owned();
-        self.consume();
+        std::mem::forget(self);
         *owned_ptr
     }
 
     #[inline]
-    pub unsafe fn into_created_wrapper<W>(self) -> Output<W>
-    where
-        W: ClObject<T>,
-    {
-        W::new(self.into_one())
-    }
-
-    #[inline]
-    pub unsafe fn into_retained_wrapper<W>(self) -> Output<W>
-    where
-        W: ClObject<T>,
-    {
-        W::new_retained(self.into_one())
-    }
-
-    #[inline]
-    pub unsafe fn into_many(mut self) -> Vec<T> {
+    pub unsafe fn into_vec(self) -> Vec<T> {
         self.ptr_cannot_be_null();
         let many = Vec::from_raw_parts(self.ptr, self.count, self.count);
-        self.consume();
+        std::mem::forget(self);
         many
     }
 
-    #[inline]
-    pub unsafe fn into_many_retained_wrappers<W>(self) -> Output<Vec<W>>
-    where
-        W: ClObject<T>,
-    {
-        let mut output: Vec<W> = Vec::with_capacity(self.count);
-        for cl_obj in self.into_many().into_iter() {
-            match W::new_retained(cl_obj) {
-                Ok(wrapper) => output.push(wrapper),
-                Err(e) => return Err(e),
-            }
-        }
-        Ok(output)
-    }
+    // #[inline]
+    // pub unsafe fn into_many_retained_wrappers<W>(self) -> Output<Vec<W>>
+    // where
+    //     W: ClObject<T>,
+    // {
+    //     let mut output: Vec<W> = Vec::with_capacity(self.count);
+    //     for cl_obj in self.into_many().into_iter() {
+    //         match W::new_retained(cl_obj) {
+    //             Ok(wrapper) => output.push(wrapper),
+    //             Err(e) => return Err(e),
+    //         }
+    //     }
+    //     Ok(output)
+    // }
 
     #[inline]
     fn ptr_cannot_be_null(&self) {
@@ -162,9 +144,7 @@ impl<T: Copy> ClPointer<T> {
 
 impl<T: Copy> Drop for ClPointer<T> {
     fn drop(&mut self) {
-        if !self.is_consumed {
-            panic_once!("An unconsumed ClPointer was allowed to drop. This would lead to a memory leak. All ClPointers must be consumed. {:?}", self);
-        }
+        panic_once!("An unconsumed ClPointer was allowed to drop. This would lead to a memory leak. All ClPointers must be consumed. {:?}", self);
         // println!("Drop called on consumed {:?}", self);
     }
 }
