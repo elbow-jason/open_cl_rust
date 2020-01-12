@@ -90,11 +90,8 @@ pub trait ProgramPtr: Sized {
     }
 
     fn kernel_names(&self) -> Output<Vec<String>> {
-        println!("K0");
         get_info(self, ProgramInfo::KernelNames).map(|ret| {
-            println!("K1");
             let kernels: String = unsafe { ret.into_string() };
-            println!("K2");
             kernels.split(';').map(|s| s.to_string()).collect()
         })
     }

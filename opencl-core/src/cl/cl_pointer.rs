@@ -145,7 +145,6 @@ impl<T: Copy> ClPointer<T> {
 impl<T: Copy> Drop for ClPointer<T> {
     fn drop(&mut self) {
         panic_once!("An unconsumed ClPointer was allowed to drop. This would lead to a memory leak. All ClPointers must be consumed. {:?}", self);
-        // println!("Drop called on consumed {:?}", self);
     }
 }
 

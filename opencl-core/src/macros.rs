@@ -174,7 +174,6 @@ macro_rules! __impl_drop_for_cl_object_wrapper {
         impl Drop for $wrapper {
             fn drop(&mut self) {
                 use $crate::cl::ClObject;
-                // println!("Dropping {:?}", self);
                 unsafe {
                     $release_func(self.raw_cl_object()).unwrap_or_else(|e| {
                         panic!("Failed to drop {:?} due to {:?}", self, e);
@@ -182,14 +181,6 @@ macro_rules! __impl_drop_for_cl_object_wrapper {
                 }
             }
         }
-
-        // impl $wrapper {
-        //     // Decrements the reference count of the underlying cl object.
-        //     // Incorrect usage of this function can cause a SEGFAULT.
-        //     pub unsafe fn release_cl_object(&mut self) -> Output<()> {
-        //         $release_func(*self.inner)
-        //     }
-        // }
     };
 }
 

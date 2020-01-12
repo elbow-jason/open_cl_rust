@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
     CommandQueue,
     Context,
-    Device, Output, UnbuiltProgram, Program, DevicePtr,
+    Device, Output, UnbuiltProgram, Program
 };
 
 
@@ -23,41 +23,22 @@ struct SessionInner {
 
 impl SessionInner {
     fn create(devices: Vec<Device>, src: &str) -> Output<Vec<SessionInner>> {
-        println!("S1");
         let context: Context = Context::create(&devices[..])?;
-        println!("S2");
         let unbuilt_program: UnbuiltProgram = UnbuiltProgram::create_with_source(&context, src)?;
-        println!("S3");
         debug_assert!(devices.len() > 0);
-        // println!("kernel_names: {:?}", unbuilt_program.kernel_names());
-        // let device: &Device = &devices[0];
         let programs: Vec<Program> = unbuilt_program.build(&devices[..])?;
-        println!("S4");
-        
         let mut sessions: Vec<SessionInner> = Vec::with_capacity(devices.len());
-        println!("S5");
         for program in programs.into_iter() {
-            println!("S6");
             let device: &Device = program.device();
-            let name = device.name();
             let context: &Context = program.context();
-            let ctx_device_names: Output<Vec<String>> = context.devices().into_iter().map(|d| d.name()).collect();
-            println!("S6 device name: {:?}", name);
-            println!("S6 ctx_device_names: {:?}", ctx_device_names);
-
-            
             let command_queue = CommandQueue::create(&context, device, None)?;
-            println!("S7");
             let session_inner = SessionInner {
                 _program: ManuallyDrop::new(program),
                 _command_queue: ManuallyDrop::new(command_queue),
                 _unconstructable: (),
             };
-            println!("S8");
             sessions.push(session_inner);
-            println!("S9");
         }
-        println!("S10");
         Ok(sessions)
     }
 
@@ -113,16 +94,12 @@ unsafe impl Sync for Session {}
 
 impl Session {
     pub fn create_sessions(devices: &[Device], src: &str) -> Output<Vec<Session>> {
-        println!("H1");
         let owned_devices = devices.clone().to_owned();
-        println!("H2");
         let session_inners = SessionInner::create(owned_devices, src)?;
-        println!("H3");
         let sessions = session_inners
             .into_iter()
             .map(|inner| Session {inner: Arc::new(inner), _unconstructable: ()})
             .collect();
-        println!("H4");
         Ok(sessions)
     }
 

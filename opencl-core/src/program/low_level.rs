@@ -80,8 +80,6 @@ pub fn cl_create_program_with_source(context: &Context, src: &str) -> Output<Unb
         )
     };
 
-    println!("cl_build_program created {:?}", program);
-
     StatusCode::build_output(err_code, ())?;
     Ok(unsafe { UnbuiltProgram::new(program, context.clone()) })
 }
