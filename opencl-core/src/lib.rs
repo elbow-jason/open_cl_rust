@@ -40,7 +40,7 @@ pub mod utils;
 
 pub use command_queue::CommandQueue;
 pub use context::{Context, ContextObject, ContextPtr, ContextRefCount};
-pub use device::{Device, DevicePtr, DeviceType, DeviceInfo};
+pub use device::{Device, DevicePtr, DeviceType, DeviceInfo, DeviceRefCount};
 pub use device_mem::DeviceMem;
 pub use error::{Error, Output};
 pub use event::Event;

@@ -34,24 +34,33 @@ pub trait ContextPtr: Sized {
 pub trait ContextRefCount: ContextPtr {
     unsafe fn from_retained(ctx: cl_context) -> Output<Self>;
     unsafe fn from_unretained(ctx: cl_context) -> Output<Self>;
+}
 
-    unsafe fn release_context(&mut self) {
-        low_level::cl_release_context(self.context_ptr()).unwrap_or_else(|e| {
-            panic!("Failed to release cl_context {:?}", e);
-        });
-    }
+unsafe fn release_context(context: cl_context) {
+    low_level::cl_release_context(context).unwrap_or_else(|e| {
+        panic!("Failed to release cl_context {:?}", e);
+    });
+}
 
-    unsafe fn retain_context(&self) {
-        low_level::cl_retain_context(self.context_ptr()).unwrap_or_else(|e| {
-            panic!("Failed to retain cl_context {:?}", e);
-        });
-    }
-
+unsafe fn retain_context(context: cl_context) {
+    low_level::cl_retain_context(context).unwrap_or_else(|e| {
+        panic!("Failed to retain cl_context {:?}", e);
+    });
 }
 
 
 pub struct ContextObject {
     object: cl_context,
+    _unconstructable: (),
+}
+
+impl ContextObject {
+    fn unchecked_build(object: cl_context) -> ContextObject {
+        ContextObject {
+            object,
+            _unconstructable: (),
+        }
+    }
 }
 
 impl ContextPtr for ContextObject {
@@ -61,29 +70,29 @@ impl ContextPtr for ContextObject {
 }
 impl ContextRefCount for ContextObject {
     unsafe fn from_unretained(object: cl_context) -> Output<ContextObject> {
-        let new_self: Self = ContextObject { object };
-        new_self.retain_context();
-        Ok(new_self)
+        retain_context(object);
+        Ok(ContextObject::unchecked_build(object))
     }
 
     unsafe fn from_retained(object: cl_context) -> Output<ContextObject> {
-        Ok(ContextObject { object })
+        Ok(ContextObject::unchecked_build(object))
     }
 }
 
 impl Drop for ContextObject {
     fn drop(&mut self) {
         unsafe{
-            self.release_context()
+            release_context(self.context_ptr())
         }
     }
 }
 
 impl Clone for ContextObject {
     fn clone(&self) -> ContextObject {
-        unsafe { self.retain_context() };
-        ContextObject{
-            object: self.object
+        unsafe { 
+            let context = self.context_ptr();
+            retain_context(context);
+            ContextObject::unchecked_build(context)
         }
     }
 }

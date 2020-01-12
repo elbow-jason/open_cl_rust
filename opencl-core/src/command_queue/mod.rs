@@ -16,7 +16,7 @@ use crate::ffi::{
     cl_device_id,
 };
 
-use crate::{Context, ContextRefCount, Device, DevicePtr, DeviceMem, Event, Kernel, Output, Work};
+use crate::{Context, ContextRefCount, Device, DevicePtr, DeviceRefCount, DeviceMem, Event, Kernel, Output, Work};
 
 use crate::cl::ClPointer;
 use crate::cl::ClObjectError;
@@ -248,7 +248,7 @@ impl CommandQueue {
 
     pub fn device(&self) -> Output<Device> {
         self.info(CQInfo::Device)
-            .and_then(|ret| unsafe { Device::from_unretained_object(ret.into_one()) })
+            .and_then(|ret| unsafe { Device::from_unretained(ret.into_one()) })
     }
 
     pub fn reference_count(&self) -> Output<u32> {

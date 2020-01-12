@@ -6,9 +6,11 @@ use std::fmt;
 
 use crate::ffi::{cl_program, cl_context};
 
-use crate::{Context, ContextRefCount};
-use crate::device::{Device, DevicePtr};
-use crate::error::{Error, Output};
+use crate::{
+    Context, ContextRefCount,
+    Device, DevicePtr, DeviceRefCount,
+    Error, Output
+};
 
 use low_level::{cl_release_program, cl_retain_program};
 
@@ -65,7 +67,7 @@ pub trait ProgramPtr: Sized {
             .and_then(|ret| unsafe {
                 ret.into_vec()
                     .into_iter()
-                    .map(|d| Device::from_unretained_object(d))
+                    .map(|d| Device::from_unretained(d))
                     .collect()
             })
     }

@@ -10,7 +10,7 @@ pub mod low_level;
 pub use flags::{DeviceType, DeviceInfo};
 pub use device_ptr::DevicePtr;
 
-use low_level::{cl_release_device_id, cl_retain_device_id};
+// use low_level::{cl_release_device_id, cl_retain_device_id};
 
 use crate::error::{Error, Output};
 use crate::platform::Platform;
@@ -58,30 +58,71 @@ impl From<DeviceError> for Error {
     }
 }
 
+pub trait DeviceRefCount: DevicePtr + fmt::Debug {
+    unsafe fn from_retained(device: cl_device_id) -> Output<Self>;
+    unsafe fn from_unretained(device: cl_device_id) -> Output<Self>;
+}
+
+unsafe fn release_device(device_id: cl_device_id) {
+    low_level::cl_release_device_id(device_id).unwrap_or_else(|e| {
+        panic!("Failed to release cl_device_id {:?} due to {:?} ", device_id, e);
+    });
+}
+
+unsafe fn retain_device(device_id: cl_device_id) {
+    low_level::cl_retain_device_id(device_id).unwrap_or_else(|e| {
+        panic!("Failed to retain cl_device_id {:?} due to {:?}", device_id, e);
+    });
+}
+
 #[derive(Debug, PartialEq, Eq, Hash)]
-struct DeviceObject {
+pub struct DeviceObject {
     object: cl_device_id,
+    _unconstructable: (),
+}
+
+impl DeviceObject {
+    pub unsafe fn unchecked_build(object: cl_device_id) -> DeviceObject {
+        DeviceObject{
+            object,
+            _unconstructable: (),
+        }
+    }
+}
+
+impl DevicePtr for DeviceObject {
+    unsafe fn device_ptr(&self) -> cl_device_id {
+        self.object
+    }
+}
+
+impl DeviceRefCount for DeviceObject {
+    unsafe fn from_retained(device: cl_device_id) -> Output<DeviceObject> {
+        utils::null_check(device, "DeviceObject::from_retained")?;
+        device_usability_check(device)?;
+        Ok(DeviceObject::unchecked_build(device))
+    }
+
+    unsafe fn from_unretained(device: cl_device_id) -> Output<DeviceObject> {
+        utils::null_check(device, "DeviceObject::from_unretained")?;
+        device_usability_check(device)?;
+        retain_device(device);
+        Ok(DeviceObject::unchecked_build(device))
+    }
 }
 
 impl Drop for DeviceObject {
     fn drop(&mut self) {
-        unsafe {
-            cl_release_device_id(self.object).unwrap_or_else(|e| {
-                panic!("Failed to release cl_context {:?}", e);
-            });
-        }
+        unsafe { release_device(self.device_ptr()) };
     }
 }
 
 impl Clone for DeviceObject {
     fn clone(&self) -> DeviceObject {
         unsafe {
-            cl_retain_device_id(self.object).unwrap_or_else(|e| {
-                panic!("Failed to retain cl_context {:?}", e);
-            });
-        }
-        DeviceObject{
-            object: self.object
+            let device_id = self.device_ptr();
+            retain_device(device_id);
+            DeviceObject::unchecked_build(device_id)
         }
     }
 }
@@ -92,6 +133,23 @@ pub struct Device {
     _unconstructable: ()
 }
 
+impl Device {
+    pub fn from_device_object(device_object: DeviceObject) -> Device {
+        Device {
+            inner: ManuallyDrop::new(device_object),
+            _unconstructable: ()
+        }
+    }
+}
+
+impl Drop for Device {
+    fn drop(&mut self) {
+        unsafe { 
+            ManuallyDrop::drop(&mut self.inner);
+        }
+    }
+}
+
 impl Clone for Device {
     fn clone(&self) -> Device {
         Device {
@@ -100,6 +158,21 @@ impl Clone for Device {
         }
     }
 }
+
+impl DeviceRefCount for Device {
+    unsafe fn from_retained(device_id: cl_device_id) -> Output<Device> {
+        let device_obj = DeviceObject::from_retained(device_id)?;
+        Ok(Device::from_device_object(device_obj))
+    }
+
+    unsafe fn from_unretained(device_id: cl_device_id) -> Output<Device> {
+        let device_obj = DeviceObject::from_unretained(device_id)?;
+        Ok(Device::from_device_object(device_obj))
+    }
+}
+
+
+
 
 impl Device {
     pub fn clone_slice<D: DevicePtr>(devices: &[D]) -> Output<Vec<Device>> {
@@ -120,18 +193,11 @@ impl Device {
     }
     
     pub unsafe fn new(device_id: cl_device_id) -> Output<Device> {
-        utils::null_check(device_id, "Device::new")?;
-        device_usability_check(device_id)?;
-
+        let device_object = DeviceObject::from_retained(device_id)?;
         Ok(Device {
-            inner: ManuallyDrop::new(DeviceObject{object: device_id}),
+            inner: ManuallyDrop::new(device_object),
             _unconstructable: ()
         })
-    }
-
-    pub unsafe fn from_unretained_object(ptr: cl_device_id) -> Output<Device> {
-        cl_retain_device_id(ptr).unwrap();
-        Device::new(ptr)
     }
 
     pub fn count_by_type(platform: &Platform, device_type: DeviceType) -> Output<u32> {
