@@ -16,7 +16,6 @@ fn get_info<T: Copy, C: ContextPtr>(context: &C, flag: ContextInfo) -> Output<Cl
     low_level::cl_get_context_info(unsafe { context.context_ptr() }, flag)
 }
 
-
 pub trait ContextPtr: Sized {
     unsafe fn context_ptr(&self) -> cl_context;
 
@@ -116,6 +115,10 @@ impl Drop for Context {
     }
 }
 
+/// Context is thread-safe. The only mutable actions for a cl_context are its
+/// retain and release functions which are (according to OpenCL documentation),
+/// thread-safe, atomic reference counting operations. Therefore, Context
+/// is safe for Sync + Send.
 unsafe impl Send for Context {}
 unsafe impl Sync for Context {}
 
@@ -138,31 +141,10 @@ impl ContextRefCount for Context {
     }
 }
 
-
-
-// Identify uncounted references.
-
-
 impl Context {
-
-    // pub unsafe fn new(ctx: cl_context, devices: Vec<Device>) -> Context {//, devices: Vec<Device>) -> Output<Context> {
-    //     let context_object = ContextObject::from_retained(ctx);
-    //     Context::build(context_object, devices)
-    // }
-
-    // pub unsafe fn from_cl_pointer(cl_ptr: ClPointer<cl_context>) -> Output<Context> {
-    //     let ctx_obj = ContextObject::from_unretained(cl_ptr.into_one());
-    //     Context::from_context_object(ctx_obj)
-    // }
-
-    // unsafe fn from_context_object(obj: ContextObject) -> Output<Context> {//, devices: Vec<Device>) -> Output<Context> {
-    //     let devices: Vec<Device> = obj.load_devices()?;
-    //     Ok(Context::build(obj, devices))
-    // }
-
-    /// This call is safe because all structures should be reference counted
-    /// and droppable. If there is a memory error from opencl it will not be in
-    /// this function.
+    // Context::build is safe because all objects should be reference counted
+    // and their wrapping structs should be droppable. If there is a memory
+    // error from opencl it will not be caused by Context::build.
     fn build(obj: ContextObject, devices: Vec<Device>) -> Context {
         Context {
             inner: ManuallyDrop::new(obj),
@@ -187,16 +169,12 @@ impl Context {
         &self._devices[..]
     }
 }
-   
 
 impl fmt::Debug for Context {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Context{{{:?}}}", unsafe { self.context_ptr() })
     }
 }
-
-
-
 
 #[cfg(test)]
 mod tests {
