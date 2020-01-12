@@ -38,7 +38,7 @@ fn run() -> Result<(), Error> {
     let mut programs: Vec<Program> = unbuilt_program.build(&[device])?;
     assert_eq!(programs.len(), 1);
     let program = programs.remove(0);
-    
+
     let vec_a = vec![1isize, 2, 3];
     let vec_b = vec![0isize, -1, -2];
 
@@ -51,7 +51,7 @@ fn run() -> Result<(), Error> {
     let mem_a = DeviceMem::create_read_write(&context, len)?;
     let mem_b = DeviceMem::create_read_write(&context, len)?;
     let mem_c = DeviceMem::create_read_write(&context, len)?;
-    &println!("fetching_kernel simple_add");
+    println!("fetching_kernel simple_add");
     let simple_add = Kernel::create(&program, "simple_add")?;
 
     println!("writing buffer a...");
