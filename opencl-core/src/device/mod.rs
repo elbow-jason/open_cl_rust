@@ -287,7 +287,7 @@ impl PartialEq for Device {
 impl Eq for Device {}
 
 
- impl fmt::Debug for Device {
+impl fmt::Debug for Device {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let name = self.name().unwrap();
         let ptr = unsafe { self.device_ptr() };
@@ -301,13 +301,7 @@ mod tests {
     use super::{DeviceType, UNUSABLE_DEVICE_ERROR, DevicePtr};
     use crate::ffi::cl_device_id;
     use crate::platform::Platform;
-
-    fn get_device() -> Device {
-        let platform = Platform::default();
-        let mut devices: Vec<Device> = Device::all_by_type(&platform, DeviceType::ALL).expect("Failed to list all devices");
-        assert!(devices.len() > 0);
-        devices.remove(0)
-    }
+    use crate::testing;
 
     #[test]
     fn unusable_device_id_results_in_an_unusable_device_error() {
@@ -353,14 +347,14 @@ mod tests {
 
     #[test]
     fn device_fmt_works() {
-        let device = get_device();
+        let device = testing::get_device();
         let formatted = format!("{:?}", device);
         assert!(formatted.starts_with("Device{ptr: 0x")); //== "".contains("Device{"));
     }
 
     #[test]
     fn device_name_works() {
-        let device = get_device();
+        let device = testing::get_device();
         let name: String = device.name().unwrap();
         assert!(name.len() > 0);
     }

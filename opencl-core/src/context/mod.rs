@@ -177,6 +177,15 @@ impl Context {
         &self._devices[..]
     }
 }
+impl PartialEq for Context {
+    fn eq(&self, other: &Self) -> bool {
+        unsafe { std::ptr::eq(self.context_ptr(), other.context_ptr()) }
+    }
+}
+
+impl Eq for Context {}
+
+
 
 impl fmt::Debug for Context {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

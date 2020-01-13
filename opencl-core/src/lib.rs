@@ -68,7 +68,7 @@ mod testing {
 
     pub fn get_session(src: &str) -> Session {
         Session::create_sessions(&[Device::default()], src)
-            .expect("Failed to create Session")
+            .unwrap_or_else(|e| panic!("Failed to create Session: {:?}", e))
             .remove(0)
     }
 
@@ -85,9 +85,10 @@ mod testing {
     }
         
 
-    fn get_device() -> Device {
+    pub fn get_device() -> Device {
         let platform = Platform::default();
-        let mut devices: Vec<Device> = Device::all_by_type(&platform, DeviceType::ALL).expect("Failed to list all devices");
+        let mut devices: Vec<Device> = Device::all_by_type(&platform, DeviceType::ALL)
+            .unwrap_or_else(|e| panic!("Failed to list all devices: {:?}", e));
         assert!(devices.len() > 0);
         devices.remove(0)
     }

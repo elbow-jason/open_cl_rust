@@ -82,6 +82,7 @@ impl Event {
         self.info(Info::ReferenceCount)
             .map(|ret| unsafe { ret.into_one() })
     }
+
     // pub fn command_queue(&self) -> Output<CommandQueue> {
     //     self.info::<cl_command_queue>(Info::CommandQueue)
     //         .and_then(|ret| unsafe { ret.into_retained_wrapper::<CommandQueue>() })

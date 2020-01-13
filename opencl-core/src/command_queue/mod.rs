@@ -16,98 +16,122 @@ use crate::ffi::{
     cl_device_id,
 };
 
-use crate::{Context, ContextRefCount, Device, DevicePtr, DeviceRefCount, DeviceMem, Event, Kernel, Output, Work};
+use crate::{utils, Context, ContextRefCount, Device, DevicePtr, DeviceRefCount, DeviceMem, Event, Kernel, Output, Work};
 
 use crate::cl::ClPointer;
-use crate::cl::ClObjectError;
-use crate::error::Error;
 
 use helpers::CommandQueueOptions;
-use low_level::{cl_release_command_queue}; //, cl_retain_command_queue};
 
-pub trait CommandQueuePtr {
-    fn command_queue_ptr(&self) -> cl_command_queue;
+pub unsafe fn release_command_queue(cq: cl_command_queue) {
+    low_level::cl_release_command_queue(cq).unwrap_or_else(|e| {
+        panic!("Failed to release cl_command_queue {:?} due to {:?}", cq, e);
+    })
+}
+
+pub unsafe fn retain_command_queue(cq: cl_command_queue) {
+    low_level::cl_retain_command_queue(cq).unwrap_or_else(|e| {
+        panic!("Failed to retain cl_command_queue {:?} due to {:?}", cq, e);
+    })
 }
 
 
+pub trait CommandQueuePtr {
+    unsafe fn command_queue_ptr(&self) -> cl_command_queue;
+}
+
+pub trait CommandQueueRefCount: Sized {
+    unsafe fn from_retained(cq: cl_command_queue) -> Output<Self>;
+    unsafe fn from_unretained(cq: cl_command_queue) -> Output<Self>;
+}
+
+
+impl CommandQueueRefCount for CommandQueueObject {
+    unsafe fn from_retained(cq: cl_command_queue) -> Output<CommandQueueObject> {
+        utils::null_check(cq, "CommandQueueObject::from_retained")?;
+        Ok(CommandQueueObject::unchecked_new(cq))
+    }
+
+    unsafe fn from_unretained(cq: cl_command_queue) -> Output<CommandQueueObject> {
+        utils::null_check(cq, "DeviceObject::from_unretained")?;
+        retain_command_queue(cq);
+        Ok(CommandQueueObject::unchecked_new(cq))
+    }
+}
+
+pub struct CommandQueueObject {
+    object: cl_command_queue,
+    _unconstructable: (),
+}
+
+impl CommandQueueObject {
+    unsafe fn unchecked_new(cq: cl_command_queue) -> CommandQueueObject {
+        CommandQueueObject {
+            object: cq,
+            _unconstructable: (),
+        }
+    }
+}
+
+impl Drop for CommandQueueObject {
+    fn drop(&mut self) {
+        unsafe {
+            release_command_queue(self.object)
+        }
+    }
+}
+
+impl Clone for CommandQueueObject {
+    fn clone(&self) -> CommandQueueObject {
+        unsafe {
+            retain_command_queue(self.object);
+            CommandQueueObject::unchecked_new(self.object)
+        }
+    }
+}
+
+
+
+
 pub struct CommandQueue {
-    inner: ManuallyDrop<cl_command_queue>,
-    context: Context,
-    device: Device,
+    inner: ManuallyDrop<CommandQueueObject>,
+    _context: ManuallyDrop<Context>,
+    _device: ManuallyDrop<Device>,
     _unconstructable: (),
 }
 
 
 impl CommandQueuePtr for CommandQueue {
-    fn command_queue_ptr(&self) -> cl_command_queue {
-        *self.inner
+    unsafe fn command_queue_ptr(&self) -> cl_command_queue {
+        (*self.inner).object
     }
 }
 
 impl fmt::Debug for CommandQueue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "CommandQueue{{{:?}}}", self.command_queue_ptr())
+        write!(f, "CommandQueue{{{:?}}}", unsafe { self.command_queue_ptr() })
     }
 }
 
 impl Drop for CommandQueue {
     fn drop(&mut self) {
         unsafe {
-            cl_release_command_queue(self.command_queue_ptr()).unwrap_or_else(|e| {
-                panic!("Failed to release cl_command_queue {:?} {:?}", self, e);
-            })
+            ManuallyDrop::drop(&mut self.inner);
+            ManuallyDrop::drop(&mut self._context);
+            ManuallyDrop::drop(&mut self._device);
         }
     }
 }
 
 impl Clone for CommandQueue {
     fn clone(&self) -> CommandQueue {
-        let props = self.properties().unwrap_or_else(|e| {
-                panic!("Failed to retrieve existing command queue properties! {:?} {:?}", self, e);
-            });
-        CommandQueue::create(
-            &self.context,
-            &self.device,
-            Some(props)
-        ).unwrap_or_else(|e| {
-            panic!("Failed to clone CommandQueue {:?} {:?}", self, e);
-        })
-
+        CommandQueue {
+            _device: self._device.clone(),
+            _context: self._context.clone(),
+            inner: self.inner.clone(),
+            _unconstructable: ()
+        }
     }
 }
-
-
-// impl ClObject<cl_command_queue> for CommandQueue {
-    // unsafe fn raw_cl_object(&self) -> cl_command_queue {
-    //     self.inner
-    // }
-
-    // unsafe fn new_retained(cl_object: $cl_object_type) -> Output<$wrapper> {
-    //     if cl_object.is_null() {
-    //         use crate::cl::ClObjectError;
-    //         use crate::error::Error;
-    //         let wrapper_name = stringify!($wrapper).to_string();
-    //         let e = Error::ClObjectError(ClObjectError::ClObjectCannotBeNull(wrapper_name));
-    //         return Err(e);
-    //     }
-    //     let () = $retain_func(cl_object)?;
-    //     Ok($wrapper {
-    //         inner: cl_object,
-    //         _unconstructable: (),
-    //     })
-    // }
-// }
-
-// __impl_unconstructable_cl_wrapper!(CommandQueue, cl_command_queue);
-// __impl_default_debug_for!(CommandQueue);
-// __impl_cl_object_for_wrapper!(
-//     CommandQueue,
-//     cl_command_queue,
-//     cl_retain_command_queue,
-//     cl_release_command_queue
-// );
-// __impl_clone_for_cl_object_wrapper!(CommandQueue, cl_retain_command_queue);
-// __impl_drop_for_cl_object_wrapper!(CommandQueue, cl_release_command_queue);
 
 unsafe impl Send for CommandQueue {}
 // unsafe impl Sync for CommandQueue {}
@@ -116,16 +140,26 @@ use CommandQueueInfo as CQInfo;
 
 impl CommandQueue {
      unsafe fn new(queue: cl_command_queue, context: Context, device: Device) -> Output<CommandQueue> {
-        if queue.is_null() {
-            let e = Error::ClObjectError(ClObjectError::ClObjectCannotBeNull("CommandQueue".to_string()));
-            return Err(e);
+        let mut man_drop_context = ManuallyDrop::new(context);
+        let mut man_drop_device = ManuallyDrop::new(device);
+
+        match CommandQueueObject::from_retained(queue) {
+            Ok(cq_object) => {
+                Ok(CommandQueue {
+                    inner: ManuallyDrop::new(cq_object),
+                    _context: man_drop_context,
+                    _device: man_drop_device,
+                    _unconstructable: (),
+                })
+            },
+            Err(e) => {
+                // if an error has occurred we must drop context then device
+                ManuallyDrop::drop(&mut man_drop_context);
+                ManuallyDrop::drop(&mut man_drop_device);
+                Err(e)
+            }
         }
-        Ok(CommandQueue {
-            inner: ManuallyDrop::new(queue),
-            context,
-            device,
-            _unconstructable: (),
-        })
+        
     }
 
     pub fn create(
@@ -146,12 +180,29 @@ impl CommandQueue {
     }
 
     pub unsafe fn decompose(self) -> (cl_context, cl_device_id, cl_command_queue) {
-        let parts = (self.context.context_ptr(), self.device.device_ptr(), *self.inner);
+        let parts = (self.context().context_ptr(), self.device().device_ptr(), self.command_queue_ptr());
         std::mem::forget(self);
         parts
     }
 
-    /// write_buffer is used to ,ove data from the host buffer (buffer: &[T]) to
+    pub fn new_copy(&self) -> Output<CommandQueue> {
+        let props = self.properties()?;
+        CommandQueue::create(
+            self.context(),
+            self.device(),
+            Some(props)
+        )
+    }
+
+    pub fn context(&self) -> &Context {
+        &*self._context
+    }
+
+    pub fn device(&self) -> &Device {
+        &*self._device
+    }
+
+    /// write_buffer is used to move data from the host buffer (buffer: &[T]) to
     /// the OpenCL cl_mem pointer inside `d_mem: &DeviceMem<T>`.
     pub fn write_buffer<T>(&self, device_mem: &DeviceMem<T>, host_buffer: &[T]) -> Output<Event>
     where
@@ -161,7 +212,7 @@ impl CommandQueue {
         low_level::cl_enqueue_write_buffer(self, device_mem, host_buffer, command_queue_opts)
     }
 
-    /// write_buffer is used to ,ove data from the host buffer (buffer: &[T]) to
+    /// write_buffer is used to move data from the host buffer (buffer: &[T]) to
     /// the OpenCL cl_mem pointer inside `d_mem: &DeviceMem<T>`.
     pub fn write_buffer_with_opts<T>(
         &self,
@@ -240,13 +291,13 @@ impl CommandQueue {
         low_level::cl_get_command_queue_info(self, flag)
     }
 
-    pub fn context(&self) -> Output<Context> {
+    pub fn load_context(&self) -> Output<Context> {
         self.info(CQInfo::Context).and_then(|cl_ptr| unsafe {
             Context::from_unretained(cl_ptr.into_one())
         })
     }
 
-    pub fn device(&self) -> Output<Device> {
+    pub fn load_device(&self) -> Output<Device> {
         self.info(CQInfo::Device)
             .and_then(|ret| unsafe { Device::from_unretained(ret.into_one()) })
     }
@@ -265,35 +316,62 @@ impl CommandQueue {
 #[cfg(test)]
 mod tests {
     use super::flags::CommandQueueProperties;
-    use crate::{Context, Device, Session};
-
-    fn get_session() -> Session {
-        let src = "__kernel void test(__global int *i) { *i += 1; }";
-        let devices = [Device::default()];
-        Session::create_sessions(&devices, src).expect("Failed to create Session").remove(0)
-    }
+    use crate::{Context, Output, Device, testing};
+    const SRC: &'static str = "
+    __kernel void test(__global int *i) {
+        *i += 1;
+    }";
+    
 
     #[test]
     pub fn command_queue_method_context_works() {
-        let session = get_session();
-        let _ctx: Context = session
+        let session = testing::get_session(SRC);
+        let _context: &Context = session.command_queue().context();
+    }
+
+    #[test]
+    pub fn command_queue_method_load_context_works() {
+        let session = testing::get_session(SRC);
+        let result: Output<Context> = session.command_queue().load_context();
+        result.unwrap_or_else(|e| panic!("Failed to load_context: {:?}", e));
+    }
+
+    #[test]
+    pub fn command_queue_load_context_matches_kept_context() {
+        let session = testing::get_session(SRC);
+        let kept_context: &Context = session
             .command_queue()
-            .context()
-            .expect("CommandQueue method context() failed");
+            .context();
+        let loaded_context: Context = session.command_queue().load_context().unwrap();
+        assert_eq!(kept_context, &loaded_context); 
     }
 
     #[test]
     pub fn command_queue_method_device_works() {
-        let session = get_session();
-        let _device: Device = session
+        let session = testing::get_session(SRC);
+        let _device: &Device = session.command_queue().device();
+    }
+
+    #[test]
+    pub fn command_queue_method_load_device_works() {
+        let session = testing::get_session(SRC);
+        let result: Output<Device> = session.command_queue().load_device();
+        result.unwrap_or_else(|e| panic!("Failed to load_device: {:?}", e));
+    }
+
+    #[test]
+    pub fn command_queue_load_device_matches_kept_device() {
+        let session = testing::get_session(SRC);
+        let kept_device = session
             .command_queue()
-            .device()
-            .expect("CommandQueue method device() failed");
+            .device();
+        let loaded_device = session.command_queue().load_device().unwrap();
+        assert_eq!(kept_device, &loaded_device); 
     }
 
     #[test]
     pub fn command_queue_method_reference_count_works() {
-        let session = get_session();
+        let session = testing::get_session(SRC);
         let ref_count: u32 = session
             .command_queue()
             .reference_count()
@@ -303,7 +381,7 @@ mod tests {
 
     #[test]
     pub fn command_queue_method_properties_works() {
-        let session = get_session();
+        let session = testing::get_session(SRC);
         let props: CommandQueueProperties = session
             .command_queue()
             .properties()
