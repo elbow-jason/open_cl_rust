@@ -17,8 +17,10 @@ bitflags = "1.2.1"
 failure = "0.1.6"
 colored = "1.9"
 num = "0.2"
+
 log = "0.4"
 env_logger = "0.7"
+chrono = "0.4.10"
 
 [features]
 # v1.0.0 will not be supported. It's not thread-safe and I dont' want to even

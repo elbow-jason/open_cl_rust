@@ -97,7 +97,19 @@ mod testing {
     }
 
     pub fn init_logger() {
-        let _ = env_logger::builder().is_test(true).init();
+        use std::io::Write;
+        use chrono::Local;
+        let _ = env_logger::builder()
+            .is_test(true)
+            .format(|buf, record| {
+                writeln!(buf,
+                    "{} [{}] - {}",
+                    Local::now().format("%Y-%m-%dT%H:%M:%S%.6f"),
+                    record.level(),
+                    record.args()
+                )
+            })
+            .init();
         let read_lock = LOG_INITED.read().unwrap();
         if *read_lock == true {
             return;

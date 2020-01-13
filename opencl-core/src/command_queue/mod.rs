@@ -41,6 +41,7 @@ pub unsafe fn retain_command_queue(cq: cl_command_queue) {
 pub trait CommandQueueLock {
     unsafe fn write_lock(&self) -> RwLockWriteGuard<cl_command_queue>;
     unsafe fn read_lock(&self) -> RwLockReadGuard<cl_command_queue>;
+    unsafe fn rw_lock(&self) -> &RwLock<cl_command_queue>;
 }
 
 pub trait CommandQueueRefCount: Sized {
@@ -83,10 +84,17 @@ impl Drop for CommandQueueObject {
             let cq = *lock;
             let rust_arc = Arc::strong_count(&self.object);
             let opencl_arc = info::reference_count(cq);
+            
             debug!("cl_command_queue {:?} - CommandQueueObject::drop - start - rust_arc: {:?}, opencl_arc: {:?}", cq, rust_arc, opencl_arc);
+            if let (1, Ok(1)) = (rust_arc, opencl_arc) {
+                debug!("cl_command_queue {:?} - CommandQueueObject::drop - finishing", cq);
+                low_level::cl_finish(cq).unwrap();
+                debug!("cl_command_queue {:?} - CommandQueueObject::drop - finished", cq);
+            }
+            debug!("cl_command_queue {:?} - CommandQueueObject::drop - releasing", cq);
             match low_level::cl_release_command_queue(cq) {
                 Ok(()) => {
-                    debug!("cl_command_queue {:?} - CommandQueueObject::drop - success", cq);
+                    debug!("cl_command_queue {:?} - CommandQueueObject::drop - released", cq);
                 },
                 Err(e) => {
                     std::mem::drop(lock);
@@ -121,6 +129,9 @@ impl CommandQueueLock for CommandQueueObject {
     unsafe fn write_lock(&self) -> RwLockWriteGuard<cl_command_queue> {
         self.object.write().unwrap()
     }
+    unsafe fn rw_lock(&self) -> &RwLock<cl_command_queue> {
+        &*self.object
+    }
 }
 
 impl fmt::Debug for CommandQueueObject {
@@ -146,6 +157,9 @@ impl CommandQueueLock for CommandQueue {
     }
     unsafe fn write_lock(&self) -> RwLockWriteGuard<cl_command_queue> {
         (*self.inner).write_lock()
+    }
+    unsafe fn rw_lock(&self) -> &RwLock<cl_command_queue> {
+        (*self.inner).rw_lock()
     }
 }
 
