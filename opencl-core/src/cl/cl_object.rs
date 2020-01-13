@@ -28,11 +28,3 @@ pub trait ClObject<T: Sized> where Self: Sized {
     unsafe fn new_retained(t: T) -> Output<Self>;
     // unsafe fn cl_retain(&mut self) -> Output<()>;
 }
-
-
-pub trait CopyClObject<T>: ClObject<T> {
-    // Calls the object's clRetain<object_name> function thereby increasing
-    // the reference count of that object
-    unsafe fn copy_cl_object_ref(&self) -> T;
-}
-
