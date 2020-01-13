@@ -157,7 +157,7 @@ impl fmt::Debug for CommandQueue {
 
 impl Drop for CommandQueue {
     fn drop(&mut self) {
-        debug!("dropping command queue {:?}", self);
+        debug!("cl_command_queue {:?} - CommandQueue::drop", unsafe { *self.read_lock() });
         unsafe {
             ManuallyDrop::drop(&mut self.inner);
             ManuallyDrop::drop(&mut self._context);
