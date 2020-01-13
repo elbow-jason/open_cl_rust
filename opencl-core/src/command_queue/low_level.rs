@@ -149,12 +149,12 @@ pub fn cl_enqueue_write_buffer<T>(
 }
 
 pub unsafe fn cl_get_command_queue_info<T: Copy>(
-    command_queue: &CommandQueue,
+    command_queue: cl_command_queue,
     flag: CommandQueueInfo,
 ) -> Output<ClPointer<T>> {
-    let cq_lock = command_queue.read_lock(); 
+    
     cl_get_info5(
-        *cq_lock,
+        command_queue,
         flag as cl_command_queue_info,
         clGetCommandQueueInfo,
     )

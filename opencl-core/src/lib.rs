@@ -97,8 +97,7 @@ mod testing {
     }
 
     pub fn init_logger() {
-        use log::LevelFilter;
-        let _ = env_logger::builder().is_test(true).filter(None, LevelFilter::Debug).init();
+        let _ = env_logger::builder().is_test(true).init();
         let read_lock = LOG_INITED.read().unwrap();
         if *read_lock == true {
             return;

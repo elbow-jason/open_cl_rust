@@ -1,6 +1,7 @@
 pub mod flags;
 pub mod helpers;
 pub mod low_level;
+pub mod info;
 
 use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard, Arc};
 use std::mem::ManuallyDrop;
@@ -18,7 +19,7 @@ use crate::ffi::{
     cl_device_id,
 };
 
-use crate::{utils, Context, ContextRefCount, Device, DevicePtr, DeviceRefCount, DeviceMem, Event, Kernel, Output, Work};
+use crate::{utils, Context, Device, DevicePtr, DeviceMem, Event, Kernel, Output, Work};
 
 use crate::cl::ClPointer;
 
@@ -79,10 +80,20 @@ impl Drop for CommandQueueObject {
     fn drop(&mut self) {
         unsafe {
             let lock = self.write_lock();
-            low_level::cl_release_command_queue(*lock).unwrap_or_else(|e| {
-                std::mem::drop(lock);
-                panic!("Failed to release cl_command_queue due to {:?}", e);
-            })
+            let cq = *lock;
+            let rust_arc = Arc::strong_count(&self.object);
+            let opencl_arc = info::reference_count(cq);
+            debug!("cl_command_queue {:?} - CommandQueueObject::drop - start - rust_arc: {:?}, opencl_arc: {:?}", cq, rust_arc, opencl_arc);
+            match low_level::cl_release_command_queue(cq) {
+                Ok(()) => {
+                    debug!("cl_command_queue {:?} - CommandQueueObject::drop - success", cq);
+                },
+                Err(e) => {
+                    std::mem::drop(lock);
+                    error!("cl_command_queue {:?} - CommandQueueObject::drop - failure - error: {:?}", cq, e);
+                    panic!("Failed to release cl_command_queue {:?} due to {:?}", cq, e);
+                }
+            }
         }
     }
 }
@@ -112,6 +123,14 @@ impl CommandQueueLock for CommandQueueObject {
     }
 }
 
+impl fmt::Debug for CommandQueueObject {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let read_lock = unsafe { self.read_lock() };
+        let address = *read_lock;
+
+        write!(f, "CommandQueueObject{{{:?}}}", address)
+    }
+}
 
 pub struct CommandQueue {
     inner: ManuallyDrop<CommandQueueObject>,
@@ -138,6 +157,7 @@ impl fmt::Debug for CommandQueue {
 
 impl Drop for CommandQueue {
     fn drop(&mut self) {
+        debug!("dropping command queue {:?}", self);
         unsafe {
             ManuallyDrop::drop(&mut self.inner);
             ManuallyDrop::drop(&mut self._context);
@@ -319,31 +339,30 @@ impl CommandQueue {
         }
     }
 
-    fn info<T: Copy>(&self, flag: CQInfo) -> Output<ClPointer<T>> {
-        unsafe { low_level::cl_get_command_queue_info(self, flag) }
+    pub fn info<T: Copy>(self, flag: CQInfo) -> Output<ClPointer<T>> {
+        unsafe { 
+            let cq_lock = self.read_lock();
+            info::fetch::<T>(*cq_lock, flag)
+        }
     }
 
     pub fn load_context(&self) -> Output<Context> {
-        self.info(CQInfo::Context).and_then(|cl_ptr| unsafe {
-            Context::from_unretained(cl_ptr.into_one())
-        })
+        unsafe { info::load_context(*self.read_lock()) }
     }
 
     pub fn load_device(&self) -> Output<Device> {
-        self.info(CQInfo::Device)
-            .and_then(|ret| unsafe { Device::from_unretained(ret.into_one()) })
+        unsafe { info::load_device(*self.read_lock()) }
     }
 
     pub fn reference_count(&self) -> Output<u32> {
-        self.info(CQInfo::ReferenceCount)
-            .map(|ret| unsafe { ret.into_one() })
+        unsafe { info::reference_count(*self.read_lock()) }
     }
 
     pub fn properties(&self) -> Output<CommandQueueProperties> {
-        self.info(CQInfo::Properties)
-            .map(|ret| unsafe { ret.into_one() })
+        unsafe { info::properties(*self.read_lock()) }
     }
 }
+
 
 #[cfg(test)]
 mod tests {
@@ -357,6 +376,7 @@ mod tests {
 
     #[test]
     pub fn command_queue_method_context_works() {
+        testing::init_logger();
         let session = testing::get_session(SRC);
         let _context: &Context = session.command_queue().context();
     }
