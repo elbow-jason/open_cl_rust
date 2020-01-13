@@ -5,7 +5,7 @@ use crate::utils::volume;
 use crate::cl::{cl_get_info5, ClObject, ClPointer};
 
 use super::flags::CommandQueueInfo;
-use super::{CommandQueue, CommandQueueOptions, CommandQueuePtr};
+use super::{CommandQueue, CommandQueueOptions, CommandQueueLock};
 use crate::event::{Event, WaitList};
 use crate::ffi::{
     clCreateCommandQueue, clEnqueueNDRangeKernel, clEnqueueReadBuffer, clEnqueueWriteBuffer,
@@ -35,11 +35,11 @@ pub fn cl_create_command_queue(
     StatusCode::build_output(err_code, command_queue)
 }
 
-pub fn cl_finish(queue: &CommandQueue) -> Output<()> {
-    StatusCode::build_output(unsafe { clFinish(queue.command_queue_ptr()) }, ())
+pub fn cl_finish(command_queue: cl_command_queue) -> Output<()> {
+    StatusCode::build_output(unsafe { clFinish(command_queue) }, ())
 }
 
-pub fn cl_enqueue_nd_range_kernel(
+pub unsafe fn cl_enqueue_nd_range_kernel(
     queue: &CommandQueue,
     kernel: &Kernel,
     work_dim: u8,
@@ -49,32 +49,31 @@ pub fn cl_enqueue_nd_range_kernel(
     wait_list: WaitList,
 ) -> Output<Event> {
     let mut tracking_event: cl_event = new_tracking_event();
-    let err_code = unsafe {
-        let (wait_list_len, wait_list_ptr_ptr) = wait_list.len_and_ptr_ptr();
 
-        let global_work_offset_ptr = volume::option_to_ptr(global_work_offset);
-        let global_work_size_ptr = volume::to_ptr(global_work_size);
-        let local_work_size_ptr = volume::option_to_ptr(local_work_size);
+    let (wait_list_len, wait_list_ptr_ptr) = wait_list.len_and_ptr_ptr();
 
-        clEnqueueNDRangeKernel(
-            queue.command_queue_ptr(),
-            kernel.raw_cl_object(),
-            u32::from(work_dim),
-            global_work_offset_ptr,
-            global_work_size_ptr,
-            local_work_size_ptr,
-            wait_list_len,
-            wait_list_ptr_ptr,
-            &mut tracking_event,
-        )
-    };
+    let global_work_offset_ptr = volume::option_to_ptr(global_work_offset);
+    let global_work_size_ptr = volume::to_ptr(global_work_size);
+    let local_work_size_ptr = volume::option_to_ptr(local_work_size);
+    let cq_lock = queue.write_lock();
+    let err_code = clEnqueueNDRangeKernel(
+        *cq_lock,
+        kernel.raw_cl_object(),
+        u32::from(work_dim),
+        global_work_offset_ptr,
+        global_work_size_ptr,
+        local_work_size_ptr,
+        wait_list_len,
+        wait_list_ptr_ptr,
+        &mut tracking_event,
+    );
 
     StatusCode::build_output(err_code, ())?;
 
-    cl_finish(queue)?;
+    cl_finish(*cq_lock)?;
 
     debug_assert!(!tracking_event.is_null());
-    unsafe { Event::new(tracking_event) }
+    Event::new(tracking_event)
 }
 
 fn buffer_mem_size_and_ptr<T>(buf: &[T]) -> (usize, *const libc::c_void) {
@@ -94,32 +93,31 @@ fn into_event(err_code: cl_int, tracking_event: cl_event) -> Output<Event> {
     unsafe { Event::new(tracking_event) }
 }
 
-pub fn cl_enqueue_read_buffer<T>(
+pub unsafe fn cl_enqueue_read_buffer<T>(
     command_queue: &CommandQueue,
     device_mem: &DeviceMem<T>,
     buffer: &mut [T],
     command_queue_opts: CommandQueueOptions,
 ) -> Output<Event> where T: Debug + Sync + Send {
     let mut tracking_event = new_tracking_event();
-    let err_code = unsafe {
-        let (wait_list_len, wait_list_ptr_ptr) = command_queue_opts.wait_list.len_and_ptr_ptr();
 
-        let (buffer_mem_size, buffer_ptr) = buffer_mem_size_and_ptr(buffer);
+    let (wait_list_len, wait_list_ptr_ptr) = command_queue_opts.wait_list.len_and_ptr_ptr();
 
-        debug_assert!(buffer.len() == device_mem.len());
+    let (buffer_mem_size, buffer_ptr) = buffer_mem_size_and_ptr(buffer);
 
-        clEnqueueReadBuffer(
-            command_queue.command_queue_ptr(),
-            device_mem.raw_cl_object(),
-            command_queue_opts.is_blocking as cl_bool,
-            command_queue_opts.offset,
-            buffer_mem_size,
-            buffer_ptr as *mut libc::c_void,
-            wait_list_len,
-            wait_list_ptr_ptr,
-            &mut tracking_event,
-        )
-    };
+    debug_assert!(buffer.len() == device_mem.len());
+    let cq_lock = command_queue.write_lock();
+    let err_code = clEnqueueReadBuffer(
+        *cq_lock,
+        device_mem.raw_cl_object(),
+        command_queue_opts.is_blocking as cl_bool,
+        command_queue_opts.offset,
+        buffer_mem_size,
+        buffer_ptr as *mut libc::c_void,
+        wait_list_len,
+        wait_list_ptr_ptr,
+        &mut tracking_event,
+    );
     into_event(err_code, tracking_event)
 }
 
@@ -134,9 +132,9 @@ pub fn cl_enqueue_write_buffer<T>(
         let (wait_list_len, wait_list_ptr_ptr) = command_queue_opts.wait_list.len_and_ptr_ptr();
 
         let (buffer_mem_size, buffer_ptr) = buffer_mem_size_and_ptr(buffer);
-
+        let cq_lock = command_queue.write_lock();
         clEnqueueWriteBuffer(
-            command_queue.command_queue_ptr(),
+            *cq_lock,
             device_mem.raw_cl_object(),
             command_queue_opts.is_blocking as cl_bool,
             command_queue_opts.offset,
@@ -150,15 +148,14 @@ pub fn cl_enqueue_write_buffer<T>(
     into_event(err_code, tracking_event)
 }
 
-pub fn cl_get_command_queue_info<T: Copy>(
+pub unsafe fn cl_get_command_queue_info<T: Copy>(
     command_queue: &CommandQueue,
     flag: CommandQueueInfo,
 ) -> Output<ClPointer<T>> {
-    unsafe {
-        cl_get_info5(
-            command_queue.command_queue_ptr(),
-            flag as cl_command_queue_info,
-            clGetCommandQueueInfo,
-        )
-    }
+    let cq_lock = command_queue.read_lock(); 
+    cl_get_info5(
+        *cq_lock,
+        flag as cl_command_queue_info,
+        clGetCommandQueueInfo,
+    )
 }

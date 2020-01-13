@@ -1,6 +1,8 @@
 pub mod flags;
 pub mod helpers;
 pub mod low_level;
+
+use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard, Arc};
 use std::mem::ManuallyDrop;
 use std::fmt;
 use std::fmt::Debug;
@@ -35,8 +37,9 @@ pub unsafe fn retain_command_queue(cq: cl_command_queue) {
 }
 
 
-pub trait CommandQueuePtr {
-    unsafe fn command_queue_ptr(&self) -> cl_command_queue;
+pub trait CommandQueueLock {
+    unsafe fn write_lock(&self) -> RwLockWriteGuard<cl_command_queue>;
+    unsafe fn read_lock(&self) -> RwLockReadGuard<cl_command_queue>;
 }
 
 pub trait CommandQueueRefCount: Sized {
@@ -59,14 +62,14 @@ impl CommandQueueRefCount for CommandQueueObject {
 }
 
 pub struct CommandQueueObject {
-    object: cl_command_queue,
+    object: Arc<RwLock<cl_command_queue>>,
     _unconstructable: (),
 }
 
 impl CommandQueueObject {
     unsafe fn unchecked_new(cq: cl_command_queue) -> CommandQueueObject {
         CommandQueueObject {
-            object: cq,
+            object: Arc::new(RwLock::new(cq)),
             _unconstructable: (),
         }
     }
@@ -75,7 +78,11 @@ impl CommandQueueObject {
 impl Drop for CommandQueueObject {
     fn drop(&mut self) {
         unsafe {
-            release_command_queue(self.object)
+            let lock = self.write_lock();
+            low_level::cl_release_command_queue(*lock).unwrap_or_else(|e| {
+                std::mem::drop(lock);
+                panic!("Failed to release cl_command_queue due to {:?}", e);
+            })
         }
     }
 }
@@ -83,13 +90,27 @@ impl Drop for CommandQueueObject {
 impl Clone for CommandQueueObject {
     fn clone(&self) -> CommandQueueObject {
         unsafe {
-            retain_command_queue(self.object);
-            CommandQueueObject::unchecked_new(self.object)
+            let lock = self.object.read().unwrap();
+            retain_command_queue(*lock);
+            std::mem::drop(lock);
+
+            CommandQueueObject{
+                object: self.object.clone(),
+                _unconstructable: ()
+            }
         }
     }
 }
 
+impl CommandQueueLock for CommandQueueObject {
+    unsafe fn read_lock(&self) -> RwLockReadGuard<cl_command_queue> {
+        self.object.read().unwrap()
+    }
 
+    unsafe fn write_lock(&self) -> RwLockWriteGuard<cl_command_queue> {
+        self.object.write().unwrap()
+    }
+}
 
 
 pub struct CommandQueue {
@@ -100,15 +121,18 @@ pub struct CommandQueue {
 }
 
 
-impl CommandQueuePtr for CommandQueue {
-    unsafe fn command_queue_ptr(&self) -> cl_command_queue {
-        (*self.inner).object
+impl CommandQueueLock for CommandQueue {
+    unsafe fn read_lock(&self) -> RwLockReadGuard<cl_command_queue> {
+        (*self.inner).read_lock()
+    }
+    unsafe fn write_lock(&self) -> RwLockWriteGuard<cl_command_queue> {
+        (*self.inner).write_lock()
     }
 }
 
 impl fmt::Debug for CommandQueue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "CommandQueue{{{:?}}}", unsafe { self.command_queue_ptr() })
+        write!(f, "CommandQueue{{{:?}}}", unsafe { *self.read_lock() })
     }
 }
 
@@ -134,7 +158,7 @@ impl Clone for CommandQueue {
 }
 
 unsafe impl Send for CommandQueue {}
-// unsafe impl Sync for CommandQueue {}
+unsafe impl Sync for CommandQueue {}
 
 use CommandQueueInfo as CQInfo;
 
@@ -180,7 +204,8 @@ impl CommandQueue {
     }
 
     pub unsafe fn decompose(self) -> (cl_context, cl_device_id, cl_command_queue) {
-        let parts = (self.context().context_ptr(), self.device().device_ptr(), self.command_queue_ptr());
+        let cq: cl_command_queue = *self.read_lock();
+        let parts = (self.context().context_ptr(), self.device().device_ptr(), cq);
         std::mem::forget(self);
         parts
     }
@@ -233,7 +258,9 @@ impl CommandQueue {
         T: Sized + Debug + Num + Sync + Send 
     {
         let command_queue_opts = CommandQueueOptions::default();
-        low_level::cl_enqueue_read_buffer(self, device_mem, host_buffer, command_queue_opts)
+        unsafe {
+            low_level::cl_enqueue_read_buffer(self, device_mem, host_buffer, command_queue_opts)
+        }
     }
 
     pub fn read_buffer_with_opts<T>(
@@ -245,7 +272,9 @@ impl CommandQueue {
     where
         T: Sized + Debug + Num + Sync + Send,
     {
-        low_level::cl_enqueue_read_buffer(self, device_mem, host_buffer, command_queue_opts)
+        unsafe {
+            low_level::cl_enqueue_read_buffer(self, device_mem, host_buffer, command_queue_opts)
+        }
     }
 
     pub fn sync_enqueue_kernel_with_opts(
@@ -255,14 +284,14 @@ impl CommandQueue {
         command_queue_opts: CommandQueueOptions,
     ) -> Output<Event> {
         let event = self.async_enqueue_kernel_with_opts(kernel, work, command_queue_opts)?;
-        low_level::cl_finish(self)?;
+        low_level::cl_finish(unsafe { *self.read_lock() })?;
         Ok(event)
     }
 
     pub fn sync_enqueue_kernel(&self, kernel: &Kernel, work: &Work) -> Output<Event> {
         let command_queue_opts = CommandQueueOptions::default();
         let event = self.async_enqueue_kernel_with_opts(kernel, work, command_queue_opts)?;
-        low_level::cl_finish(self)?;
+        low_level::cl_finish(unsafe { *self.read_lock() })?;
         Ok(event)
     }
 
@@ -277,18 +306,21 @@ impl CommandQueue {
         work: &Work,
         command_queue_opts: CommandQueueOptions,
     ) -> Output<Event> {
-        low_level::cl_enqueue_nd_range_kernel(
-            &self,
-            kernel,
-            work.work_dim(),
-            work.global_work_offset(),
-            work.global_work_size(),
-            work.local_work_size(),
-            command_queue_opts.wait_list,
-        )
+        unsafe {
+            low_level::cl_enqueue_nd_range_kernel(
+                &self,
+                kernel,
+                work.work_dim(),
+                work.global_work_offset(),
+                work.global_work_size(),
+                work.local_work_size(),
+                command_queue_opts.wait_list,
+            )
+        }
     }
+
     fn info<T: Copy>(&self, flag: CQInfo) -> Output<ClPointer<T>> {
-        low_level::cl_get_command_queue_info(self, flag)
+        unsafe { low_level::cl_get_command_queue_info(self, flag) }
     }
 
     pub fn load_context(&self) -> Output<Context> {
