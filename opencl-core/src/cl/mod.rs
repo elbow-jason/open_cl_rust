@@ -4,7 +4,7 @@
 pub mod cl_object;
 pub mod cl_pointer;
 
-pub use cl_object::{ClObject, ClObjectError, CopyClObject, MutClObject};
+pub use cl_object::{ClObject, ClObjectError, CopyClObject};
 
 pub use cl_pointer::ClPointer;
 
