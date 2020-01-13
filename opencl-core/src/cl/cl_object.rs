@@ -39,8 +39,3 @@ pub trait CopyClObject<T>: ClObject<T> {
 pub trait MutClObject<T> {
     unsafe fn raw_mut_cl_object(&mut self) -> T;
 }
-
-pub trait ObjectWrapping<T: Copy> {
-    fn release_object(&mut self) -> Output<()>;
-    fn retain_object(&mut self) -> Output<()>;
-}
