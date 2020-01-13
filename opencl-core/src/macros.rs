@@ -121,7 +121,7 @@ macro_rules! __impl_cl_object_for_wrapper {
                     use crate::cl::ClObjectError;
                     use crate::error::Error;
                     let wrapper_name = stringify!($wrapper).to_string();
-                    let e = Error::ClObjectError(ClObjectError::ClObjectCannotBeNull(wrapper_name));
+                    let e = Error::ClObjectError(ClObjectError::CannotBeNull(wrapper_name));
                     return Err(e);
                 }
                 Ok($wrapper {
@@ -135,7 +135,7 @@ macro_rules! __impl_cl_object_for_wrapper {
                     use crate::cl::ClObjectError;
                     use crate::error::Error;
                     let wrapper_name = stringify!($wrapper).to_string();
-                    let e = Error::ClObjectError(ClObjectError::ClObjectCannotBeNull(wrapper_name));
+                    let e = Error::ClObjectError(ClObjectError::CannotBeNull(wrapper_name));
                     return Err(e);
                 }
                 let () = $retain_func(cl_object)?;

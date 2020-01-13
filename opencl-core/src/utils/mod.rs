@@ -24,7 +24,7 @@ pub fn vec_filled_with<T: Clone>(filler: T, len: usize) -> Vec<T> {
 
 pub fn null_check<T>(ptr: *mut T, name: &str) -> Result<(), Error> {
     if ptr.is_null() {
-        Err(ClObjectError::ClObjectCannotBeNull(name.to_owned()).into())
+        Err(ClObjectError::CannotBeNull(name.to_owned()).into())
     } else {
         Ok(())
     }

@@ -64,7 +64,7 @@ impl<T> ClObject<cl_mem> for DeviceMem<T> where T: Debug + Sync + Send {
 
     unsafe fn new(handle: cl_mem) -> Output<DeviceMem<T>> {
         if handle.is_null() {
-            let error = ClObjectError::ClObjectCannotBeNull("DeviceMem<T>".to_string());
+            let error = ClObjectError::CannotBeNull("DeviceMem<T>".to_string());
             return Err(error.into());
         }
         Ok(DeviceMem {
@@ -75,7 +75,7 @@ impl<T> ClObject<cl_mem> for DeviceMem<T> where T: Debug + Sync + Send {
 
     unsafe fn new_retained(handle: cl_mem) -> Output<DeviceMem<T>> {
         if handle.is_null() {
-            let error = ClObjectError::ClObjectCannotBeNull("DeviceMem<T>".to_string());
+            let error = ClObjectError::CannotBeNull("DeviceMem<T>".to_string());
             return Err(error.into());
         }
 
@@ -120,7 +120,7 @@ impl<T: Debug> DeviceMem<T> where T: Debug + Sync + Send {
 
     pub unsafe fn from_unretained_object(obj: cl_mem) -> Output<DeviceMem<T>> {
         if obj.is_null() {
-            let error = ClObjectError::ClObjectCannotBeNull("DeviceMem<T>".to_string());
+            let error = ClObjectError::CannotBeNull("DeviceMem<T>".to_string());
             return Err(error.into());
         }
 
@@ -236,7 +236,7 @@ impl<T: Debug> DeviceMem<T> where T: Debug + Sync + Send {
         self.get_info::<cl_mem>(MemInfo::AssociatedMemobject)
             .and_then(|ret| unsafe { DeviceMem::from_unretained_object(ret.into_one()) })
             .map_err(|e| match e {
-                Error::ClObjectError(ClObjectError::ClObjectCannotBeNull(..)) => {
+                Error::ClObjectError(ClObjectError::CannotBeNull(..)) => {
                     DeviceMemError::NoAssociatedMemObject.into()
                 }
                 other => other,

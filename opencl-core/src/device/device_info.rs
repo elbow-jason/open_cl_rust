@@ -137,7 +137,7 @@
 //                 Device::from_unretained_object(device_id)
 //             })
 //             .map_err(|e| match e {
-//                 Error::ClObjectError(ClObjectError::ClObjectCannotBeNull(..)) => {
+//                 Error::ClObjectError(ClObjectError::CannotBeNull(..)) => {
 //                     DeviceError::NoParentDevice.into()
 //                 }
 //                 _ => e,

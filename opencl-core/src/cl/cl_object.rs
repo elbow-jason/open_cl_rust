@@ -7,7 +7,7 @@ pub enum ClObjectError {
         display = "OpenCL object cannot be null. Found during: {:?}",
         _0
     )]
-    ClObjectCannotBeNull(String),
+    CannotBeNull(String),
 }
 
 /// For internal access only
