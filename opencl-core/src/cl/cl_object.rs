@@ -4,16 +4,10 @@ use crate::error::Output;
 #[derive(Debug, Fail, PartialEq, Eq, Clone)]
 pub enum ClObjectError {
     #[fail(
-        display = "The ClObject wrapper does not allow null pointers to be wrapped: {:?}",
+        display = "OpenCL object cannot be null. Found during: {:?}",
         _0
     )]
     ClObjectCannotBeNull(String),
-
-    #[fail(display = "Failed to release cl object: {:?}", _0)]
-    FailedToReleaseClObject(String),
-
-    #[fail(display = "Failed to retain cl object: {:?}", _0)]
-    FailedToRetainClObject(String),
 }
 
 /// For internal access only
