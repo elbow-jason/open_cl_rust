@@ -21,7 +21,7 @@ use crate::cl::{
 };
 
 
-use crate::{Context, ContextRefCount, Error, Output};
+use crate::{Context, ContextRefCount, Output};
 
 
 /// An error related to an Event or WaitList.
@@ -29,12 +29,6 @@ use crate::{Context, ContextRefCount, Error, Output};
 pub enum EventError {
     #[fail(display = "KernelEvent encountered a null cl_event.")]
     ClEventCannotBeNull,
-}
-
-impl From<EventError> for Error {
-    fn from(ee: EventError) -> Error {
-        Error::EventError(ee)
-    }
 }
 
 __impl_unconstructable_cl_wrapper!(Event, cl_event);

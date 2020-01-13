@@ -52,12 +52,6 @@ pub enum DeviceError {
     NoParentDevice,
 }
 
-impl From<DeviceError> for Error {
-    fn from(err: DeviceError) -> Error {
-        Error::DeviceError(err)
-    }
-}
-
 pub trait DeviceRefCount: DevicePtr + fmt::Debug {
     unsafe fn from_retained(device: cl_device_id) -> Output<Self>;
     unsafe fn from_unretained(device: cl_device_id) -> Output<Self>;

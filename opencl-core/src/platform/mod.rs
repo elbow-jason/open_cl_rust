@@ -13,7 +13,7 @@ pub mod flags;
 pub mod low_level;
 
 use crate::device::{Device, DeviceType, DevicePtr};
-use crate::error::{Error, Output};
+use crate::error::Output;
 use crate::ffi::cl_platform_id;
 use flags::PlatformInfo;
 use low_level::{cl_get_platform_info, cl_get_platforms};
@@ -26,12 +26,6 @@ pub enum PlatformError {
 
     #[fail(display = "The given platform had no default Device")]
     NoDefaultDevice,
-}
-
-impl From<PlatformError> for Error {
-    fn from(err: PlatformError) -> Error {
-        Error::PlatformError(err)
-    }
 }
 
 unsafe impl Send for Platform {}

@@ -1,4 +1,4 @@
-use crate::error::{Error, Output};
+use crate::error::Output;
 
 /// An error related to an arbitrary ClObject.
 #[derive(Debug, Fail, PartialEq, Eq, Clone)]
@@ -14,12 +14,6 @@ pub enum ClObjectError {
 
     #[fail(display = "Failed to retain cl object: {:?}", _0)]
     FailedToRetainClObject(String),
-}
-
-impl From<ClObjectError> for Error {
-    fn from(err: ClObjectError) -> Error {
-        Error::ClObjectError(err)
-    }
 }
 
 /// For internal access only
@@ -47,6 +41,6 @@ pub trait MutClObject<T> {
 }
 
 pub trait ObjectWrapping<T: Copy> {
-    fn release_object(&mut self) -> Result<(), Error>;
-    fn retain_object(&mut self) -> Result<(), Error>;
+    fn release_object(&mut self) -> Output<()>;
+    fn retain_object(&mut self) -> Output<()>;
 }

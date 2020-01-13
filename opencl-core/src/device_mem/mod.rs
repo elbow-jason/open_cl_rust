@@ -21,12 +21,6 @@ pub enum DeviceMemError {
     NoAssociatedMemObject,
 }
 
-impl From<DeviceMemError> for Error {
-    fn from(err: DeviceMemError) -> Error {
-        Error::DeviceMemError(err)
-    }
-}
-
 unsafe impl<T> Send for DeviceMem<T> where T: Sync + Send + Debug {}
 unsafe impl<T> Sync for DeviceMem<T> where T: Sync + Send + Debug {}
 

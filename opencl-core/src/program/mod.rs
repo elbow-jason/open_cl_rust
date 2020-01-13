@@ -35,11 +35,6 @@ pub enum ProgramError {
     CannotBuildProgramWithEmptyDevicesList,
 }
 
-impl From<ProgramError> for Error {
-    fn from(e: ProgramError) -> Error {
-        Error::ProgramError(e)
-    }
-}
 
 fn get_info<T: Copy, P: ProgramPtr>(program: &P, flag: ProgramInfo) -> Output<ClPointer<T>> {
     low_level::cl_get_program_info(program, flag)

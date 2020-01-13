@@ -10,35 +10,12 @@ use crate::ffi::cl_kernel;
 
 use low_level::cl_release_kernel;
 
-use crate::error::{Error, Output};
+use crate::error::Output;
 use crate::program::Program;
 
 /// An error related to a `Kernel`.
 #[derive(Debug, Fail, PartialEq, Eq, Clone)]
 pub enum KernelError {
-    #[fail(
-        display = "Kernel arg index out of range. (kernel: {}, index: {})",
-        kernel, index
-    )]
-    ArgIndexOutOfRange { kernel: String, index: u32 },
-    #[fail(
-        display = "Kernel argument type mismatch. (kernel: {}, index: [{}], \
-                   arg_type {})",
-        kernel, index, arg_type
-    )]
-    ArgTypeMismatch {
-        kernel: String,
-        index: u32,
-        arg_type: String,
-    },
-    #[fail(
-        display = "The wrong number of kernel arguments have been specified \
-        (required: {}, specified: {}). Use named arguments with 'None' or zero values to \
-        declare arguments you plan to assign a value to at a later time.",
-        required, specified
-    )]
-    BuilderWrongArgCount { required: u32, specified: u32 },
-
     #[fail(
         display = "The kernel name '{}' could not be represented as a CString.",
         _0
@@ -49,12 +26,6 @@ pub enum KernelError {
         display = "Kernel cannot be retained. It is short lived and only creatable as already."
     )]
     CannotBeRetained,
-}
-
-impl From<KernelError> for Error {
-    fn from(e: KernelError) -> Error {
-        Error::KernelError(e)
-    }
 }
 
 fn kernel_cannot_be_retained(_k: cl_kernel) -> Output<()> {

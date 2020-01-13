@@ -41,3 +41,46 @@ impl Error {
 }
 
 pub type Output<T> = Result<T, Error>;
+
+
+impl From<KernelError> for Error {
+    fn from(e: KernelError) -> Error {
+        Error::KernelError(e)
+    }
+}
+
+impl From<ClObjectError> for Error {
+    fn from(err: ClObjectError) -> Error {
+        Error::ClObjectError(err)
+    }
+}
+
+impl From<DeviceMemError> for Error {
+    fn from(err: DeviceMemError) -> Error {
+        Error::DeviceMemError(err)
+    }
+}
+
+impl From<DeviceError> for Error {
+    fn from(err: DeviceError) -> Error {
+        Error::DeviceError(err)
+    }
+}
+
+impl From<EventError> for Error {
+    fn from(ee: EventError) -> Error {
+        Error::EventError(ee)
+    }
+}
+
+impl From<PlatformError> for Error {
+    fn from(err: PlatformError) -> Error {
+        Error::PlatformError(err)
+    }
+}
+
+impl From<ProgramError> for Error {
+    fn from(e: ProgramError) -> Error {
+        Error::ProgramError(e)
+    }
+}
