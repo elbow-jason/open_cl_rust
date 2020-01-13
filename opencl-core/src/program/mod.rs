@@ -339,6 +339,16 @@ impl Program {
     }
 }
 
+impl PartialEq for Program {
+    fn eq(&self, other: &Self) -> bool {
+        unsafe { std::ptr::eq(self.program_ptr(), other.program_ptr()) }
+    }
+}
+
+impl Eq for Program {}
+
+
+
 #[cfg(test)]
 mod tests {
     use crate::*;

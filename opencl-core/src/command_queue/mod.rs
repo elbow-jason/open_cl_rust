@@ -377,6 +377,13 @@ impl CommandQueue {
     }
 }
 
+impl PartialEq for CommandQueue {
+    fn eq(&self, other: &Self) -> bool {
+        unsafe { std::ptr::eq(*self.read_lock(), *other.read_lock()) }
+    }
+}
+
+impl Eq for CommandQueue {}
 
 #[cfg(test)]
 mod tests {
@@ -463,5 +470,12 @@ mod tests {
                 bits
             );
         }
+    }
+
+    #[test]
+    pub fn command_queue_copy_new_works() {
+        let session = testing::get_session(SRC);
+        let cq2 = session.command_queue().new_copy().unwrap();
+        assert!(&cq2 != session.command_queue());
     }
 }

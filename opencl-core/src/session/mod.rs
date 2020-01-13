@@ -53,6 +53,15 @@ impl SessionInner {
     fn program(&self) -> &Program {
         &self._program
     }
+
+    fn with_copied_command_queue(&self) -> SessionInner {
+        let copied_queue = self.command_queue().new_copy().unwrap();
+        SessionInner {
+            _program: self._program.clone(),
+            _command_queue: ManuallyDrop::new(copied_queue),
+            _unconstructable: (),
+        }
+    }
 }
 
 unsafe impl Send for SessionInner {}
@@ -103,12 +112,20 @@ impl Session {
         &*self.inner
     }
 
-    pub fn device(&self) -> &Device {
+    pub fn program_device(&self) -> &Device {
         self.program().device()
     }
 
     pub fn context(&self) -> &Context {
         self.inner().context()
+    }
+
+    pub fn context_devices(&self) -> &[Device] {
+        self.inner().context().devices()
+    }
+
+    pub fn command_queue_device(&self) -> &Device {
+        self.command_queue().device()
     }
 
     pub fn program(&self) -> &Program {
@@ -117,6 +134,13 @@ impl Session {
 
     pub fn command_queue(&self) -> &CommandQueue {
         self.inner().command_queue()
+    }
+
+    pub fn with_copied_command_queue(&self) -> Session {
+        Session {
+            inner: Arc::new(self.inner().with_copied_command_queue()),
+            _unconstructable: (),
+        } 
     }
 }
 
@@ -128,6 +152,15 @@ impl Clone for Session {
         }
     }
 }
+impl PartialEq for Session {
+    fn eq(&self, other: &Self) -> bool {
+        self.command_queue() == other.command_queue()
+    }
+}
+
+impl Eq for Session {}
+
+
 
 #[cfg(test)]
 mod tests {
@@ -146,6 +179,17 @@ mod tests {
         for session in testing::all_sessions(SRC) {
             let formatted = format!("{:?}", session);
             assert!(formatted.starts_with("Session"), "Formatted did not start with the correct value. Got: {:?}", formatted);
+        }
+    }
+
+    #[test]
+    fn session_with_copied_command_queue_works() {
+        for session in testing::all_sessions(SRC) {
+            let session2 = session.with_copied_command_queue();
+            assert_ne!(session.command_queue(), session2.command_queue());
+            assert_eq!(session.context(), session2.context());
+            assert_eq!(session.program(), session2.program());
+            assert_ne!(session, session2);
         }
     }
 }
