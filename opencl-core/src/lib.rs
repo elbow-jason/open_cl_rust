@@ -42,7 +42,7 @@ pub use device::{Device, DevicePtr, DeviceType, DeviceInfo, DeviceRefCount};
 pub use device_mem::DeviceMem;
 pub use error::{Error, Output};
 pub use event::Event;
-pub use kernel::{Kernel, KernelArg, KernelArgSizeAndPointer};
+pub use kernel::{Kernel, KernelArg, KernelArgSizeAndPointer, KernelLock, KernelPtr};
 pub use platform::Platform;
 pub use program::{ProgramPtr, Program, UnbuiltProgram};
 pub use session::Session;

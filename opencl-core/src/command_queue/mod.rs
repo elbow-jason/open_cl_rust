@@ -82,15 +82,15 @@ impl Drop for CommandQueueObject {
         unsafe {
             let lock = self.write_lock();
             let cq = *lock;
-            let rust_arc = Arc::strong_count(&self.object);
-            let opencl_arc = info::reference_count(cq);
+            // let rust_arc = Arc::strong_count(&self.object);
+            // let opencl_arc = info::reference_count(cq);
             
-            debug!("cl_command_queue {:?} - CommandQueueObject::drop - start - rust_arc: {:?}, opencl_arc: {:?}", cq, rust_arc, opencl_arc);
-            if let (1, Ok(1)) = (rust_arc, opencl_arc) {
-                debug!("cl_command_queue {:?} - CommandQueueObject::drop - finishing", cq);
-                low_level::cl_finish(cq).unwrap();
-                debug!("cl_command_queue {:?} - CommandQueueObject::drop - finished", cq);
-            }
+            debug!("cl_command_queue {:?} - CommandQueueObject::drop - start", cq);
+            // if let (1, Ok(1)) = (rust_arc, opencl_arc) {
+            //     debug!("cl_command_queue {:?} - CommandQueueObject::drop - finishing", cq);
+            //     low_level::cl_finish(cq).unwrap();
+            //     debug!("cl_command_queue {:?} - CommandQueueObject::drop - finished", cq);
+            // }
             debug!("cl_command_queue {:?} - CommandQueueObject::drop - releasing", cq);
             match low_level::cl_release_command_queue(cq) {
                 Ok(()) => {
@@ -197,7 +197,7 @@ unsafe impl Sync for CommandQueue {}
 use CommandQueueInfo as CQInfo;
 
 impl CommandQueue {
-     unsafe fn new(queue: cl_command_queue, context: Context, device: Device) -> Output<CommandQueue> {
+    unsafe fn new(queue: cl_command_queue, context: Context, device: Device) -> Output<CommandQueue> {
         let mut man_drop_context = ManuallyDrop::new(context);
         let mut man_drop_device = ManuallyDrop::new(device);
 
@@ -320,6 +320,10 @@ impl CommandQueue {
         let event = self.async_enqueue_kernel_with_opts(kernel, work, command_queue_opts)?;
         low_level::cl_finish(unsafe { *self.read_lock() })?;
         Ok(event)
+    }
+
+    pub fn finish(&self) -> Output<()> {
+        low_level::cl_finish(unsafe { *self.write_lock() })
     }
 
     pub fn sync_enqueue_kernel(&self, kernel: &Kernel, work: &Work) -> Output<Event> {

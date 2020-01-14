@@ -13,7 +13,7 @@ use crate::ffi::{
     cl_command_queue_properties, cl_event, cl_int,
 };
 use crate::utils::StatusCode;
-use crate::{Context, Device, DeviceMem, Kernel, Output, DevicePtr};
+use crate::{Context, Device, DeviceMem, Kernel, Output, DevicePtr, KernelLock, KernelPtr};
 
 __release_retain!(command_queue, CommandQueue);
 
@@ -56,9 +56,10 @@ pub unsafe fn cl_enqueue_nd_range_kernel(
     let global_work_size_ptr = volume::to_ptr(global_work_size);
     let local_work_size_ptr = volume::option_to_ptr(local_work_size);
     let cq_lock = queue.write_lock();
+    let kernel_lock = kernel.write_lock();
     let err_code = clEnqueueNDRangeKernel(
         *cq_lock,
-        kernel.raw_cl_object(),
+        kernel_lock.kernel_ptr(),
         u32::from(work_dim),
         global_work_offset_ptr,
         global_work_size_ptr,

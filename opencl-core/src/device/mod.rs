@@ -10,8 +10,6 @@ pub mod low_level;
 pub use flags::{DeviceType, DeviceInfo};
 pub use device_ptr::DevicePtr;
 
-// use low_level::{cl_release_device_id, cl_retain_device_id};
-
 use crate::error::{Error, Output};
 use crate::platform::Platform;
 use crate::utils;
