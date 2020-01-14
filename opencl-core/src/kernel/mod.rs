@@ -233,27 +233,5 @@ impl Kernel {
     }
 }
 
-// __impl_unconstructable_cl_wrapper!(Kernel, cl_kernel);
-// __impl_default_debug_for!(Kernel);
-// __impl_cl_object_for_wrapper!(
-//     Kernel,
-//     cl_kernel,
-//     kernel_cannot_be_retained,
-//     cl_release_kernel
-// );
-// // Should we even implement clone? No for now.
-// // __impl_clone_for_cl_object_wrapper!(Kernel, cl_retain_kernel);
-// __impl_drop_for_cl_object_wrapper!(Kernel, cl_release_kernel);
-
-// impl Kernel {
-//     pub fn create(program: &Program, name: &str) -> Output<Kernel> {
-//         low_level::cl_create_kernel(program, name)
-//     }
-
-//     pub fn set_arg<T>(&self, arg_index: usize, arg: &T) -> Output<()>
-//     where
-//         T: KernelArg + Debug,
-//     {
-//         low_level::cl_set_kernel_arg(self, arg_index, arg)
-//     }
-// }
+unsafe impl Send for Kernel {}
+unsafe impl Sync for Kernel {}
