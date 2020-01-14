@@ -53,7 +53,7 @@ pub struct KernelWrapper {
 }
 
 impl KernelWrapper {
-    pub fn unchecked_new(inner: cl_kernel) -> KernelWrapper {
+    pub unsafe fn unchecked_new(inner: cl_kernel) -> KernelWrapper {
         KernelWrapper { inner, _unconstructable: () }
     }
 }
@@ -67,8 +67,6 @@ impl KernelPtr for KernelWrapper {
 impl Drop for KernelWrapper {
     fn drop(&mut self) {
         unsafe {
-            // If memory issues / race conditions persist change this to a
-            // write_lock or use a Mutex.
             release_kernel(self.inner);
         }
     }
@@ -77,9 +75,7 @@ impl Drop for KernelWrapper {
 impl Clone for KernelWrapper {
     fn clone(&self) -> KernelWrapper {
         unsafe {
-            let kernel = self.kernel_ptr();
-            // If memory issues / race conditions persist change this to a
-            // write_lock or use a Mutex.
+            let kernel = self.inner;
             retain_kernel(kernel);
             KernelWrapper::unchecked_new(kernel)
         }
@@ -91,7 +87,6 @@ pub trait KernelRefCount: Sized {
     unsafe fn from_retained(cq: cl_kernel) -> Output<Self>;
     unsafe fn from_unretained(cq: cl_kernel) -> Output<Self>;
 }
-
 
 impl KernelRefCount for KernelWrapper {
     unsafe fn from_retained(kernel: cl_kernel) -> Output<KernelWrapper> {
@@ -105,7 +100,6 @@ impl KernelRefCount for KernelWrapper {
         Ok(KernelWrapper::unchecked_new(kernel))
     }
 }
-
 
 pub struct KernelObject {
     object: Arc<RwLock<KernelWrapper>>,

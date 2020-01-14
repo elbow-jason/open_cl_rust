@@ -5,43 +5,41 @@ use crate::utils::volume;
 use crate::cl::{cl_get_info5, ClObject, ClPointer};
 
 use super::flags::CommandQueueInfo;
-use super::{CommandQueue, CommandQueueOptions, CommandQueueLock};
+use super::CommandQueueOptions;
 use crate::event::{Event, WaitList};
 use crate::ffi::{
     clCreateCommandQueue, clEnqueueNDRangeKernel, clEnqueueReadBuffer, clEnqueueWriteBuffer,
     clFinish, clGetCommandQueueInfo, cl_bool, cl_command_queue, cl_command_queue_info,
-    cl_command_queue_properties, cl_event, cl_int,
+    cl_command_queue_properties, cl_event, cl_int, cl_kernel
 };
 use crate::utils::StatusCode;
-use crate::{Context, Device, DeviceMem, Kernel, Output, DevicePtr, KernelLock, KernelPtr};
+use crate::{Context, Device, DeviceMem, Output, DevicePtr};
 
 __release_retain!(command_queue, CommandQueue);
 
-pub fn cl_create_command_queue(
+pub unsafe fn cl_create_command_queue(
     context: &Context,
     device: &Device,
     flags: cl_command_queue_properties,
 ) -> Output<cl_command_queue> {
     device.usability_check()?;
     let mut err_code = 0;
-    let command_queue = unsafe {
-        clCreateCommandQueue(
-            context.context_ptr(),
-            device.device_ptr(),
-            flags,
-            &mut err_code,
-        )
-    };
+    let command_queue = clCreateCommandQueue(
+        context.context_ptr(),
+        device.device_ptr(),
+        flags,
+        &mut err_code,
+    );
     StatusCode::build_output(err_code, command_queue)
 }
 
-pub fn cl_finish(command_queue: cl_command_queue) -> Output<()> {
-    StatusCode::build_output(unsafe { clFinish(command_queue) }, ())
+pub unsafe fn cl_finish(command_queue: cl_command_queue) -> Output<()> {
+    StatusCode::build_output(clFinish(command_queue), ())
 }
 
 pub unsafe fn cl_enqueue_nd_range_kernel(
-    queue: &CommandQueue,
-    kernel: &Kernel,
+    queue: cl_command_queue,
+    kernel: cl_kernel,
     work_dim: u8,
     global_work_offset: Option<[usize; 3]>,
     global_work_size: [usize; 3],
@@ -55,11 +53,10 @@ pub unsafe fn cl_enqueue_nd_range_kernel(
     let global_work_offset_ptr = volume::option_to_ptr(global_work_offset);
     let global_work_size_ptr = volume::to_ptr(global_work_size);
     let local_work_size_ptr = volume::option_to_ptr(local_work_size);
-    let cq_lock = queue.write_lock();
-    let kernel_lock = kernel.write_lock();
+
     let err_code = clEnqueueNDRangeKernel(
-        *cq_lock,
-        kernel_lock.kernel_ptr(),
+        queue,
+        kernel,
         u32::from(work_dim),
         global_work_offset_ptr,
         global_work_size_ptr,
@@ -71,8 +68,9 @@ pub unsafe fn cl_enqueue_nd_range_kernel(
 
     StatusCode::build_output(err_code, ())?;
 
-    cl_finish(*cq_lock)?;
+    cl_finish(queue)?;
 
+    // TODO: Remove this check when Event checks for null pointer
     debug_assert!(!tracking_event.is_null());
     Event::new(tracking_event)
 }
@@ -95,7 +93,7 @@ fn into_event(err_code: cl_int, tracking_event: cl_event) -> Output<Event> {
 }
 
 pub unsafe fn cl_enqueue_read_buffer<T>(
-    command_queue: &CommandQueue,
+    queue: cl_command_queue,
     device_mem: &DeviceMem<T>,
     buffer: &mut [T],
     command_queue_opts: CommandQueueOptions,
@@ -106,10 +104,11 @@ pub unsafe fn cl_enqueue_read_buffer<T>(
 
     let (buffer_mem_size, buffer_ptr) = buffer_mem_size_and_ptr(buffer);
 
+    // TODO: Make this a Error returning check
     debug_assert!(buffer.len() == device_mem.len());
-    let cq_lock = command_queue.write_lock();
+
     let err_code = clEnqueueReadBuffer(
-        *cq_lock,
+        queue,
         device_mem.raw_cl_object(),
         command_queue_opts.is_blocking as cl_bool,
         command_queue_opts.offset,
@@ -122,30 +121,30 @@ pub unsafe fn cl_enqueue_read_buffer<T>(
     into_event(err_code, tracking_event)
 }
 
-pub fn cl_enqueue_write_buffer<T>(
-    command_queue: &CommandQueue,
+pub unsafe fn cl_enqueue_write_buffer<T>(
+    queue: cl_command_queue,
     device_mem: &DeviceMem<T>,
     buffer: &[T],
     command_queue_opts: CommandQueueOptions,
 ) -> Output<Event> where T: Debug + Sync + Send {
     let mut tracking_event = new_tracking_event();
-    let err_code = unsafe {
-        let (wait_list_len, wait_list_ptr_ptr) = command_queue_opts.wait_list.len_and_ptr_ptr();
+    
+    let (wait_list_len, wait_list_ptr_ptr) = command_queue_opts.wait_list.len_and_ptr_ptr();
 
-        let (buffer_mem_size, buffer_ptr) = buffer_mem_size_and_ptr(buffer);
-        let cq_lock = command_queue.write_lock();
-        clEnqueueWriteBuffer(
-            *cq_lock,
-            device_mem.raw_cl_object(),
-            command_queue_opts.is_blocking as cl_bool,
-            command_queue_opts.offset,
-            buffer_mem_size,
-            buffer_ptr,
-            wait_list_len,
-            wait_list_ptr_ptr,
-            &mut tracking_event,
-        )
-    };
+    let (buffer_mem_size, buffer_ptr) = buffer_mem_size_and_ptr(buffer);
+        
+    let err_code = clEnqueueWriteBuffer(
+        queue,
+        device_mem.raw_cl_object(),
+        command_queue_opts.is_blocking as cl_bool,
+        command_queue_opts.offset,
+        buffer_mem_size,
+        buffer_ptr,
+        wait_list_len,
+        wait_list_ptr_ptr,
+        &mut tracking_event,
+    );
+
     into_event(err_code, tracking_event)
 }
 

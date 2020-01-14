@@ -17,9 +17,14 @@ use crate::ffi::{
     cl_command_queue_properties,
     cl_context,
     cl_device_id,
+    cl_kernel,
 };
 
-use crate::{utils, Context, Device, DevicePtr, DeviceMem, Event, Kernel, Output, Work};
+use crate::{
+    utils, Context, Device, DevicePtr, DeviceMem, Event,
+    Kernel, KernelLock, KernelPtr,
+    Output, Work,
+};
 
 use crate::cl::ClPointer;
 
@@ -37,11 +42,28 @@ pub unsafe fn retain_command_queue(cq: cl_command_queue) {
     })
 }
 
+unsafe fn async_enqueue_kernel_with_opts(
+        cq: cl_command_queue,
+        kernel: cl_kernel,
+        work: &Work,
+        command_queue_opts: CommandQueueOptions,
+) -> Output<Event> {
+    low_level::cl_enqueue_nd_range_kernel(
+        cq,
+        kernel,
+        work.work_dim(),
+        work.global_work_offset(),
+        work.global_work_size(),
+        work.local_work_size(),
+        command_queue_opts.wait_list,
+    )
+}
 
-pub trait CommandQueueLock {
-    unsafe fn write_lock(&self) -> RwLockWriteGuard<cl_command_queue>;
-    unsafe fn read_lock(&self) -> RwLockReadGuard<cl_command_queue>;
-    unsafe fn rw_lock(&self) -> &RwLock<cl_command_queue>;
+pub trait CommandQueuePtr: Sized {
+    unsafe fn command_queue_ptr(&self) -> cl_command_queue;
+    fn address(&self) -> String {
+        format!("{:?}", unsafe { self.command_queue_ptr() })
+    }
 }
 
 pub trait CommandQueueRefCount: Sized {
@@ -49,97 +71,123 @@ pub trait CommandQueueRefCount: Sized {
     unsafe fn from_unretained(cq: cl_command_queue) -> Output<Self>;
 }
 
+pub struct CommandQueueWrapper {
+    inner: cl_command_queue,
+    _unconstructable: ()
+}
 
-impl CommandQueueRefCount for CommandQueueObject {
-    unsafe fn from_retained(cq: cl_command_queue) -> Output<CommandQueueObject> {
-        utils::null_check(cq, "CommandQueueObject::from_retained")?;
-        Ok(CommandQueueObject::unchecked_new(cq))
+impl CommandQueueWrapper {
+    pub unsafe fn unchecked_new(cq: cl_command_queue) -> CommandQueueWrapper {
+        CommandQueueWrapper{
+            inner: cq,
+            _unconstructable: ()
+        }
+    }
+}
+
+impl CommandQueueRefCount for CommandQueueWrapper {
+    unsafe fn from_retained(cq: cl_command_queue) -> Output<CommandQueueWrapper> {
+        utils::null_check(cq, "CommandQueueWrapper::from_retained")?;
+        Ok(CommandQueueWrapper::unchecked_new(cq))
     }
 
-    unsafe fn from_unretained(cq: cl_command_queue) -> Output<CommandQueueObject> {
-        utils::null_check(cq, "DeviceObject::from_unretained")?;
+    unsafe fn from_unretained(cq: cl_command_queue) -> Output<CommandQueueWrapper> {
+        utils::null_check(cq, "CommandQueueWrapper::from_unretained")?;
         retain_command_queue(cq);
-        Ok(CommandQueueObject::unchecked_new(cq))
+        Ok(CommandQueueWrapper::unchecked_new(cq))
+    }    
+}
+
+impl CommandQueuePtr for CommandQueueWrapper {
+    unsafe fn command_queue_ptr(&self) -> cl_command_queue {
+        self.inner
+    }
+}
+
+
+impl Drop for CommandQueueWrapper {
+    fn drop(&mut self) {
+        debug!("cl_command_queue {:?} - CommandQueueObject::drop", self.inner);
+        unsafe {
+            release_command_queue(self.inner);
+        }
+    }
+}
+
+impl Clone for CommandQueueWrapper {
+    fn clone(&self) -> CommandQueueWrapper {
+        unsafe {
+            retain_command_queue(self.inner);
+            CommandQueueWrapper::unchecked_new(self.inner)
+        }
+    }
+}
+
+pub trait CommandQueueLock<P> where P: CommandQueuePtr {
+    unsafe fn write_lock(&self) -> RwLockWriteGuard<P>;
+    unsafe fn read_lock(&self) -> RwLockReadGuard<P>;
+    unsafe fn rw_lock(&self) -> &RwLock<P>;
+
+    fn address(&self) -> String {
+        unsafe {
+            let read_lock = self.read_lock();
+            let ptr = read_lock.command_queue_ptr();
+            format!("{:?}", ptr)
+        }
     }
 }
 
 pub struct CommandQueueObject {
-    object: Arc<RwLock<cl_command_queue>>,
+    object: Arc<RwLock<CommandQueueWrapper>>,
     _unconstructable: (),
 }
 
 impl CommandQueueObject {
-    unsafe fn unchecked_new(cq: cl_command_queue) -> CommandQueueObject {
+    unsafe fn unchecked_new(wrapper: CommandQueueWrapper) -> CommandQueueObject {
         CommandQueueObject {
-            object: Arc::new(RwLock::new(cq)),
+            object: Arc::new(RwLock::new(wrapper)),
             _unconstructable: (),
         }
     }
 }
 
-impl Drop for CommandQueueObject {
-    fn drop(&mut self) {
-        unsafe {
-            let lock = self.write_lock();
-            let cq = *lock;
-            // let rust_arc = Arc::strong_count(&self.object);
-            // let opencl_arc = info::reference_count(cq);
-            
-            debug!("cl_command_queue {:?} - CommandQueueObject::drop - start", cq);
-            // if let (1, Ok(1)) = (rust_arc, opencl_arc) {
-            //     debug!("cl_command_queue {:?} - CommandQueueObject::drop - finishing", cq);
-            //     low_level::cl_finish(cq).unwrap();
-            //     debug!("cl_command_queue {:?} - CommandQueueObject::drop - finished", cq);
-            // }
-            debug!("cl_command_queue {:?} - CommandQueueObject::drop - releasing", cq);
-            match low_level::cl_release_command_queue(cq) {
-                Ok(()) => {
-                    debug!("cl_command_queue {:?} - CommandQueueObject::drop - released", cq);
-                },
-                Err(e) => {
-                    std::mem::drop(lock);
-                    error!("cl_command_queue {:?} - CommandQueueObject::drop - failure - error: {:?}", cq, e);
-                    panic!("Failed to release cl_command_queue {:?} due to {:?}", cq, e);
-                }
-            }
-        }
+impl CommandQueueRefCount for CommandQueueObject {
+    unsafe fn from_retained(cq: cl_command_queue) -> Output<CommandQueueObject> {
+        let cqw = CommandQueueWrapper::from_retained(cq)?;
+        Ok(CommandQueueObject::unchecked_new(cqw))
+    }
+
+    unsafe fn from_unretained(cq: cl_command_queue) -> Output<CommandQueueObject> {
+        let cqw = CommandQueueWrapper::from_unretained(cq)?;
+        Ok(CommandQueueObject::unchecked_new(cqw))
     }
 }
 
-impl Clone for CommandQueueObject {
-    fn clone(&self) -> CommandQueueObject {
-        unsafe {
-            let lock = self.object.read().unwrap();
-            retain_command_queue(*lock);
-            std::mem::drop(lock);
-
-            CommandQueueObject{
-                object: self.object.clone(),
-                _unconstructable: ()
-            }
-        }
-    }
-}
-
-impl CommandQueueLock for CommandQueueObject {
-    unsafe fn read_lock(&self) -> RwLockReadGuard<cl_command_queue> {
+impl CommandQueueLock<CommandQueueWrapper> for CommandQueueObject {
+    unsafe fn read_lock(&self) -> RwLockReadGuard<CommandQueueWrapper> {
         self.object.read().unwrap()
     }
 
-    unsafe fn write_lock(&self) -> RwLockWriteGuard<cl_command_queue> {
+    unsafe fn write_lock(&self) -> RwLockWriteGuard<CommandQueueWrapper> {
         self.object.write().unwrap()
     }
-    unsafe fn rw_lock(&self) -> &RwLock<cl_command_queue> {
+    unsafe fn rw_lock(&self) -> &RwLock<CommandQueueWrapper> {
         &*self.object
     }
 }
 
 impl fmt::Debug for CommandQueueObject {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let read_lock = unsafe { self.read_lock() };
-        let address = *read_lock;
+        write!(f, "CommandQueueObject{{{:?}}}", self.address())
+    }
+}
 
-        write!(f, "CommandQueueObject{{{:?}}}", address)
+impl Clone for CommandQueueObject {
+    fn clone(&self) -> CommandQueueObject {
+        CommandQueueObject{
+            object: self.object.clone(),
+            _unconstructable: ()
+        }
     }
 }
 
@@ -151,28 +199,28 @@ pub struct CommandQueue {
 }
 
 
-impl CommandQueueLock for CommandQueue {
-    unsafe fn read_lock(&self) -> RwLockReadGuard<cl_command_queue> {
+impl CommandQueueLock<CommandQueueWrapper> for CommandQueue {
+    unsafe fn read_lock(&self) -> RwLockReadGuard<CommandQueueWrapper> {
         (*self.inner).read_lock()
     }
-    unsafe fn write_lock(&self) -> RwLockWriteGuard<cl_command_queue> {
+    unsafe fn write_lock(&self) -> RwLockWriteGuard<CommandQueueWrapper> {
         (*self.inner).write_lock()
     }
-    unsafe fn rw_lock(&self) -> &RwLock<cl_command_queue> {
+    unsafe fn rw_lock(&self) -> &RwLock<CommandQueueWrapper> {
         (*self.inner).rw_lock()
     }
 }
 
 impl fmt::Debug for CommandQueue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "CommandQueue{{{:?}}}", unsafe { *self.read_lock() })
+        write!(f, "CommandQueue{{{:?}}}", self.address())
     }
 }
 
 impl Drop for CommandQueue {
     fn drop(&mut self) {
-        debug!("cl_command_queue {:?} - CommandQueue::drop", unsafe { *self.read_lock() });
         unsafe {
+            debug!("cl_command_queue {:?} - CommandQueue::drop", self.address());
             ManuallyDrop::drop(&mut self.inner);
             ManuallyDrop::drop(&mut self._context);
             ManuallyDrop::drop(&mut self._device);
@@ -185,7 +233,7 @@ impl Clone for CommandQueue {
         CommandQueue {
             _device: self._device.clone(),
             _context: self._context.clone(),
-            inner: self.inner.clone(),
+            inner: ManuallyDrop::new((*self.inner).clone()),
             _unconstructable: ()
         }
     }
@@ -229,16 +277,18 @@ impl CommandQueue {
             None => flags::CommandQueueProperties::ProfilingEnable,
             Some(prop) => prop,
         };
-        let command_queue = low_level::cl_create_command_queue(
-            context,
-            &device,
-            properties.bits() as cl_command_queue_properties,
-        )?;
-        unsafe { CommandQueue::new(command_queue, context.clone(), device.clone()) }
+        unsafe { 
+            let command_queue = low_level::cl_create_command_queue(
+                context,
+                device,
+                properties.bits() as cl_command_queue_properties,
+            )?;
+            CommandQueue::new(command_queue, context.clone(), device.clone())
+        }
     }
 
     pub unsafe fn decompose(self) -> (cl_context, cl_device_id, cl_command_queue) {
-        let cq: cl_command_queue = *self.read_lock();
+        let cq: cl_command_queue = self.read_lock().command_queue_ptr();
         let parts = (self.context().context_ptr(), self.device().device_ptr(), cq);
         std::mem::forget(self);
         parts
@@ -267,8 +317,15 @@ impl CommandQueue {
     where
         T: Sized + Debug + Num + Sync + Send,
     {
-        let command_queue_opts = CommandQueueOptions::default();
-        low_level::cl_enqueue_write_buffer(self, device_mem, host_buffer, command_queue_opts)
+        unsafe {
+            let lock = self.write_lock();
+            low_level::cl_enqueue_write_buffer(
+                lock.command_queue_ptr(),
+                device_mem,
+                host_buffer,
+                CommandQueueOptions::default()
+            )
+        }
     }
 
     /// write_buffer is used to move data from the host buffer (buffer: &[T]) to
@@ -282,7 +339,10 @@ impl CommandQueue {
     where
         T: Sized + Debug + Num + Sync + Send 
     {
-        low_level::cl_enqueue_write_buffer(self, device_mem, host_buffer, command_queue_opts)
+        unsafe {
+            let lock = self.write_lock();
+            low_level::cl_enqueue_write_buffer(lock.command_queue_ptr(), device_mem, host_buffer, command_queue_opts)
+        }
     }
 
     /// read_buffer is used to move data from the `device_mem` (`cl_mem` pointer
@@ -293,7 +353,8 @@ impl CommandQueue {
     {
         let command_queue_opts = CommandQueueOptions::default();
         unsafe {
-            low_level::cl_enqueue_read_buffer(self, device_mem, host_buffer, command_queue_opts)
+            let lock = self.write_lock();
+            low_level::cl_enqueue_read_buffer(lock.command_queue_ptr(), device_mem, host_buffer, command_queue_opts)
         }
     }
 
@@ -307,7 +368,8 @@ impl CommandQueue {
         T: Sized + Debug + Num + Sync + Send,
     {
         unsafe {
-            low_level::cl_enqueue_read_buffer(self, device_mem, host_buffer, command_queue_opts)
+            let lock = self.write_lock();
+            low_level::cl_enqueue_read_buffer(lock.command_queue_ptr(), device_mem, host_buffer, command_queue_opts)
         }
     }
 
@@ -317,25 +379,35 @@ impl CommandQueue {
         work: &Work,
         command_queue_opts: CommandQueueOptions,
     ) -> Output<Event> {
-        let event = self.async_enqueue_kernel_with_opts(kernel, work, command_queue_opts)?;
-        low_level::cl_finish(unsafe { *self.read_lock() })?;
-        Ok(event)
+        unsafe {
+            let kernel_lock = kernel.write_lock();
+            let cq_lock = self.write_lock();
+            let cq: cl_command_queue = cq_lock.command_queue_ptr();
+            let event = async_enqueue_kernel_with_opts(
+                cq,
+                kernel_lock.kernel_ptr(),
+                work,
+                command_queue_opts
+            )?;
+            low_level::cl_finish(cq)?;
+            Ok(event)
+        }
+        
     }
 
     pub fn finish(&self) -> Output<()> {
-        low_level::cl_finish(unsafe { *self.write_lock() })
+        unsafe {
+            let lock = self.write_lock();
+            low_level::cl_finish(lock.command_queue_ptr())
+        }
     }
 
     pub fn sync_enqueue_kernel(&self, kernel: &Kernel, work: &Work) -> Output<Event> {
-        let command_queue_opts = CommandQueueOptions::default();
-        let event = self.async_enqueue_kernel_with_opts(kernel, work, command_queue_opts)?;
-        low_level::cl_finish(unsafe { *self.read_lock() })?;
-        Ok(event)
+        self.sync_enqueue_kernel_with_opts(kernel, work, CommandQueueOptions::default())
     }
 
     pub fn async_enqueue_kernel(&self, kernel: &Kernel, work: &Work) -> Output<Event> {
-        let command_queue_opts = CommandQueueOptions::default();
-        self.async_enqueue_kernel_with_opts(kernel, work, command_queue_opts)
+        self.async_enqueue_kernel_with_opts(kernel, work, CommandQueueOptions::default())
     }
 
     pub fn async_enqueue_kernel_with_opts(
@@ -345,14 +417,13 @@ impl CommandQueue {
         command_queue_opts: CommandQueueOptions,
     ) -> Output<Event> {
         unsafe {
-            low_level::cl_enqueue_nd_range_kernel(
-                &self,
-                kernel,
-                work.work_dim(),
-                work.global_work_offset(),
-                work.global_work_size(),
-                work.local_work_size(),
-                command_queue_opts.wait_list,
+            let kernel_lock = kernel.write_lock();
+            let cq_lock = self.write_lock();
+            async_enqueue_kernel_with_opts(
+                cq_lock.command_queue_ptr(),
+                kernel_lock.kernel_ptr(),
+                work,
+                command_queue_opts
             )
         }
     }
@@ -360,30 +431,30 @@ impl CommandQueue {
     pub fn info<T: Copy>(self, flag: CQInfo) -> Output<ClPointer<T>> {
         unsafe { 
             let cq_lock = self.read_lock();
-            info::fetch::<T>(*cq_lock, flag)
+            info::fetch::<T>(cq_lock.command_queue_ptr(), flag)
         }
     }
 
     pub fn load_context(&self) -> Output<Context> {
-        unsafe { info::load_context(*self.read_lock()) }
+        unsafe { info::load_context(self.read_lock().command_queue_ptr()) }
     }
 
     pub fn load_device(&self) -> Output<Device> {
-        unsafe { info::load_device(*self.read_lock()) }
+        unsafe { info::load_device(self.read_lock().command_queue_ptr()) }
     }
 
     pub fn reference_count(&self) -> Output<u32> {
-        unsafe { info::reference_count(*self.read_lock()) }
+        unsafe { info::reference_count(self.read_lock().command_queue_ptr()) }
     }
 
     pub fn properties(&self) -> Output<CommandQueueProperties> {
-        unsafe { info::properties(*self.read_lock()) }
+        unsafe { info::properties(self.read_lock().command_queue_ptr()) }
     }
 }
 
 impl PartialEq for CommandQueue {
     fn eq(&self, other: &Self) -> bool {
-        unsafe { std::ptr::eq(*self.read_lock(), *other.read_lock()) }
+        unsafe { std::ptr::eq(self.read_lock().command_queue_ptr(), other.read_lock().command_queue_ptr()) }
     }
 }
 
