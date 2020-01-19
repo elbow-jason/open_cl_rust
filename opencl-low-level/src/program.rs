@@ -1,4 +1,6 @@
 use std::convert::TryInto;
+use std::fmt;
+
 use crate::ffi::{
     clBuildProgram, clCreateProgramWithBinary, clCreateProgramWithSource, clGetProgramBuildInfo,
     clGetProgramInfo, cl_device_id, cl_program, cl_program_build_info, cl_program_info,
@@ -118,9 +120,9 @@ pub unsafe fn cl_get_program_info<T: Copy>(program: cl_program, flag: cl_program
     )
 }
 
-
 pub struct ClProgram {
     object: cl_program,
+
     _unconstructable: ()
 }
 
@@ -197,6 +199,20 @@ impl ProgramPtr for ClProgram {
     }
 }
 
+impl fmt::Debug for ClProgram {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ClProgram{{{:?}}}", self.object)
+    }
+}
+
+impl PartialEq for ClProgram {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self.object, other.object)
+    }
+}
+
+impl Eq for ClProgram {}
+
 fn get_info<T: Copy, P: ProgramPtr>(program: &P, flag: ProgramInfo) -> Output<ClPointer<T>> {
     unsafe { cl_get_program_info(program.program_ptr(), flag.into()) }
 }
@@ -244,7 +260,6 @@ pub trait ProgramPtr: Sized {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use crate::*;
@@ -254,39 +269,65 @@ mod tests {
         *i += 1;
     }";
 
-
     #[test]
     fn program_ptr_reference_count() {
-        let prog = ll_testing::get_program(SRC);
+        let (prog, _devices, _context) = ll_testing::get_program(SRC);
         let ref_count = prog.reference_count().unwrap();
         assert_eq!(ref_count, 1);
     }
 
     #[test]
+    fn cloning_increments_reference_count() {
+        let (prog, _devices, _context) = ll_testing::get_program(SRC);
+        let prog2 = prog.clone();
+        let prog3 = prog.clone();
+        let ref_count = prog.reference_count().unwrap();
+        assert_eq!(ref_count, 3);
+        assert_eq!(prog, prog2);
+        assert_eq!(prog, prog3);
+    }
+
+    #[test]
     fn program_ptr_num_devices() {
-        let prog = ll_testing::get_program(SRC);
-        let num_devices = prog.reference_count().unwrap();
+        let (prog, _devices, _context) = ll_testing::get_program(SRC);
+        let num_devices = prog.num_devices().unwrap();
         assert!(num_devices > 0);
+    }
+
+
+    #[test]
+    fn num_devices_matches_devices_len() {
+        let (prog, devices, _context) = ll_testing::get_program(SRC);
+        let num_devices = prog.num_devices().unwrap();
+        assert_eq!(num_devices, devices.len());
     }
 
     #[test]
     fn program_ptr_source_matches_creates_src() {
-        let prog = ll_testing::get_program(SRC);
+        let (prog, _devices, _context) = ll_testing::get_program(SRC);
         let prog_src = prog.source().unwrap();
         assert_eq!(prog_src, SRC.to_string());
     }
 
     #[test]
     fn program_ptr_num_kernels() {
-        let prog = ll_testing::get_program(SRC);
+        let (prog, _devices, _context) = ll_testing::get_program(SRC);
         let num_kernels = prog.num_kernels().unwrap();
         assert_eq!(num_kernels, 1);
     }
 
     #[test]
     fn program_ptr_kernel_names() {
-        let prog = ll_testing::get_program(SRC);
+        let (prog, _devices, _context) = ll_testing::get_program(SRC);
         let kernel_names = prog.kernel_names().unwrap();
         assert_eq!(kernel_names, vec!["test123"]);
+    }
+
+    #[test]
+    fn num_kernels_matches_kernel_names_len() {
+        let (prog, _devices, _context) = ll_testing::get_program(SRC);
+        let kernel_names = prog.kernel_names().unwrap();
+        let num_kernels = prog.num_kernels().unwrap();
+        assert_eq!(num_kernels, kernel_names.len());
     }
 }

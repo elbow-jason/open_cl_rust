@@ -141,6 +141,16 @@ impl Clone for ClContext {
     }
 }
 
+
+impl PartialEq for ClContext {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self.object, other.object)
+    }
+}
+
+impl Eq for ClContext {}
+
+
 #[cfg(test)]
 mod test_context_ptr {
     use crate::*;
