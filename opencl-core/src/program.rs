@@ -92,28 +92,6 @@ impl UnbuiltProgram {
         &self.inner
     }
 
-    pub fn create_with_source(context: &Context, src: &str) -> Output<UnbuiltProgram> {
-        unsafe {
-            let ll_prog = ClProgram::create_with_source(context.low_level_context(), src)?;
-            Ok(UnbuiltProgram::new(ll_prog, context.clone()))
-        }
-    }
-
-    pub fn create_program_with_binary(
-        context: &Context,
-        device: &Device,
-        binary: &[u8],
-    ) -> Output<UnbuiltProgram> {
-        unsafe {
-            let ll_prog = ClProgram::create_with_binary(
-                context.low_level_context(),
-                device.low_level_device(),
-                binary
-            )?;
-            Ok(UnbuiltProgram::new(ll_prog, context.clone()))
-        }
-    }
-
     pub fn build(mut self, devices: &[Device]) -> Output<Program> {
         self.inner.build(devices)?;
         let built_prog: Program = unsafe {
@@ -142,6 +120,30 @@ pub struct Program {
     _devices: ManuallyDrop<Vec<Device>>,
     inner: ManuallyDrop<ClProgram>,
     _unconstructable: (),
+}
+
+impl Program {
+    pub fn create_with_source(context: &Context, src: &str) -> Output<UnbuiltProgram> {
+        unsafe {
+            let ll_prog = ClProgram::create_with_source(context.low_level_context(), src)?;
+            Ok(UnbuiltProgram::new(ll_prog, context.clone()))
+        }
+    }
+
+    pub fn create_program_with_binary(
+        context: &Context,
+        device: &Device,
+        binary: &[u8],
+    ) -> Output<UnbuiltProgram> {
+        unsafe {
+            let ll_prog = ClProgram::create_with_binary(
+                context.low_level_context(),
+                device.low_level_device(),
+                binary
+            )?;
+            Ok(UnbuiltProgram::new(ll_prog, context.clone()))
+        }
+    }
 }
 
 impl Drop for Program {
@@ -224,8 +226,9 @@ impl Eq for Program {}
 #[cfg(test)]
 mod tests {
     use crate::*;
+    use crate::ll::*;
 
-    const TEST_SRC: &str = "
+    const SRC: &str = "
     __kernel void test(__global int *i) {        
         *i += 1;
     }
@@ -235,92 +238,85 @@ mod tests {
     //     Session::create_sessions(&[Device::default()], TEST_SRC).expect("Failed to create Session").remove(0)
     // }
 
-    // #[test]
-    // fn program_method_reference_count_works() {
-    //     let session = get_session();
-    //     let output: u32 = session
-    //         .program()
-    //         .reference_count()
-    //         .expect("Failed to call program.reference_count()");
-    //     assert_eq!(output, 1);
-    // }
+    #[test]
+    fn program_method_reference_count_works() {
+        let program: Program = testing::get_program(SRC);
+        let output: u32 = program
+            .reference_count()
+            .expect("Failed to call program.reference_count()");
+        assert_eq!(output, 1);
+    }
 
-    // #[test]
-    // fn program_method_context_works() {
-    //     let session = get_session();
-    //     let _output: &Context = session.program().context();
-    // }
+    #[test]
+    fn program_method_context_works() {
+        let program: Program = testing::get_program(SRC);
+        let _output: &Context = program.context();
+    }
 
-    // #[test]
-    // fn program_method_num_devices_works() {
-    //     let session = get_session();
-    //     let output: u32 = session
-    //         .program()
-    //         .num_devices()
-    //         .expect("Failed to call program.num_devices()");
-    //     assert_eq!(output, 1);
-    // }
+    #[test]
+    fn program_method_num_devices_works() {
+        let program: Program = testing::get_program(SRC);
+        let output: u32 = program
+            .num_devices()
+            .expect("Failed to call program.num_devices()");
+        assert!(output > 0);
+    }
 
-    // #[test]
-    // fn program_method_devices_works() {
-    //     let session = get_session();
-    //     let output: Vec<Device> = session
-    //         .program()
-    //         .devices()
-    //         .expect("Failed to call program.devices()");
-    //     assert_eq!(output.len(), 1);
-    // }
+    #[test]
+    fn program_method_devices_works() {
+        let program: Program = testing::get_program(SRC);
+        let devices: &[Device] = program.devices();
+        assert!(devices.len() > 0);
+    }
 
-    // #[test]
-    // fn program_method_source_works() {
-    //     let session = get_session();
-    //     let output: String = session
-    //         .program()
-    //         .source()
-    //         .expect("Failed to call program.source()");
-    //     assert_eq!(output, TEST_SRC.to_string());
-    // }
+    #[test]
+    fn program_method_source_works() {
+        let program: Program = testing::get_program(SRC);
+        let output: String = program
+            .source()
+            .expect("Failed to call program.source()");
+        assert_eq!(output, SRC.to_string());
+    }
 
-    // #[test]
-    // fn program_method_binary_sizes_works() {
-    //     let session = get_session();
-    //     let output: Vec<usize> = session
-    //         .program()
-    //         .binary_sizes()
-    //         .expect("Failed to call program.binary_sizes()");
-    //     let expected = vec![1332];
-    //     assert_eq!(output, expected);
-    // }
+    #[test]
+    fn program_method_binary_sizes_works() {
+        let program: Program = testing::get_program(SRC);
+        let output: Vec<usize> = program
+            .binary_sizes()
+            .expect("Failed to call program.binary_sizes()");
+        assert_eq!(output.len(), program.devices().len());
+    }
 
-    // #[test]
-    // fn program_method_binaries_works() {
-    //     let session = get_session();
-    //     let output: Vec<u8> = session
-    //         .program()
-    //         .binaries()
-    //         .expect("Failed to call program.binaries()");
-    //     let expected = vec![0u8, 0, 0, 0, 0, 0, 0, 0];
-    //     assert_eq!(output, expected);
-    // }
+    #[test]
+    fn program_method_binaries_works() {
+        let program: Program = testing::get_program(SRC);
+        let output: Vec<u8> = program
+            .binaries()
+            .expect("Failed to call program.binaries()");
+        let n_devices = program.devices().len();
+        let n_bytes = n_devices * 8;
+        assert_eq!(output.len(), n_bytes);
+        for byte in output.into_iter() {
+            assert_eq!(byte, 0u8);
+        }
+    }
 
-    // #[test]
-    // fn program_method_num_kernels_works() {
-    //     let session = get_session();
-    //     let output: usize = session
-    //         .program()
-    //         .num_kernels()
-    //         .expect("Failed to call program.num_kernels()");
-    //     assert_eq!(output, 1);
-    // }
+    #[test]
+    fn program_method_num_kernels_works() {
+        let program: Program = testing::get_program(SRC);
+        let output: usize = program
+            .num_kernels()
+            .expect("Failed to call program.num_kernels()");
+        assert_eq!(output, 1);
+    }
 
-    // #[test]
-    // fn program_method_kernel_names_works() {
-    //     let session = get_session();
-    //     let output: Vec<String> = session
-    //         .program()
-    //         .kernel_names()
-    //         .expect("Failed to call program.kernel_names()");
-    //     let expected = vec!["test".to_string()];
-    //     assert_eq!(output, expected);
-    // }
+    #[test]
+    fn program_method_kernel_names_works() {
+        let program: Program = testing::get_program(SRC);
+        let output: Vec<String> = program
+            .kernel_names()
+            .expect("Failed to call program.kernel_names()");
+        let expected = vec!["test".to_string()];
+        assert_eq!(output, expected);
+    }
 }
