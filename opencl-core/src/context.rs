@@ -139,6 +139,7 @@ mod tests {
     use super::Context;
     use crate::device::Device;
     use crate::testing;
+    use crate::ll::*;
 
      #[test]
      fn context_can_be_created_via_a_device() {
@@ -147,4 +148,13 @@ mod tests {
          let _context: Context =
              Context::create(&devices[..]).expect("Failed to create context from a device");
      }
+
+     #[test]
+     fn context_ptr_is_implemented() {
+        let ctx = testing::get_context();
+        ctx.reference_count().unwrap();
+        ctx.num_devices().unwrap();
+        ctx.properties().unwrap();
+     }
+
 }

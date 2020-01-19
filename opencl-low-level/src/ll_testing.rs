@@ -1,9 +1,22 @@
 use crate::{
-    ClDeviceID, list_platforms, DeviceType, list_devices_by_type, ClContext
+    ClDeviceID, list_platforms, DeviceType, list_devices_by_type, ClContext,
+    ClProgram,
 };
+
+pub fn get_program(src: &str) -> ClProgram {
+    let devices = list_devices();
+    let context = context_from_devices(&devices[..]);
+    let mut program = unsafe { ClProgram::create_with_source(&context, src).unwrap() };
+    program.build(&devices[..]).unwrap();
+    program
+}
 
 pub fn get_context() -> ClContext {
     let devices = list_devices();
+    context_from_devices(&devices[..])
+}
+
+pub fn context_from_devices(devices: &[ClDeviceID]) -> ClContext {
     unsafe { ClContext::create(&devices[..]).unwrap() }
 }
 

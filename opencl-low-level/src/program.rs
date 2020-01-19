@@ -180,7 +180,7 @@ impl Drop for ClProgram {
     fn drop(&mut self) {
         unsafe { release_program(self.object) };
     }
-}
+}  
 
 impl Clone for ClProgram {
     fn clone(&self) -> ClProgram {
@@ -241,5 +241,52 @@ pub trait ProgramPtr: Sized {
             let kernels: String = unsafe { ret.into_string() };
             kernels.split(';').map(|s| s.to_string()).collect()
         })
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use crate::*;
+
+    const SRC: &'static str = "
+    __kernel void test123(__global int *i) {
+        *i += 1;
+    }";
+
+
+    #[test]
+    fn program_ptr_reference_count() {
+        let prog = ll_testing::get_program(SRC);
+        let ref_count = prog.reference_count().unwrap();
+        assert_eq!(ref_count, 1);
+    }
+
+    #[test]
+    fn program_ptr_num_devices() {
+        let prog = ll_testing::get_program(SRC);
+        let num_devices = prog.reference_count().unwrap();
+        assert!(num_devices > 0);
+    }
+
+    #[test]
+    fn program_ptr_source_matches_creates_src() {
+        let prog = ll_testing::get_program(SRC);
+        let prog_src = prog.source().unwrap();
+        assert_eq!(prog_src, SRC.to_string());
+    }
+
+    #[test]
+    fn program_ptr_num_kernels() {
+        let prog = ll_testing::get_program(SRC);
+        let num_kernels = prog.num_kernels().unwrap();
+        assert_eq!(num_kernels, 1);
+    }
+
+    #[test]
+    fn program_ptr_kernel_names() {
+        let prog = ll_testing::get_program(SRC);
+        let kernel_names = prog.kernel_names().unwrap();
+        assert_eq!(kernel_names, vec!["test123"]);
     }
 }
