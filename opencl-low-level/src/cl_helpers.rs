@@ -1,17 +1,10 @@
 // use std::marker::PhantomData;
 // use std::fmt;
 
-pub mod cl_object;
-pub mod cl_pointer;
+pub use crate::{ClPointer, Output, StatusCodeError, build_output, utils};
 
-pub use cl_object::{ClObject, ClObjectError};
-
-pub use cl_pointer::ClPointer;
-
-use crate::error::Output;
 use crate::ffi::cl_int;
-use crate::utils;
-use crate::utils::status_code::StatusCode;
+
 use libc::{c_void, size_t};
 
 type ObjFunc<Obj, Flag, Obj2> = unsafe extern "C" fn(Obj, Flag, u32, *mut Obj2, *mut u32) -> cl_int;
@@ -36,7 +29,7 @@ where
         &mut output_size as *mut u32,
     );
 
-    StatusCode::build_output(err_code, output_size)
+    build_output(output_size, err_code)
 }
 
 pub unsafe fn cl_get_object<Obj: Copy, Flag: Copy, Obj2: Copy>(
@@ -56,7 +49,7 @@ pub unsafe fn cl_get_object<Obj: Copy, Flag: Copy, Obj2: Copy>(
 
     let err_code = func(cl_object, flag, output_count, output, std::ptr::null_mut());
 
-    StatusCode::build_output(err_code, ())?;
+    build_output((), err_code)?;
     // everything worked, but we dont want the `bytes` vec to be dropped so we forget it.
     std::mem::forget(bytes);
     Ok(ClPointer::new(output_count as usize, output))
@@ -80,7 +73,7 @@ pub unsafe fn cl_get_info_byte_count5<Obj: Copy, Flag: Copy>(
         &mut output_size as *mut size_t,
     );
 
-    StatusCode::build_output(err_code, output_size)
+    build_output(output_size, err_code)
 }
 
 pub unsafe fn cl_get_info5<Obj: Copy, Flag: Copy, Ret: Copy>(
@@ -100,7 +93,7 @@ pub unsafe fn cl_get_info5<Obj: Copy, Flag: Copy, Ret: Copy>(
 
     let err_code = func(cl_object, flag, num_bytes, output, std::ptr::null_mut());
 
-    StatusCode::build_output(err_code, ())?;
+    build_output((), err_code)?;
     // Everything above worked so we don't want the `bytes` vec to be freed
     // Therefore we forget it.
     std::mem::forget(bytes);
@@ -129,7 +122,7 @@ pub unsafe fn cl_get_info_byte_count6<Obj1: Copy, Obj2: Copy, Flag: Copy>(
         &mut output_size as *mut size_t,
     );
 
-    StatusCode::build_output(err_code, output_size)
+    build_output(output_size, err_code)
 }
 
 pub unsafe fn cl_get_info6<Obj1: Copy, Obj2: Copy, Flag: Copy, Ret: Copy>(
@@ -156,7 +149,7 @@ pub unsafe fn cl_get_info6<Obj1: Copy, Obj2: Copy, Flag: Copy, Ret: Copy>(
         std::ptr::null_mut(),
     );
 
-    StatusCode::build_output(err_code, ())?;
+    build_output((), err_code)?;
     // Everything above worked so we don't want the `bytes` vec to be freed
     // Therefore we forget it.
     std::mem::forget(bytes);

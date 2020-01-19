@@ -1,4 +1,5 @@
 use crate::*;
+use crate::opencl_low_level::*;
 
 #[allow(unused_macros)]
 macro_rules! expect (
@@ -22,8 +23,8 @@ pub fn test_all<F>(test: &mut F)
 where
     F: FnMut(&Device, &Context, &CommandQueue),
 {
-    let platforms = Platform::all().unwrap_or_else(|e| {
-        panic!("Failed to retrieve plaforms via Platform::all() due to {:?}", e);
+    let platforms = list_platforms().unwrap_or_else(|e| {
+        panic!("Failed to retrieve plaforms via list_platforms() due to {:?}", e);
     });
     for p in platforms.iter() {
         let devices: Vec<Device> = p

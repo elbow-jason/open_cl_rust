@@ -162,34 +162,34 @@ impl Eq for Session {}
 
 
 
-#[cfg(test)]
-mod tests {
-    use crate::testing;
+// #[cfg(test)]
+// mod tests {
+//     use crate::testing;
 
-    const SRC: &'static str = "__kernel void test(__global int *i) { *i += 1; }";
+//     const SRC: &'static str = "__kernel void test(__global int *i) { *i += 1; }";
 
-    #[test]
-    fn session_implements_clone() {
-        let session = testing::get_session(SRC);
-        let _other = session.clone();
-    }
+//     #[test]
+//     fn session_implements_clone() {
+//         let session = testing::get_session(SRC);
+//         let _other = session.clone();
+//     }
 
-    #[test]
-    fn session_implementation_of_fmt_debug_works() {
-        for session in testing::all_sessions(SRC) {
-            let formatted = format!("{:?}", session);
-            assert!(formatted.starts_with("Session"), "Formatted did not start with the correct value. Got: {:?}", formatted);
-        }
-    }
+//     #[test]
+//     fn session_implementation_of_fmt_debug_works() {
+//         for session in testing::all_sessions(SRC) {
+//             let formatted = format!("{:?}", session);
+//             assert!(formatted.starts_with("Session"), "Formatted did not start with the correct value. Got: {:?}", formatted);
+//         }
+//     }
 
-    #[test]
-    fn session_with_copied_command_queue_works() {
-        for session in testing::all_sessions(SRC) {
-            let session2 = session.with_copied_command_queue();
-            assert_ne!(session.command_queue(), session2.command_queue());
-            assert_eq!(session.context(), session2.context());
-            assert_eq!(session.program(), session2.program());
-            assert_ne!(session, session2);
-        }
-    }
-}
+//     #[test]
+//     fn session_with_copied_command_queue_works() {
+//         for session in testing::all_sessions(SRC) {
+//             let session2 = session.with_copied_command_queue();
+//             assert_ne!(session.command_queue(), session2.command_queue());
+//             assert_eq!(session.context(), session2.context());
+//             assert_eq!(session.program(), session2.program());
+//             assert_ne!(session, session2);
+//         }
+//     }
+// }

@@ -287,106 +287,106 @@ mod tests {
     use super::{DeviceMem, DeviceMemError};
     use crate::{Context, Device, Error, Output, Session};
 
-    fn get_session() -> Session {
-        let src = "__kernel void test(__global int *i) { *i += 1; }";
-        let device = Device::default();
-        let devices = vec![device];
-        Session::create_sessions(&devices[..], src).expect("Failed to create Session").remove(0)
-    }
+    // fn get_session() -> Session {
+    //     let src = "__kernel void test(__global int *i) { *i += 1; }";
+    //     // let device = Device::default();
+    //     let devices = vec![device];
+    //     Session::create_sessions(&devices[..], src).expect("Failed to create Session").remove(0)
+    // }
 
-    fn get_device_mem() -> (Session, DeviceMem<usize>) {
-        let session = get_session();
-        let data = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
-        let dmem = DeviceMem::create_read_write_from(session.context(), &data[..])
-            .expect("Failed to create_read_write_from one to nine");
-        (session, dmem)
-    }
+    // fn get_device_mem() -> (Session, DeviceMem<usize>) {
+    //     let session = get_session();
+    //     let data = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
+    //     let dmem = DeviceMem::create_read_write_from(session.context(), &data[..])
+    //         .expect("Failed to create_read_write_from one to nine");
+    //     (session, dmem)
+    // }
 
-    #[test]
-    fn device_mem_method_len_works() {
-        let (_sess, device_mem) = get_device_mem();
-        let out = device_mem.len();
-        assert_eq!(out, 9);
-    }
-    #[test]
-    fn device_mem_method_host_ptr_works() {
-        let (_sess, device_mem) = get_device_mem();
-        let out = device_mem
-            .host_ptr()
-            .expect("Failed to call device_mem.host_ptr()");
-        match out {
-            Some(host_vec) => {
-                assert_eq!(host_vec.len(), 0);
-            }
-            None => (),
-        }
-    }
+    // #[test]
+    // fn device_mem_method_len_works() {
+    //     let (_sess, device_mem) = get_device_mem();
+    //     let out = device_mem.len();
+    //     assert_eq!(out, 9);
+    // }
+    // #[test]
+    // fn device_mem_method_host_ptr_works() {
+    //     let (_sess, device_mem) = get_device_mem();
+    //     let out = device_mem
+    //         .host_ptr()
+    //         .expect("Failed to call device_mem.host_ptr()");
+    //     match out {
+    //         Some(host_vec) => {
+    //             assert_eq!(host_vec.len(), 0);
+    //         }
+    //         None => (),
+    //     }
+    // }
 
-    #[test]
-    fn device_mem_method_associated_memobject_works() {
-        let (_sess, device_mem) = get_device_mem();
-        let result: Output<DeviceMem<usize>> = device_mem.associated_memobject();
-        match result {
-            Ok(_dmem) => (),
-            Err(Error::DeviceMemError(DeviceMemError::NoAssociatedMemObject)) => (),
-            Err(e) => panic!(
-                "Call device_mem.associated_memobject() encountered an unexpected Error: {:?}",
-                e
-            ),
-        }
-    }
+    // #[test]
+    // fn device_mem_method_associated_memobject_works() {
+    //     let (_sess, device_mem) = get_device_mem();
+    //     let result: Output<DeviceMem<usize>> = device_mem.associated_memobject();
+    //     match result {
+    //         Ok(_dmem) => (),
+    //         Err(Error::DeviceMemError(DeviceMemError::NoAssociatedMemObject)) => (),
+    //         Err(e) => panic!(
+    //             "Call device_mem.associated_memobject() encountered an unexpected Error: {:?}",
+    //             e
+    //         ),
+    //     }
+    // }
 
-    #[test]
-    fn device_mem_method_reference_count_works() {
-        let (_sess, device_mem) = get_device_mem();
-        let out = device_mem
-            .reference_count()
-            .expect("Failed to call device_mem.reference_count()");
-        assert!(out == 1);
-    }
-    #[test]
-    fn device_mem_method_size_works() {
-        let (_sess, device_mem) = get_device_mem();
-        let out = device_mem.size().expect("Failed to call device_mem.size()");
-        let size_t_in_bytes = std::mem::size_of::<usize>();
-        let len = out / size_t_in_bytes;
-        assert_eq!(len, 9);
-    }
-    #[test]
-    fn device_mem_method_mem_type_works() {
-        let (_sess, device_mem) = get_device_mem();
-        let _out: MemObjectType = device_mem
-            .mem_type()
-            .expect("Failed to call device_mem.mem_type()");
-    }
-    #[test]
-    fn device_mem_method_flags_works() {
-        let (_sess, device_mem) = get_device_mem();
-        let _out: MemFlags = device_mem
-            .flags()
-            .expect("Failed to call device_mem.flags()");
-    }
-    #[test]
-    fn device_mem_method_map_count_works() {
-        let (_sess, device_mem) = get_device_mem();
-        let out = device_mem
-            .map_count()
-            .expect("Failed to call device_mem.map_count()");
-        assert_eq!(out, 0);
-    }
-    #[test]
-    fn device_mem_method_context_works() {
-        let (_sess, device_mem) = get_device_mem();
-        let _out: Context = device_mem
-            .context()
-            .expect("Failed to call device_mem.context()");
-    }
-    #[test]
-    fn device_mem_method_offset_works() {
-        let (_sess, device_mem) = get_device_mem();
-        let out: usize = device_mem
-            .offset()
-            .expect("Failed to call device_mem.offset()");
-        assert_eq!(out, 0);
-    }
+    // #[test]
+    // fn device_mem_method_reference_count_works() {
+    //     let (_sess, device_mem) = get_device_mem();
+    //     let out = device_mem
+    //         .reference_count()
+    //         .expect("Failed to call device_mem.reference_count()");
+    //     assert!(out == 1);
+    // }
+    // #[test]
+    // fn device_mem_method_size_works() {
+    //     let (_sess, device_mem) = get_device_mem();
+    //     let out = device_mem.size().expect("Failed to call device_mem.size()");
+    //     let size_t_in_bytes = std::mem::size_of::<usize>();
+    //     let len = out / size_t_in_bytes;
+    //     assert_eq!(len, 9);
+    // }
+    // #[test]
+    // fn device_mem_method_mem_type_works() {
+    //     let (_sess, device_mem) = get_device_mem();
+    //     let _out: MemObjectType = device_mem
+    //         .mem_type()
+    //         .expect("Failed to call device_mem.mem_type()");
+    // }
+    // #[test]
+    // fn device_mem_method_flags_works() {
+    //     let (_sess, device_mem) = get_device_mem();
+    //     let _out: MemFlags = device_mem
+    //         .flags()
+    //         .expect("Failed to call device_mem.flags()");
+    // }
+    // #[test]
+    // fn device_mem_method_map_count_works() {
+    //     let (_sess, device_mem) = get_device_mem();
+    //     let out = device_mem
+    //         .map_count()
+    //         .expect("Failed to call device_mem.map_count()");
+    //     assert_eq!(out, 0);
+    // }
+    // #[test]
+    // fn device_mem_method_context_works() {
+    //     let (_sess, device_mem) = get_device_mem();
+    //     let _out: Context = device_mem
+    //         .context()
+    //         .expect("Failed to call device_mem.context()");
+    // }
+    // #[test]
+    // fn device_mem_method_offset_works() {
+    //     let (_sess, device_mem) = get_device_mem();
+    //     let out: usize = device_mem
+    //         .offset()
+    //         .expect("Failed to call device_mem.offset()");
+    //     assert_eq!(out, 0);
+    // }
 }

@@ -13,7 +13,8 @@ use crate::ffi::{
     cl_command_queue_properties, cl_event, cl_int, cl_kernel
 };
 use crate::utils::StatusCode;
-use crate::{Context, Device, DeviceMem, Output, DevicePtr};
+use crate::{Context, Device, DeviceMem, Output};
+use opencl_low_level::{DevicePtr, DeviceRefCount};
 
 __release_retain!(command_queue, CommandQueue);
 

@@ -1,10 +1,13 @@
 [package]
 name = "opencl-sys"
 version = "0.1.0"
-authors = ["Jason Goldberger <jlgoldb2@asu.edu>"]
+authors = ["Jason Goldberger <jasongoldberger@gmail.com>"]
 edition = "2018"
 links = "OpenCL"
 build = "build.rs"
+
+[lib]
+name = "opencl_sys"
 
 [dependencies]
 libc = "0.2.65"

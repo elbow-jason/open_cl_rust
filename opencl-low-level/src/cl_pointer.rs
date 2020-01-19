@@ -1,7 +1,7 @@
 use std::fmt;
 use std::marker::PhantomData;
 
-use crate::utils::strings;
+use crate::strings;
 use crate::ffi::cl_bool;
 
 /// ClPointer is a very short-lived struct that is used to homogenize the returns from

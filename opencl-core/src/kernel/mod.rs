@@ -12,7 +12,7 @@ use crate::ffi::cl_kernel;
 
 use crate::error::Output;
 use crate::program::Program;
-use crate::utils;
+use crate::opencl_low_level::utils;
 
 /// An error related to a `Kernel`.
 #[derive(Debug, Fail, PartialEq, Eq, Clone)]
@@ -90,12 +90,12 @@ pub trait KernelRefCount: Sized {
 
 impl KernelRefCount for KernelWrapper {
     unsafe fn from_retained(kernel: cl_kernel) -> Output<KernelWrapper> {
-        utils::null_check(kernel, "KernelWrapper::from_retained")?;
+        utils::null_check(kernel)?;
         Ok(KernelWrapper::unchecked_new(kernel))
     }
 
     unsafe fn from_unretained(kernel: cl_kernel) -> Output<KernelWrapper> {
-        utils::null_check(kernel, "KernelWrapper::from_unretained")?;
+        utils::null_check(kernel)?;
         retain_kernel(kernel);
         Ok(KernelWrapper::unchecked_new(kernel))
     }
