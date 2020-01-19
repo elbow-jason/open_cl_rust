@@ -256,10 +256,10 @@ mod tests {
     #[test]
     fn program_method_num_devices_works() {
         let program: Program = testing::get_program(SRC);
-        let output: u32 = program
+        let output = program
             .num_devices()
             .expect("Failed to call program.num_devices()");
-        assert!(output > 0);
+        assert_eq!(output, program.devices().len());
     }
 
     #[test]

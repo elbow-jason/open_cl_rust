@@ -22,8 +22,6 @@ mod testing;
 // macros are in there keep it before dependent modules. order matters.
 #[macro_use] mod macros;
 
-
-
 // pub mod utils;
 
 pub extern crate opencl_sys as ffi;

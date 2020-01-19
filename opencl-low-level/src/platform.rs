@@ -196,73 +196,6 @@ mod tests {
         assert!(platforms.len() > 0);
     }
 
-    // #[test]
-    // fn platform_can_list_all_devices() {
-    //     let platform = get_platform();
-    //     let devices = platform
-    //         .all_devices()
-    //         .expect("failed to list all platform devices");
-    //     assert!(devices.len() > 0);
-    // }
-
-    // #[test]
-    // fn platform_can_list_devices_by_type() {
-    //     let platform = get_platform();
-    //     let _cpus = platform.all_devices_by_type(DeviceType::CPU);
-    //     let _gpus = platform.all_devices_by_type(DeviceType::GPU);
-    //     let _accelerators = platform.all_devices_by_type(DeviceType::ACCELERATOR);
-    //     let _custom = platform.all_devices_by_type(DeviceType::CUSTOM);
-    // }
-
-    // #[test]
-    // fn platform_has_one_or_more_default_device() {
-    //     let platform = get_platform();
-    //     let devices: Vec<Device> = platform
-    //         .default_devices()
-    //         .expect("failed to find a default device for the platform");
-    //     assert!(devices.len() > 0);
-    // }
-
-    // #[test]
-    // fn platform_can_select_one_usable_default_device_best_effort() {
-    //     let platform = get_platform();
-    //     let device: Device = platform
-    //         .default_device()
-    //         .expect("failed to find a default device for the platform");
-    //     // fetching a name means it is usable.
-    //     assert!(device.is_usable() == true);
-    //     let _name = device.name().expect("failed to fetch name_info on device");
-    // }
-
-    // #[test]
-    // fn platform_has_methods_for_listing_devices_by_type() {
-    //     let platform = get_platform();
-
-    //     let cpus_flag = platform.all_devices_by_type(DeviceType::CPU);
-    //     let cpus_method = platform.cpu_devices();
-    //     assert_eq!(cpus_flag, cpus_method);
-
-    //     let gpus_flag = platform.all_devices_by_type(DeviceType::GPU);
-    //     let gpus_method = platform.gpu_devices();
-    //     assert_eq!(gpus_flag, gpus_method);
-
-    //     let accel_flag = platform.all_devices_by_type(DeviceType::ACCELERATOR);
-    //     let accel_method = platform.accelerator_devices();
-    //     assert_eq!(accel_flag, accel_method);
-
-    //     let custom_flag = platform.all_devices_by_type(DeviceType::CUSTOM);
-    //     let custom_method = platform.custom_devices();
-    //     assert_eq!(custom_flag, custom_method);
-    // }
-
-    // #[test]
-    // fn platform_can_get_the_first_default_device() {
-    //     let device = Platform::get_any_default_device()
-    //         .expect("Call to Platform::get_any_default_device() failed.");
-    //     assert!(device.is_usable() == true);
-    //     let _name = device.name().expect("Failed to fetch Device name");
-    // }
-
     #[test]
     fn platform_has_functions_getting_for_info() {
         let platform = ClPlatformID::default();
@@ -300,16 +233,4 @@ mod tests {
 
         // assert_eq!(host_timer_resolution, "".to_string());
     }
-
-    // #[test]
-    // fn test_cl_get_platforms() {
-    //     let cl_pointer: ClPointer<cl_platform_id> =
-    //         cl_get_platforms().unwrap_or_else(|e| panic!("cl_get_platforms failed with {:?}", e));
-    //     let platforms: Vec<cl_platform_id> = unsafe { cl_pointer.into_vec() };
-    //     assert!(platforms.len() > 0);
-
-    //     for p in platforms {
-    //         assert!(p.is_null() == false);
-    //     }
-    // }
 }

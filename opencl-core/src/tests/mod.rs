@@ -2,24 +2,6 @@
 // use crate::opencl_low_level::*;
 
 // #[allow(unused_macros)]
-// macro_rules! expect (
-//     ($test: expr, $expected: expr) => ({
-//             let test = $test;
-//             let expected = $expected;
-//             if test != expected {
-//                 panic!(
-//                     "FAILED assertion: {} == {}: expected {:?}, got {:?}",
-//                     stringify!($test),
-//                     stringify!($expected),
-//                     expected,
-//                     test
-//                 )
-//             }
-//         }
-//     )
-// );
-
-
 
 // #[cfg(test)]
 // mod basic_tests {

@@ -6,12 +6,9 @@ use std::fmt;
 
 use crate::{
     CommandExecutionStatus, ClPointer, Output, build_output, ProfilingInfo, EventInfo,
-    // WaitList, 
-    
 };
 
 use crate::ffi::{
-    // cl_context,
     cl_event, clGetEventInfo, clGetEventProfilingInfo, cl_event_info, cl_profiling_info, cl_ulong,
 };
 
@@ -76,7 +73,6 @@ impl EventPtr for &ClEvent {
         self.object
     }
 }
-
 
 /// An error related to an Event or WaitList.
 #[derive(Debug, Fail, PartialEq, Eq, Clone)]

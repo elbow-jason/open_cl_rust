@@ -5,7 +5,7 @@
 pub extern crate opencl_sys as ffi;
 
 
-
+#[macro_use] pub mod ll_testing;
 #[macro_use] pub mod macros;
 pub mod error;
 pub mod output;
@@ -28,6 +28,7 @@ pub mod event;
 pub mod wait_list;
 pub mod command_queue;
 pub mod volume;
+
 
 pub use cl_pointer::ClPointer;
 pub use output::{Output, build_output};

@@ -209,9 +209,12 @@ pub trait ProgramPtr: Sized {
             .map(|ret| unsafe { ret.into_one() })
     }
 
-    fn num_devices(&self) -> Output<u32> {
+    fn num_devices(&self) -> Output<usize> {
         get_info(self, ProgramInfo::NumDevices)
-            .map(|ret| unsafe { ret.into_one() })
+            .map(|ret| unsafe { 
+                let num32: u32 = ret.into_one();
+                num32 as usize
+            })
     }
 
     fn source(&self) -> Output<String> {

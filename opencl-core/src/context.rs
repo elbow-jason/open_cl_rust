@@ -1,8 +1,9 @@
 use std::mem::ManuallyDrop;
 use std::fmt;
+use std::iter::Iterator;
 
-use crate::ll::{Output, ClContext, ContextPtr};
-use crate::ffi::cl_context;
+use crate::ll::{Output, ClContext, ContextPtr, DevicePtr};
+use crate::ffi::{cl_context, cl_device_id};
 
 use crate::Device;
 
@@ -44,6 +45,46 @@ impl ContextPtr for Context {
     }
 }
 
+pub enum Devices<'a> {
+    V(Vec<Device>),
+    S(&'a [Device]),
+}
+
+impl<'a> Devices<'a> {
+    pub fn iter(&self) -> impl Iterator<Item = &Device>  {
+        match self {
+            Devices::V(devices) => devices.iter(),
+            Devices::S(devices) => devices.iter(),
+        }
+    }
+
+    pub fn device_ptrs(&self) -> Vec<cl_device_id> {
+        self.iter()
+            .map(|d| unsafe { d.device_ptr() })
+            .collect()
+    }
+
+    pub fn to_vec(self) -> Vec<Device> {
+        match self {
+            Devices::V(devices) => devices,
+            Devices::S(devices) => devices.to_vec(),
+        }
+    }
+}
+
+impl<'a> From<Vec<Device>> for Devices<'a> {
+    fn from(d: Vec<Device>) -> Devices<'a> {
+        Devices::V(d)
+    }
+}
+
+impl<'a> From<&'a [Device]> for Devices<'a> {
+    fn from(d: &'a [Device]) -> Devices<'a> {
+        Devices::S(d)
+    }
+}
+
+
 impl Context {
     // Context::build is safe because all objects should be reference counted
     // and their wrapping structs should be droppable. If there is a memory
@@ -64,10 +105,12 @@ impl Context {
         (*self.inner).context_ptr()
     }
 
-    pub fn create(
-        devices: &[Device],
+    pub fn create<'a, D: Into<Devices<'a>>>(
+        devices: D,
     ) -> Output<Context> {
-        let ll_context: ClContext = unsafe { ClContext::create(devices) }?;
+        let devices = devices.into();
+        let device_ptrs = devices.device_ptrs();
+        let ll_context: ClContext = unsafe { ClContext::create(&device_ptrs[..]) }?;
         Ok(Context::build(ll_context, devices.to_vec()))
     }
 

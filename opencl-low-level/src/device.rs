@@ -69,7 +69,6 @@ pub fn list_devices_by_type(
     }
 }
 
-
 pub unsafe fn cl_get_device_info<T>(device: cl_device_id, flag: DeviceInfo) -> Output<ClPointer<T>>
 where
     T: Copy,
@@ -142,8 +141,6 @@ impl DevicePtr for cl_device_id {
     }
 }
 
-
-
 impl DeviceRefCount for ClDeviceID {
     unsafe fn from_retained(device: cl_device_id) -> Output<ClDeviceID> {
         utils::null_check(device)?;
@@ -174,69 +171,47 @@ impl Clone for ClDeviceID {
         }
     }
 }
- 
-// pub unsafe fn list_devices_by_type<P, D>(platform: P, device_type: D) -> Output<Vec<ClDeviceID>> where P: PlatformPtr, D: Into<cl_device_type> {
-//     cl_get_device_ids(platform, device_type)
-// }
-
-// pub unsafe fn list_default_devices(platform: &ClPlatformID) -> Output<Vec<ClDeviceID>> {
-//     let devices: Vec<ClDeviceID> = list_devices_by_type(platform, DeviceType::DEFAULT)?;
-//     match devices.len() {
-//         0 => Err(DeviceError::NoDefaultDevice.into()),
-//         _ => Ok(devices),
-//     }
-// }
 
 macro_rules! info_fn {
     ($name:ident, $flag:ident, String) => {
-        paste::item! {
-            fn [<device_ $name>](&self) -> Output<String> {
-                unsafe{ 
-                    cl_get_device_info(self.device_ptr(), DeviceInfo::$flag)
-                        .map(|ret| ret.into_string() )
-                }
+        fn $name(&self) -> Output<String> {
+            unsafe{ 
+                cl_get_device_info(self.device_ptr(), DeviceInfo::$flag)
+                    .map(|ret| ret.into_string() )
             }
         }
     };
 
     ($name:ident, $flag:ident, bool) => {
-        paste::item! {
-            fn [<device_ $name>](&self) -> Output<bool> {
-                use crate::ffi::cl_bool;
-                unsafe {
-                    cl_get_device_info::<cl_bool>(self.device_ptr(), DeviceInfo::$flag).map(From::from)
-                }
+        fn $name(&self) -> Output<bool> {
+            use crate::ffi::cl_bool;
+            unsafe {
+                cl_get_device_info::<cl_bool>(self.device_ptr(), DeviceInfo::$flag).map(From::from)
             }
         }
     };
 
     ($name:ident, $flag:ident, $cl_type:ty, Vec<$output_t:ty>) => {
-        paste::item! {
-            fn [<device_ $name>](&self) -> Output<Vec<$output_t>> {
-                unsafe { 
-                    cl_get_device_info(self.device_ptr(), DeviceInfo::$flag).map(|ret| ret.into_vec())
-                }
+        fn $name(&self) -> Output<Vec<$output_t>> {
+            unsafe { 
+                cl_get_device_info(self.device_ptr(), DeviceInfo::$flag).map(|ret| ret.into_vec())
             }
         }
     };
 
-    ($name:ident, $flag:ident, $output_t:ty) => {
-        paste::item! {
-            fn [<device_ $name>](&self) -> Output<$output_t> {
-                unsafe {
-                    cl_get_device_info(self.device_ptr(), DeviceInfo::$flag).map(|ret| ret.into_one())
-                }
+    ($name:ident, $flag:ident, $output_t:ty) => {        
+        fn $name(&self) -> Output<$output_t> {
+            unsafe {
+                cl_get_device_info(self.device_ptr(), DeviceInfo::$flag).map(|ret| ret.into_one())
             }
         }
     };
 
     ($name:ident, $flag:ident, $cl_type:ty, $output_t:ty) => {
-        paste::item! {
-            fn [<device_ $name>](&self) -> Output<$output_t> {
-                unsafe {
-                    cl_get_device_info(self.device_ptr(), DeviceInfo::$flag)
-                        .map(|ret| ret.into_one())
-                }
+        fn $name(&self) -> Output<$output_t> {
+            unsafe {
+                cl_get_device_info(self.device_ptr(), DeviceInfo::$flag)
+                    .map(|ret| ret.into_one())
             }
         }
     };
@@ -382,25 +357,8 @@ pub trait DevicePtr where Self: fmt::Debug + Sized {
     info_fn!(device_type, Type, cl_device_type, DeviceType);
 }
 
-// pub fn default_device(platform: PlatformPtr) -> Device {
-//     Device {
-
-//     }
-// }
-
 unsafe impl Send for ClDeviceID {}
 unsafe impl Sync for ClDeviceID {}
-
-// impl Default for Device {
-//     fn default() -> Device {
-//         let platform = Platform::default();
-//         let device = default_device(platform)
-//             .unwrap_or_else(|e| panic!("Failed to find default device {:?}", e));
-
-//         device.usability_check().unwrap();
-//         device
-//     }
-// }
 
 impl PartialEq for ClDeviceID {
     fn eq(&self, other: &Self) -> bool {
@@ -410,10 +368,9 @@ impl PartialEq for ClDeviceID {
 
 impl Eq for ClDeviceID {}
 
-
 impl fmt::Debug for ClDeviceID {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let name = self.device_name().unwrap();
+        let name = self.name().unwrap();
         let ptr = unsafe { self.device_ptr() };
         write!(f, "ClDeviceID{{ptr: {:?}, name: {}}}", ptr, name)
     }
@@ -431,11 +388,6 @@ mod tests {
             unsafe { ClDeviceID::from_retained(unusable_device_id) };
         assert_eq!(error, Err(UNUSABLE_DEVICE_ERROR));
     }
-    // use super::ClDeviceID;
-    // use super::{DeviceType, UNUSABLE_DEVICE_ERROR, DevicePtr};
-    // use crate::ffi::cl_device_id;
-    // use crate::ClPlatformID;
-    // // use crate::testing;
 
     #[test]
     fn lists_all_devices() {
@@ -455,86 +407,121 @@ mod tests {
         let _ = list_devices_by_type(&platform, DeviceType::ALL).expect("Failed to list ALL devices");
     }
 
-    // #[test]
-    // fn devices_of_many_types_can_be_listed_for_a_platform_via_flags() {
-    //     let platform = Platform::default();
-    //     let _ = Device::all_by_type(&platform, DeviceType::ALL);
-    //     let _ = Device::all_by_type(&platform, DeviceType::CPU);
-    //     let _ = Device::all_by_type(&platform, DeviceType::GPU);
-    //     let _ = Device::all_by_type(&platform, DeviceType::ACCELERATOR);
-    //     let _ = Device::all_by_type(&platform, DeviceType::CUSTOM);
-    // }
-
-    // #[test]
-    // fn device_fmt_works() {
-    //     let device = testing::get_device();
-    //     let formatted = format!("{:?}", device);
-    //     assert!(formatted.starts_with("Device{ptr: 0x")); //== "".contains("Device{"));
-    // }
-
-    // #[test]
-    // fn device_name_works() {
-    //     let device = testing::get_device();
-    //     let name: String = device.name().unwrap();
-    //     assert!(name.len() > 0);
-    // }
+    #[test]
+    fn device_fmt_debug_works() {
+        ll_testing::with_each_device(|device| {
+            let formatted = format!("{:?}", device);
+            expect_method!(formatted, starts_with, "ClDeviceID{ptr: 0x");
+            expect_method!(formatted, contains, "ClDeviceID{ptr: 0x");
+        })
+    }
 }
+#[cfg(test)]
+mod device_ptr_tests {
+    use crate::*;
 
+    #[test]
+    fn device_name_works() {
+        ll_testing::with_each_device(|device| {
+            let name: String = device.name().unwrap();
+            assert!(name.len() > 0);    
+        })
+    }
 
+    macro_rules! test_method {
+        ($method:ident) => {
+            paste::item! {
+                #[test]
+                fn [<$method _works>]() {
+                    ll_testing::with_each_device(|device| {
+                        let _result = device.$method().unwrap();
+                    })
+                }
+            }
+        }
+    }
 
-// pub fn all() -> Output<Vec<Platform>> {
-//         cl_get_platforms().map(|ret| {
-//             unsafe { ret.into_vec() }.into_iter().map(|p| Platform::new(p)).collect()
-//         })
-//     }
+    // u32
+    test_method!(global_mem_cacheline_size);
+    test_method!(native_vector_width_double);
+    test_method!(native_vector_width_half);
+    test_method!(address_bits);
+    test_method!(max_clock_frequency);
+    test_method!(max_compute_units);
+    test_method!(max_constant_args);
+    test_method!(max_read_image_args);
+    test_method!(max_samplers);
+    test_method!(max_work_item_dimensions);
+    test_method!(max_write_image_args);
+    test_method!(mem_base_addr_align);
+    test_method!(min_data_type_align_size);
+    test_method!(native_vector_width_char);
+    test_method!(native_vector_width_short);
+    test_method!(native_vector_width_int);
+    test_method!(native_vector_width_long);
+    test_method!(native_vector_width_float);
+    test_method!(partition_max_sub_devices);
+    test_method!(preferred_vector_width_char);
+    test_method!(preferred_vector_width_short);
+    test_method!(preferred_vector_width_int);
+    test_method!(preferred_vector_width_long);
+    test_method!(preferred_vector_width_float);
+    test_method!(preferred_vector_width_double);
+    test_method!(preferred_vector_width_half);
+    test_method!(vendor_id);
 
-//     pub fn all_devices(&self) -> Output<Vec<Device>> {
-//         Device::all(self)
-//     }
+    // bool
+    test_method!(available);
+    test_method!(compiler_available);
+    test_method!(endian_little);
+    test_method!(error_correction_support);
+    test_method!(host_unified_memory);
+    test_method!(image_support);
+    test_method!(linker_available);
+    test_method!(preferred_interop_user_sync);
 
-//     pub fn all_devices_by_type(&self, device_type: DeviceType) -> Output<Vec<Device>> {
-//         Device::all_by_type(self, device_type)
-//     }
+    // String
+    test_method!(name);
+    test_method!(opencl_c_version);
+    test_method!(profile);
+    test_method!(vendor);
+    test_method!(version);
+    test_method!(driver_version);
 
-//     pub fn default_devices(&self) -> Output<Vec<Device>> {
-//         Device::default_devices(self)
-//     }
+    // u64
+    test_method!(global_mem_cache_size);
+    test_method!(global_mem_size);
+    test_method!(local_mem_size);
+    test_method!(max_constant_buffer_size);
+    test_method!(max_mem_alloc_size);
 
-    // /// Returns first default device assuming device is usable and list default devices is
-    // /// not empty. // Best effort.
-    // pub fn default_device(&self) -> Output<Device> {
-    //     let defaults = Device::default_devices(self)?;
-    //     for d in defaults.into_iter() {
-    //         if d.is_usable() {
-    //             return Ok(d);
-    //         }
-    //     }
-    //     Err(PlatformError::NoUsableDevices.into())
-    // }
+    // usize
+    test_method!(image2d_max_width);
+    test_method!(image2d_max_height);
+    test_method!(image3d_max_width);
+    test_method!(image3d_max_height);
+    test_method!(image3d_max_depth);
+    test_method!(image_max_buffer_size);
+    test_method!(image_max_array_size);
+    test_method!(max_parameter_size);
+    test_method!(max_work_group_size);
+    test_method!(printf_buffer_size);
+    test_method!(profiling_timer_resolution);
 
-    // pub fn get_any_default_device() -> Output<Device> {
-    //     let platform = Platform::default();
-    //     let defaults = Device::default_devices(&platform)?;
-    //     for d in defaults.into_iter() {
-    //         if d.is_usable() {
-    //             return Ok(d);
-    //         }
-    //     }
-    //     Err(PlatformError::NoUsableDevices.into())
-    // }
+    // Vec<usize>
+    test_method!(max_work_item_sizes);
 
-    // pub fn cpu_devices(&self) -> Output<Vec<Device>> {
-    //     Device::cpu_devices(self)
-    // }
+    // cl_device_local_mem_type
+    test_method!(local_mem_type);
 
-    // pub fn gpu_devices(&self) -> Output<Vec<Device>> {
-    //     Device::gpu_devices(self)
-    // }
+    // ExecutionCapabilities
+    test_method!(execution_capabilities);
+    //  CL_DEVICE_GLOBAL_MEM_CACHE_TYPE
+    test_method!(global_mem_cache_type);
 
-    // pub fn accelerator_devices(&self) -> Output<Vec<Device>> {
-    //     Device::accelerator_devices(self)
-    // }
+    // cl_device_affinity_domain
+    test_method!(partition_affinity_domain);
 
-    // pub fn custom_devices(&self) -> Output<Vec<Device>> {
-    //     Device::custom_devices(self)
-    // }
+    // DeviceType
+    test_method!(device_type);
+}

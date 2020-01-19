@@ -115,6 +115,7 @@ mod tests {
     use crate::platform::Platform;
     use crate::testing;
     use crate::ll::*;
+    use crate::ffi::*;
 
     #[test]
     fn device_all_lists_all_devices() {
@@ -151,9 +152,10 @@ mod tests {
     }
 
     #[test]
-    fn device_name_works() {
+    fn device_implements_device_ptr() {
         let device = testing::get_device();
-        let name: String = device.device_name().unwrap();
-        assert!(name.len() > 0);
+        let device_id: cl_device_id = unsafe { device.device_ptr() };
+        assert!(!device_id.is_null());
+        assert_ne!(device_id, UNUSABLE_DEVICE_ID);
     }
 }

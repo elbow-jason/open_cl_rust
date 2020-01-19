@@ -544,3 +544,11 @@ __cl_enum!(ProfilingInfo, cl_profiling_info, {
 // CL_CONTEXT_ADAPTER_DXVA_KHR      IDXVAHD_Device *                    (if the cl_khr_dx9_media_sharing extension is supported).
 // CL_CONTEXT_D3D11_DEVICE_KHR      ID3D11Device *                      default: NULL
 
+
+// NOTE: Version for cl_device_svm? 2.0?
+// __cl_enum!(DeviceSvm, cl_device_svm, {
+//     CoarseGrainBuffer => 1,
+//     FineGrainBuffer => 2,
+//     FineGrainSystem => 4,
+//     Atomics => 8
+// });

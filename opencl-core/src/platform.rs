@@ -109,12 +109,8 @@ impl fmt::Debug for Platform {
 
 #[cfg(test)]
 mod tests {
-    use super::Platform;
+    use crate::{Platform, testing};
     // use crate::device::{Device, DeviceType, DevicePtr};
-
-    // fn get_platform() -> Platform {
-    //     Platform::default()
-    // }
 
     #[test]
     fn platform_func_default_works() {
@@ -127,113 +123,50 @@ mod tests {
         assert!(platforms.len() > 0);
     }
 
-    // #[test]
-    // fn platform_can_list_all_devices() {
-    //     let platform = get_platform();
-    //     let devices = platform
-    //         .all_devices()
-    //         .expect("failed to list all platform devices");
-    //     assert!(devices.len() > 0);
-    // }
+    #[test]
+    fn platform_has_methods_for_info() {
+        let platforms = testing::get_platforms();
+        assert_ne!(platforms.len(), 0);
+        for platform in platforms.into_iter() {
 
-    // #[test]
-    // fn platform_can_list_devices_by_type() {
-    //     let platform = get_platform();
-    //     let _cpus = platform.all_devices_by_type(DeviceType::CPU);
-    //     let _gpus = platform.all_devices_by_type(DeviceType::GPU);
-    //     let _accelerators = platform.all_devices_by_type(DeviceType::ACCELERATOR);
-    //     let _custom = platform.all_devices_by_type(DeviceType::CUSTOM);
-    // }
+            let empty_string = "".to_string();
 
-    // #[test]
-    // fn platform_has_one_or_more_default_device() {
-    //     let platform = get_platform();
-    //     let devices: Vec<Device> = platform
-    //         .default_devices()
-    //         .expect("failed to find a default device for the platform");
-    //     assert!(devices.len() > 0);
-    // }
+            let name = platform
+                .name()
+                .expect("failed to get platform info for name");
 
-    // #[test]
-    // fn platform_can_select_one_usable_default_device_best_effort() {
-    //     let platform = get_platform();
-    //     let device: Device = platform
-    //         .default_device()
-    //         .expect("failed to find a default device for the platform");
-    //     // fetching a name means it is usable.
-    //     assert!(device.is_usable() == true);
-    //     let _name = device.name().expect("failed to fetch name_info on device");
-    // }
+            assert!(name != empty_string);
 
-    // #[test]
-    // fn platform_has_methods_for_listing_devices_by_type() {
-    //     let platform = get_platform();
+            let version = platform
+                .version()
+                .expect("failed to get platform info for version");
 
-    //     let cpus_flag = platform.all_devices_by_type(DeviceType::CPU);
-    //     let cpus_method = platform.cpu_devices();
-    //     assert_eq!(cpus_flag, cpus_method);
+            assert!(version != empty_string);
 
-    //     let gpus_flag = platform.all_devices_by_type(DeviceType::GPU);
-    //     let gpus_method = platform.gpu_devices();
-    //     assert_eq!(gpus_flag, gpus_method);
+            let profile = platform
+                .profile()
+                .expect("failed to get platform info for profile");
 
-    //     let accel_flag = platform.all_devices_by_type(DeviceType::ACCELERATOR);
-    //     let accel_method = platform.accelerator_devices();
-    //     assert_eq!(accel_flag, accel_method);
+            assert!(profile != empty_string);
 
-    //     let custom_flag = platform.all_devices_by_type(DeviceType::CUSTOM);
-    //     let custom_method = platform.custom_devices();
-    //     assert_eq!(custom_flag, custom_method);
-    // }
+            let vendor = platform
+                .vendor()
+                .expect("failed to get platform info for vendor");
 
-    // #[test]
-    // fn platform_can_get_the_first_default_device() {
-    //     let device = Platform::get_any_default_device()
-    //         .expect("Call to Platform::get_any_default_device() failed.");
-    //     assert!(device.is_usable() == true);
-    //     let _name = device.name().expect("Failed to fetch Device name");
-    // }
+            assert!(vendor != empty_string);
 
-    // #[test]
-    // fn platform_has_methods_for_info() {
-    //     let platform = get_platform();
-    //     let empty_string = "".to_string();
+            let extensions = platform
+                .extensions()
+                .expect("failed to get platform info for extensions");
 
-    //     let name = platform
-    //         .name()
-    //         .expect("failed to get platform info for name");
+            for ext in extensions.into_iter() {
+                assert!(ext != empty_string);
+            }
+            // v2.1
+            // let host_timer_resolution = platform.host_timer_resolution()
+            //     .expect("failed to get platform info for host_timer_resolution");
 
-    //     assert!(name != empty_string);
-
-    //     let version = platform
-    //         .version()
-    //         .expect("failed to get platform info for version");
-
-    //     assert!(version != empty_string);
-
-    //     let profile = platform
-    //         .profile()
-    //         .expect("failed to get platform info for profile");
-
-    //     assert!(profile != empty_string);
-
-    //     let vendor = platform
-    //         .vendor()
-    //         .expect("failed to get platform info for vendor");
-
-    //     assert!(vendor != empty_string);
-
-    //     let extensions = platform
-    //         .extensions()
-    //         .expect("failed to get platform info for extensions");
-
-    //     for ext in extensions.into_iter() {
-    //         assert!(ext != empty_string);
-    //     }
-    //     // v2.1
-    //     // let host_timer_resolution = platform.host_timer_resolution()
-    //     //     .expect("failed to get platform info for host_timer_resolution");
-
-    //     // assert_eq!(host_timer_resolution, "".to_string());
-    // }
+            // assert_eq!(host_timer_resolution, "".to_string());
+        }
+    }
 }
