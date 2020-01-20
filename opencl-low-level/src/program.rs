@@ -193,7 +193,7 @@ impl Clone for ClProgram {
     }
 }
 
-impl ProgramPtr for ClProgram {
+unsafe impl ProgramPtr for ClProgram {
     unsafe fn program_ptr(&self) -> cl_program {
         self.object
     }
@@ -217,7 +217,7 @@ fn get_info<T: Copy, P: ProgramPtr>(program: &P, flag: ProgramInfo) -> Output<Cl
     unsafe { cl_get_program_info(program.program_ptr(), flag.into()) }
 }
 
-pub trait ProgramPtr: Sized {
+pub unsafe trait ProgramPtr: Sized {
     unsafe fn program_ptr(&self) -> cl_program;
 
     fn reference_count(&self) -> Output<u32> {

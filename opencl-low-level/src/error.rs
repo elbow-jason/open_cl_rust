@@ -9,6 +9,7 @@ use crate::kernel::KernelError;
 use crate::platform::PlatformError;
 use crate::device::DeviceError;
 use crate::status_code::StatusCodeError;
+use crate::mem::MemError;
 
 #[derive(Debug, Fail, PartialEq, Clone, Eq)]
 pub enum Error {
@@ -26,6 +27,9 @@ pub enum Error {
 
     #[fail(display = "{:?}", _0)]
     KernelError(KernelError),
+
+    #[fail(display = "{:?}", _0)]
+    MemError(MemError),
 
     #[fail(display = "OpenCL returned a null pointer")]
     ClObjectCannotBeNull,
@@ -67,12 +71,11 @@ impl From<KernelError> for Error {
     }
 }
 
-
-// impl From<DeviceMemError> for Error {
-//     fn from(err: DeviceMemError) -> Error {
-//         Error::DeviceMemError(err)
-//     }
-// }
+impl From<MemError> for Error {
+    fn from(err: MemError) -> Error {
+        Error::MemError(err)
+    }
+}
 
 
 

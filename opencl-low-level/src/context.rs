@@ -110,6 +110,12 @@ impl ClContext {
         Ok(ClContext::unchecked_new(object))
     }
 
+    pub unsafe fn retain_new(object: cl_context) -> Output<ClContext> {
+        utils::null_check(object)?;
+        retain_context(object);
+        Ok(ClContext::unchecked_new(object))
+    }
+
     pub unsafe fn create<D>(devices: &[D]) -> Output<ClContext> where D: DevicePtr {
         let device_ptrs: Vec<cl_device_id> = devices.iter().map(|d| d.device_ptr()).collect();
         let object = cl_create_context(&device_ptrs[..])?;
@@ -157,7 +163,7 @@ mod test_context_ptr {
 
     #[test]
     fn reference_count_works() {
-        let ctx = ll_testing::get_context();
+        let (ctx, _devices) = ll_testing::get_context();
         let ref_count = ctx.reference_count().unwrap();
         // this is the only place this context should be.
         assert_eq!(ref_count, 1);
@@ -165,30 +171,30 @@ mod test_context_ptr {
     
     #[test]
     fn devices_works() {
-         let ctx = ll_testing::get_context();
-         let devices = ctx.devices().unwrap();
-         assert!(devices.len() > 0);
+        let (ctx, _devices) = ll_testing::get_context();
+        let devices = ctx.devices().unwrap();
+        assert!(devices.len() > 0);
     }
     
     #[test]
     fn properties_works() {
-         let ctx = ll_testing::get_context();
-         let _props = ctx.properties().unwrap();
+        let (ctx, _devices) = ll_testing::get_context();
+        let _props = ctx.properties().unwrap();
     }
     
     #[test]
     fn num_devices_works() {
-        let ctx = ll_testing::get_context();
-         let n_devices = ctx.num_devices().unwrap();
-         assert!(n_devices > 0);
+        let (ctx, _devices) = ll_testing::get_context();
+        let n_devices = ctx.num_devices().unwrap();
+        assert!(n_devices > 0);
     }
 
         
     #[test]
     fn devices_len_matches_num_devices() {
-        let ctx = ll_testing::get_context();
+        let (ctx, _devices) = ll_testing::get_context();
         let num_devices = ctx.num_devices().unwrap();
         let devices = ctx.devices().unwrap();
-         assert_eq!(num_devices as usize, devices.len());
+        assert_eq!(num_devices as usize, devices.len());
     }
 }

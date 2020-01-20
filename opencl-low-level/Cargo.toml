@@ -9,17 +9,41 @@ name = "opencl_low_level"
 
 [dependencies]
 opencl-sys = { version = "0.1.0", path = "../opencl-sys" }
-paste = "0.1.6"
-libc = "0.2.65"
-# log = "0.4.8"
-lazy_static = "1.4.0"
-bitflags = "1.2.1"
-failure = "0.1.6"
-colored = "1.9"
-num = "0.2"
 
+# easy-to-use interpolated macros
+paste = "0.1.6"
+
+# low-level types
+libc = "0.2.65"
+
+# create static values that require a slight amount of runtime evaluation
+lazy_static = "1.4.0"
+
+# macros for generating bitflag structs
+bitflags = "1.2.1"
+
+# a very-small framework for setting up hierarchies of errors
+failure = "0.1.6"
+
+# colored text
+colored = "1.9"
+
+# number stuff
+num = "0.2.1"
+
+# traits for numbers (duh?). Allows easier extenstion of numbers and generics.
+num-traits = "0.2.11"
+
+# rust support for complex numbers. Wowowow.
+num-complex = "0.2.4"
+
+# logging
 log = "0.4"
+
+# logging runtime that is configurable via env vars
 env_logger = "0.7"
+
+# used for time formatting microsec in logs
 chrono = "0.4.10"
 
 [features]

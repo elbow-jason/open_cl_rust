@@ -1,7 +1,14 @@
 use crate::{
     ClDeviceID, list_platforms, DeviceType, list_devices_by_type, ClContext,
-    ClProgram,
+    ClProgram, ClNumber, ClMem, MemConfig,
 };
+
+pub fn get_mem<T: ClNumber>(size: usize) -> (ClMem<T>, ClContext, Vec<ClDeviceID>) {
+    let (context, devices) = get_context();
+    let mem_config = MemConfig::default();
+    let ll_mem = ClMem::create_with_config(&context, size, mem_config).unwrap();
+    (ll_mem, context, devices)
+}
 
 pub fn get_program(src: &str) -> (ClProgram, Vec<ClDeviceID>, ClContext) {
     let devices = list_devices();
@@ -11,9 +18,9 @@ pub fn get_program(src: &str) -> (ClProgram, Vec<ClDeviceID>, ClContext) {
     (program, devices, context)
 }
 
-pub fn get_context() -> ClContext {
+pub fn get_context() -> (ClContext, Vec<ClDeviceID>) {
     let devices = list_devices();
-    context_from_devices(&devices[..])
+    (context_from_devices(&devices[..]), devices)
 }
 
 pub fn context_from_devices(devices: &[ClDeviceID]) -> ClContext {

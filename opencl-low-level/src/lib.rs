@@ -2,6 +2,8 @@
 #[macro_use] extern crate failure;
 #[macro_use] extern crate bitflags;
 
+extern crate num_complex;
+
 pub extern crate opencl_sys as ffi;
 
 
@@ -15,6 +17,7 @@ pub mod cl_bitflags;
 pub mod cl_helpers;
 pub mod cl_pointer;
 pub mod cl_input;
+pub mod cl_number;
 pub mod utils;
 pub mod strings;
 
@@ -38,6 +41,7 @@ pub use error::Error;
 pub use cl_input::*;
 pub use cl_enums::*;
 pub use cl_bitflags::*;
+pub use cl_number::ClNumber;
 
 pub use platform::*;
 pub use device::*;

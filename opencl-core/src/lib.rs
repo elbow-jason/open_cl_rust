@@ -38,7 +38,7 @@ pub mod platform;
 pub mod device;
 pub mod context;
 pub mod program;
-// pub mod device_mem;
+pub mod buffer;
 // pub mod kernel;
 // pub mod command_queue;
 // pub mod event;
@@ -48,6 +48,7 @@ pub use platform::Platform;
 pub use device::Device;
 pub use context::Context;
 pub use program::{Program, UnbuiltProgram};
+pub use buffer::Buffer;
 
 // pub use command_queue::CommandQueue;
 // pub use device_mem::DeviceMem;

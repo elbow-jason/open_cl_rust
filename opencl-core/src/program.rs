@@ -40,21 +40,21 @@ impl UnbuiltProgram {
     }
 }
 
-impl ProgramPtr for UnbuiltProgram {
+unsafe impl ProgramPtr for UnbuiltProgram {
       unsafe fn program_ptr(&self) -> cl_program {
         (*self.inner).program_ptr()
     }
 }
 
 
-impl ProgramPtr for &mut UnbuiltProgram {
+unsafe impl ProgramPtr for &mut UnbuiltProgram {
       unsafe fn program_ptr(&self) -> cl_program {
         (*self.inner).program_ptr()
     }
 }
 
 
-impl ProgramPtr for &UnbuiltProgram {
+unsafe impl ProgramPtr for &UnbuiltProgram {
       unsafe fn program_ptr(&self) -> cl_program {
         (*self.inner).program_ptr()
     }
@@ -176,19 +176,19 @@ impl fmt::Debug for Program {
 unsafe impl Sync for Program {}
 unsafe impl Send for Program {}
 
-impl ProgramPtr for Program {
+unsafe impl ProgramPtr for Program {
       unsafe fn program_ptr(&self) -> cl_program {
         (*self.inner).program_ptr()
     }
 }
 
-impl ProgramPtr for &Program {
+unsafe impl ProgramPtr for &Program {
       unsafe fn program_ptr(&self) -> cl_program {
         (*self.inner).program_ptr()
     }
 }
 
-impl ProgramPtr for &mut Program {
+unsafe impl ProgramPtr for &mut Program {
       unsafe fn program_ptr(&self) -> cl_program {
         (*self.inner).program_ptr()
     }
