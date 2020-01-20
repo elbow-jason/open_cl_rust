@@ -39,7 +39,7 @@ pub mod device;
 pub mod context;
 pub mod program;
 pub mod buffer;
-// pub mod kernel;
+pub mod kernel;
 // pub mod command_queue;
 // pub mod event;
 // pub mod session;
@@ -49,11 +49,12 @@ pub use device::Device;
 pub use context::Context;
 pub use program::{Program, UnbuiltProgram};
 pub use buffer::Buffer;
+pub use kernel::Kernel;
 
 // pub use command_queue::CommandQueue;
 // pub use device_mem::DeviceMem;
 // pub use event::Event;
-// pub use kernel::{Kernel, KernelArg, KernelArgSizeAndPointer, KernelLock, KernelPtr};
+
 
 // pub use session::Session;
 

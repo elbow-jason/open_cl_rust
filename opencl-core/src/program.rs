@@ -144,6 +144,27 @@ impl Program {
             Ok(UnbuiltProgram::new(ll_prog, context.clone()))
         }
     }
+
+    pub unsafe fn new(object: ClProgram, context: Context, devices: Vec<Device>) -> Program {
+        Program {
+            inner: ManuallyDrop::new(object), 
+            _context: ManuallyDrop::new(context),
+            _devices: ManuallyDrop::new(devices),
+            _unconstructable: (),
+        }
+    }
+
+    pub fn devices(&self) -> &[Device] {
+        &self._devices[..]
+    }
+
+    pub fn context(&self) -> &Context {
+        &self._context
+    }
+
+    pub fn low_level_program(&self) -> &ClProgram {
+        &self.inner
+    }
 }
 
 impl Drop for Program {
@@ -194,25 +215,6 @@ unsafe impl ProgramPtr for &mut Program {
     }
 }
 
-impl Program {
-    pub unsafe fn new(object: ClProgram, context: Context, devices: Vec<Device>) -> Program {
-        Program {
-            inner: ManuallyDrop::new(object), 
-            _context: ManuallyDrop::new(context),
-            _devices: ManuallyDrop::new(devices),
-            _unconstructable: (),
-        }
-    }
-
-    pub fn devices(&self) -> &[Device] {
-        &self._devices[..]
-    }
-
-    pub fn context(&self) -> &Context {
-        &self._context
-    }
-}
-
 impl PartialEq for Program {
     fn eq(&self, other: &Self) -> bool {
         unsafe { std::ptr::eq(self.program_ptr(), other.program_ptr()) }
@@ -220,8 +222,6 @@ impl PartialEq for Program {
 }
 
 impl Eq for Program {}
-
-
 
 #[cfg(test)]
 mod tests {

@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crate::{
     utils, build_output, Output, ClPointer, DevicePtr, ContextInfo,
     ClDeviceID, DeviceRefCount, ContextProperties,
@@ -155,6 +157,14 @@ impl PartialEq for ClContext {
 }
 
 impl Eq for ClContext {}
+
+
+impl fmt::Debug for ClContext {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "ClContext{{{:?}}}", self.object)
+    }
+}
+
 
 
 #[cfg(test)]

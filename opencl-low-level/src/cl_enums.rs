@@ -416,9 +416,10 @@ __cl_enum!(KernelInfo, cl_kernel_info, {
     ReferenceCount => 0x1192,
     Context => 0x1193,
     Program => 0x1194,
-    Attributes => 0x1195,
-    MaxNumSubGroups => 0x11B9,
-    CompileNumSubGroups => 0x11BA
+    Attributes => 0x1195
+    // OpenCL v2.0
+    // MaxNumSubGroups => 0x11B9,
+    // CompileNumSubGroups => 0x11BA
 });
 
 __cl_enum!(KernelWorkGroupInfo, cl_kernel_work_group_info, {

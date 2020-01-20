@@ -6,7 +6,7 @@ pub mod work;
 
 pub use {
     dims::Dims,
-    status_code::{ClError, StatusCode},
+    // status_code::{ClError, StatusCode},
     // volume::Volume,
     work::{Volumetric, VolumetricError, Work},
 };

@@ -135,7 +135,7 @@ pub unsafe trait MemPtr<T: ClNumber> {
 
     // len will panic if the mem is not in a valid state.
     fn len(&self) -> usize {
-        let mem_size_in_bytes = self.size().expect("Failed to get the size of mem ptr");
+        let mem_size_in_bytes = unsafe { self.size().expect("Failed to get the size of mem ptr") };
         mem_size_in_bytes / std::mem::size_of::<T>()
     }
 
@@ -178,27 +178,25 @@ pub unsafe trait MemPtr<T: ClNumber> {
             })
     }
 
-    fn context(&self) -> Output<ClContext> {
-        unsafe {
-            self.get_info::<cl_context>(MemInfo::Context)
-                .and_then(|cl_ptr| ClContext::retain_new(cl_ptr.into_one()))
-        }
+    unsafe fn context(&self) -> Output<ClContext> {
+        self.get_info::<cl_context>(MemInfo::Context)
+            .and_then(|cl_ptr| ClContext::retain_new(cl_ptr.into_one()))
     }
 
-    fn reference_count(&self) -> Output<u32> {
-        unsafe { self.get_info(MemInfo::ReferenceCount).map(|ret| ret.into_one()) }
+    unsafe fn reference_count(&self) -> Output<u32> {
+        self.get_info(MemInfo::ReferenceCount).map(|ret| ret.into_one())
     }
     
-    fn size(&self) -> Output<usize> {
-        unsafe { self.get_info(MemInfo::Size).map(|ret| ret.into_one()) }
+    unsafe fn size(&self) -> Output<usize> {
+        self.get_info(MemInfo::Size).map(|ret| ret.into_one())
     }
 
-    fn offset(&self) -> Output<usize> {
-        unsafe { self.get_info(MemInfo::Offset).map(|ret| ret.into_one()) }
+    unsafe fn offset(&self) -> Output<usize> {
+        self.get_info(MemInfo::Offset).map(|ret| ret.into_one())
     }
 
-    fn flags(&self) -> Output<MemFlags> {
-        unsafe { self.get_info(MemInfo::Flags).map(|ret| ret.into_one()) }
+    unsafe fn flags(&self) -> Output<MemFlags> {
+        self.get_info(MemInfo::Flags).map(|ret| ret.into_one())
     }
 
     // // TODO: figure out what this is...
@@ -233,20 +231,18 @@ impl<T: ClNumber> ClMem<T> {
             Ok(ClMem::new(mem_object))
         }
     }
-    pub fn create_with_config<B>(
+    pub unsafe fn create_with_config<B>(
         context: &ClContext,
         buffer_creator: B,
         mem_config: MemConfig
     ) -> Output<ClMem<T>> where B: BufferCreator<T> {
-        unsafe {
-            let mem_object = cl_create_buffer_with_creator(
-                context.context_ptr(),
-                mem_config.into(),
-                buffer_creator
-            )?;
-        
-            Ok(ClMem::new(mem_object))
-        }
+        let mem_object = cl_create_buffer_with_creator(
+            context.context_ptr(),
+            mem_config.into(),
+            buffer_creator
+        )?;
+    
+        Ok(ClMem::new(mem_object))
     }
 }
 
@@ -289,7 +285,7 @@ mod tests {
     fn mem_can_be_created_with_len() {
         let (context, _devices) = ll_testing::get_context();
         let mem_config = MemConfig::default();
-        let _mem: ClMem<u32> = ClMem::create_with_config(&context, 10, mem_config).unwrap();
+        let _mem: ClMem<u32> = unsafe { ClMem::create_with_config(&context, 10, mem_config).unwrap() };
     }
 
     #[test]
@@ -297,7 +293,7 @@ mod tests {
         let (context, _devices) = ll_testing::get_context();
         let mut data: Vec<u32> = vec![0, 1, 2, 3, 4];
         let mem_config = MemConfig::for_copy();
-        let _mem: ClMem<u32> = ClMem::create_with_config(&context, &mut data[..], mem_config).unwrap();
+        let _mem: ClMem<u32> = unsafe { ClMem::create_with_config(&context, &mut data[..], mem_config).unwrap() };
     }
 
     mod mem_ptr_trait {
@@ -313,14 +309,14 @@ mod tests {
         #[test]
         fn reference_count_method_works() {
             let (ll_mem, _context, _devices) = ll_testing::get_mem::<u32>(10);
-            let ref_count = ll_mem.reference_count().unwrap();
+            let ref_count = unsafe { ll_mem.reference_count().unwrap() };
             assert_eq!(ref_count, 1);
         }
 
         #[test]
         fn size_method_returns_size_in_bytes() {
             let (ll_mem, _context, _devices) = ll_testing::get_mem::<u32>(10);
-            let bytes_size = ll_mem.size().unwrap();
+            let bytes_size = unsafe { ll_mem.size().unwrap() };
             assert_eq!(bytes_size, 10 * std::mem::size_of::<u32>());
         }
 
@@ -328,14 +324,14 @@ mod tests {
         #[test]
         fn offset_method_works() {
             let (ll_mem, _context, _devices) = ll_testing::get_mem::<u32>(10);
-            let offset = ll_mem.offset().unwrap();
+            let offset = unsafe { ll_mem.offset().unwrap() };
             assert_eq!(offset, 0);
         }
 
         #[test]
         fn flags_method_works() {
             let (ll_mem, _context, _devices) = ll_testing::get_mem::<u32>(10);
-            let flags = ll_mem.flags().unwrap();
+            let flags = unsafe { ll_mem.flags().unwrap() };
             assert_eq!(flags, MemFlags::READ_WRITE_ALLOC_HOST_PTR);
         }
 

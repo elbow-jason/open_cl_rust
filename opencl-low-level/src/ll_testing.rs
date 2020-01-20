@@ -1,12 +1,18 @@
 use crate::{
     ClDeviceID, list_platforms, DeviceType, list_devices_by_type, ClContext,
-    ClProgram, ClNumber, ClMem, MemConfig,
+    ClProgram, ClNumber, ClMem, MemConfig, ClKernel
 };
+
+pub fn get_kernel(src: &str, kernel_name: &str) -> (ClKernel, ClProgram, Vec<ClDeviceID>, ClContext) {
+    let (program, devices, context) = get_program(src);
+    let kernel: ClKernel = unsafe { ClKernel::create(&program, kernel_name).unwrap() };
+    (kernel, program, devices, context)
+}
 
 pub fn get_mem<T: ClNumber>(size: usize) -> (ClMem<T>, ClContext, Vec<ClDeviceID>) {
     let (context, devices) = get_context();
     let mem_config = MemConfig::default();
-    let ll_mem = ClMem::create_with_config(&context, size, mem_config).unwrap();
+    let ll_mem = unsafe { ClMem::create_with_config(&context, size, mem_config).unwrap() };
     (ll_mem, context, devices)
 }
 

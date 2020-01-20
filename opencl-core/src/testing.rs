@@ -45,6 +45,17 @@ pub fn get_program(src: &str) -> Program {
     unbuilt_program.build(&devices[..]).unwrap()
 }
 
+pub fn get_buffer<T: ClNumber>(size: usize) -> Buffer<T> {
+    let context = testing::get_context();
+    Buffer::<T>::create(
+        &context,
+        size,
+        HostAccess::ReadWrite,
+        KernelAccess::ReadWrite,
+        MemLocation::AllocOnDevice
+    ).unwrap()
+}
+
 // pub fn test_all<F>(test: &mut F)
 // where
 //     F: FnMut(&Device, &Context, &CommandQueue),

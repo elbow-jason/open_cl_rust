@@ -153,6 +153,12 @@ impl ClProgram {
         Ok(ClProgram::unchecked_new(prog))
     }
 
+    pub unsafe fn retain_new(prog: cl_program) -> Output<ClProgram> {
+        utils::null_check(prog)?;
+        retain_program(prog);
+        Ok(ClProgram::unchecked_new(prog))
+    }
+
     pub fn build<D>(&mut self, devices: &[D]) -> Output<()> where D: DevicePtr {
         if devices.is_empty() {
             return Err(DEVICE_LIST_CANNOT_BE_EMPTY);
