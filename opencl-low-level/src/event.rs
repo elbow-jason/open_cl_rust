@@ -187,12 +187,12 @@ impl Drop for ClEvent {
 
 pub struct BufferReadEvent<T: ClNumber> {
     event: ManuallyDrop<ClEvent>,
-    host_buffer: ManuallyDrop<Vec<T>>,
+    host_buffer: ManuallyDrop<Option<Vec<T>>>,
     is_consumed: bool,
 }
 
 impl<T: ClNumber> BufferReadEvent<T> {
-    pub fn new(event: ClEvent, host_buffer: Vec<T>) -> BufferReadEvent<T> {
+    pub fn new(event: ClEvent, host_buffer: Option<Vec<T>>) -> BufferReadEvent<T> {
         BufferReadEvent {
             event: ManuallyDrop::new(event),
             host_buffer: ManuallyDrop::new(host_buffer),
@@ -200,16 +200,21 @@ impl<T: ClNumber> BufferReadEvent<T> {
         }
     }
 
-    pub fn wait(&mut self) -> Output<Vec<T>> {
+    pub fn wait(&mut self) -> Output<Option<Vec<T>>> {
         if self.is_consumed {
             return Err(Error::EventError(EventError::EventAlreadyConsumed(self.event.address())))
         }
         unsafe {
             self.event.wait()?;
-            let mut output = vec![];
-            std::mem::swap(&mut *self.host_buffer, &mut output);
-            self.is_consumed = true;
-            Ok(output)
+            match *self.host_buffer {
+                Some(_) => {
+                    let mut output = Some(vec![]);
+                    std::mem::swap(&mut *self.host_buffer, &mut output);
+                    self.is_consumed = true;
+                    Ok(output)
+                },
+                None => Ok(None),
+            }
         }
     }
 }

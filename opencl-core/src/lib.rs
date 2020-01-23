@@ -33,6 +33,7 @@ extern crate num;
 
 pub mod error;
 // pub mod utils;
+pub mod traits;
 
 pub mod platform;
 pub mod device;
@@ -40,8 +41,8 @@ pub mod context;
 pub mod program;
 pub mod buffer;
 pub mod kernel;
-// pub mod command_queue;
-// pub mod event;
+pub mod command_queue;
+
 // pub mod session;
 
 pub use platform::Platform;
@@ -50,6 +51,7 @@ pub use context::Context;
 pub use program::{Program, UnbuiltProgram};
 pub use buffer::Buffer;
 pub use kernel::Kernel;
+pub use command_queue::CommandQueue;
 
 // pub use command_queue::CommandQueue;
 // pub use device_mem::DeviceMem;

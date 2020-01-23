@@ -85,4 +85,8 @@ impl Kernel {
     pub fn write_lock(&self) -> RwLockWriteGuard<ClKernel> {
         self.inner.write().unwrap()
     }
+
+    // pub fn low_level_kernel(&self) -> &ClKernel {
+    //     &self.inner
+    // }
 }

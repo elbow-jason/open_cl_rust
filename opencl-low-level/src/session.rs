@@ -85,10 +85,10 @@ impl Session {
         queue_index: usize,
         mem: &mut ClMem<T>,
         host_buffer: &[T],
-        command_queue_opts: CommandQueueOptions,
+        opts: Option<CommandQueueOptions>,
     ) -> Output<ClEvent> {
         let queue: &mut ClCommandQueue = self.get_queue_by_index(queue_index)?;
-        queue.write_buffer(mem, host_buffer, command_queue_opts)       
+        queue.write_buffer(mem, host_buffer, opts)       
     }   
 }
 

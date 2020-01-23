@@ -35,6 +35,13 @@ impl Default for CommandQueueOptions {
     }
 }
 
+impl From<Option<CommandQueueOptions>> for CommandQueueOptions {
+    fn from(maybe_cq_opts: Option<CommandQueueOptions>) -> CommandQueueOptions {
+        maybe_cq_opts.unwrap_or(CommandQueueOptions::default())
+    }
+}
+
+
 unsafe impl Waitlist for CommandQueueOptions {
     unsafe fn fill_waitlist(&self, waitlist: &mut Vec<cl_event>) {
         waitlist.extend(self.new_waitlist());
@@ -282,6 +289,40 @@ pub unsafe trait CommandQueuePtr: Sized {
     }
 }
 
+pub enum HostBuffer<'a, T: ClNumber> {
+    Slice(&'a [T]),
+    Vec(Vec<T>),
+}
+
+impl<'a, T: ClNumber> From<&'a [T]> for HostBuffer<'a, T> {
+    fn from(slice: &'a [T]) -> HostBuffer<'a, T> {
+        HostBuffer::Slice(slice)
+    }
+}
+
+impl<'a, T: ClNumber> From<Vec<T>> for HostBuffer<'a, T> {
+    fn from(v: Vec<T>) -> HostBuffer<'a, T> {
+        HostBuffer::Vec(v)
+    }
+}
+
+pub enum MutHostBuffer<'a, T: ClNumber> {
+    Slice(&'a mut [T]),
+    Vec(Vec<T>),
+}
+
+impl<'a, T: ClNumber> From<&'a mut [T]> for MutHostBuffer<'a, T> {
+    fn from(slice: &'a mut [T]) -> MutHostBuffer<'a, T> {
+        MutHostBuffer::Slice(slice)
+    }
+}
+
+impl<'a, T: ClNumber> From<Vec<T>> for MutHostBuffer<'a, T> {
+    fn from(v: Vec<T>) -> MutHostBuffer<'a, T> {
+        MutHostBuffer::Vec(v)
+    }
+}
+
 pub struct ClCommandQueue {
     object: cl_command_queue,
     _unconstructable: ()
@@ -315,14 +356,14 @@ impl ClCommandQueue {
             None => CommandQueueProperties::PROFILING_ENABLE,
             Some(prop) => prop,
         };
-        ClCommandQueue::create_raw(
+        ClCommandQueue::create_from_raw_pointers(
             context.context_ptr(),
             device.device_ptr(),
             properties.bits() as cl_command_queue_properties,
         )
     }
     
-    pub unsafe fn create_raw(context: cl_context, device: cl_device_id, props: cl_command_queue_properties) -> Output<ClCommandQueue> {
+    pub unsafe fn create_from_raw_pointers(context: cl_context, device: cl_device_id, props: cl_command_queue_properties) -> Output<ClCommandQueue> {
         let cq_object = cl_create_command_queue(context, device, props)?;
         ClCommandQueue::new(cq_object)
     }
@@ -331,7 +372,7 @@ impl ClCommandQueue {
         let context = self.cl_context()?;
         let device = self.cl_device_id()?;
         let props = self.cl_command_queue_properties()?;
-        ClCommandQueue::create_raw(
+        ClCommandQueue::create_from_raw_pointers(
             context,
             device,
             props
@@ -341,45 +382,74 @@ impl ClCommandQueue {
 
     /// write_buffer is used to move data from the host buffer (buffer: &[T]) to
     /// the mutable OpenCL cl_mem pointer.
-    pub unsafe fn write_buffer<T: ClNumber>(
+    pub unsafe fn write_buffer<'a, T: ClNumber, H: Into<HostBuffer<'a, T>>>(
+        &mut self,
+        mem: &mut ClMem<T>,
+        host_buffer: H,
+        opts: Option<CommandQueueOptions>,
+    ) -> Output<ClEvent> {
+        match host_buffer.into() {
+            HostBuffer::Slice(hb) => self.write_buffer_from_slice(mem, hb, opts),
+            HostBuffer::Vec(hb) => self.write_buffer_from_slice(mem, &hb[..], opts),
+        }
+    }
+
+    unsafe fn write_buffer_from_slice<'a, T: ClNumber>(
         &mut self,
         mem: &mut ClMem<T>,
         host_buffer: &[T],
-        command_queue_opts: CommandQueueOptions,
+        opts: Option<CommandQueueOptions>,
     ) -> Output<ClEvent> {
         let event = cl_enqueue_write_buffer(
             self.command_queue_ptr(),
             mem.mem_ptr(),
             host_buffer,
-            command_queue_opts
+            opts.into(),
         )?;
         ClEvent::new(event)
     }
 
-    pub unsafe fn read_buffer<T: ClNumber>(
+    pub unsafe fn read_buffer<'a, T: ClNumber, H: Into<MutHostBuffer<'a, T>>>(
         &mut self,
         mem: &ClMem<T>,
-        mut host_buffer: Vec<T>,
-        command_queue_opts: CommandQueueOptions,
+        host_buffer: H,
+        opts: Option<CommandQueueOptions>,
     ) -> Output<BufferReadEvent<T>> {
+        match host_buffer.into() {
+            MutHostBuffer::Slice(slc) => {
+                let event = self.read_buffer_into_slice(mem, slc, opts)?;
+                Ok(BufferReadEvent::new(event, None))
+            },
+            MutHostBuffer::Vec(mut hb) => {
+                let event = self.read_buffer_into_slice(mem, &mut hb[..], opts)?;
+                Ok(BufferReadEvent::new(event, Some(hb)))
+            }
+        }
+    }
+
+    unsafe fn read_buffer_into_slice<T: ClNumber>(
+        &mut self,
+        mem: &ClMem<T>,
+        host_buffer: &mut [T],
+        opts: Option<CommandQueueOptions>,
+    ) -> Output<ClEvent> {
         assert_eq!(mem.len().unwrap(), host_buffer.len());
         let raw_event = cl_enqueue_read_buffer(
             self.command_queue_ptr(),
             mem.mem_ptr(),
-            &mut host_buffer[..],
-            command_queue_opts
+            host_buffer,
+            opts.into()
         )?;
-        let event = ClEvent::new(raw_event)?;
-        Ok(BufferReadEvent::new(event, host_buffer))
+        ClEvent::new(raw_event)
     }
 
     pub unsafe fn enqueue_kernel(
-        &self,
+        &mut self,
         kernel: &ClKernel,
         work: &Work,
-        command_queue_opts: CommandQueueOptions,
+        opts: Option<CommandQueueOptions>,
     ) -> Output<ClEvent> {
-
+        let cq_opts: CommandQueueOptions = opts.into();
         let event = cl_enqueue_nd_range_kernel(
             self.command_queue_ptr(),
             kernel.kernel_ptr(),
@@ -387,10 +457,15 @@ impl ClCommandQueue {
             work.global_work_offset(),
             work.global_work_size(),
             work.local_work_size(),
-            &command_queue_opts.waitlist[..],
+            &cq_opts.waitlist[..],
         )?;
         ClEvent::new(event)
     }
+    
+    pub unsafe fn finish(&mut self) -> Output<()> {
+        cl_finish(self.object)
+    }
+
 }
 
 unsafe impl CommandQueuePtr for ClCommandQueue {
@@ -508,25 +583,48 @@ mod tests {
         let mut buffer = ll_testing::mem_from_data_and_context(&mut data, &context);
         for cq in cqs.iter_mut() {
             unsafe {
-                let opts = CommandQueueOptions::default();
-                let event = cq.write_buffer(&mut buffer, &data[..], opts).unwrap();
+                let event = cq.write_buffer(&mut buffer, &data[..], None).unwrap();
                 event.wait().unwrap();
             }
         }
     }
 
     #[test]
-    fn buffer_can_be_read_and_waited() {
+    fn buffer_vec_can_be_read_and_waited() {
+        let (mut cqs, context, _devices) = ll_testing::get_command_queues();
+        let mut data = vec![0u8, 1, 2, 3, 4, 5, 6, 7];
+        let buffer = ll_testing::mem_from_data_and_context(&mut data, &context);
+        let data_ref = &data;
+        for cq in cqs.iter_mut() {
+            unsafe {
+                let mut event = cq.read_buffer(
+                    &buffer,
+                    data_ref.clone(),
+                    None
+                ).unwrap();
+                let data2: Option<Vec<u8>> = event.wait().unwrap();
+                assert_eq!(data2, Some(data_ref.clone()));
+            }
+        }
+    }
+
+    #[test]
+    fn buffer_slice_can_be_read_and_waited() {
         let (mut cqs, context, _devices) = ll_testing::get_command_queues();
         let mut data = vec![0u8, 1, 2, 3, 4, 5, 6, 7];
         let buffer = ll_testing::mem_from_data_and_context(&mut data, &context);
 
         for cq in cqs.iter_mut() {
             unsafe {
-                let opts = CommandQueueOptions::default();
-                let mut event = cq.read_buffer(&buffer, data.clone(), opts).unwrap();
-                let data2 = event.wait().unwrap();
-                assert_eq!(data2, data)
+                let mut data2 = vec![0u8, 0, 0, 0, 0, 0, 0, 0];
+                let mut event = cq.read_buffer(
+                    &buffer,
+                    &mut data2[..],
+                    None
+                ).unwrap();
+                let data3 = event.wait();
+                assert_eq!(data3, Ok(None));
+                
             }
         }
     }
