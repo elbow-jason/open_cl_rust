@@ -4,26 +4,34 @@ use libc::{c_void, size_t};
 
 use crate::ffi::{
     clCreateKernel, clSetKernelArg, cl_kernel, cl_uint, cl_program, clGetKernelInfo,
-    cl_kernel_info, cl_context,
+    cl_kernel_info, cl_context, cl_mem,
 };
 use crate::{
     Output, strings, build_output, KernelInfo, ClPointer, ClContext, ClProgram, utils,
-    ProgramPtr,
+    ProgramPtr, ClNumber, ClMem, MemPtr, SizeAndPtr
 };
 use crate::cl_helpers::cl_get_info5;
 
-pub type KernelArgSizeAndPointer = (size_t, *const c_void);
-pub trait KernelArg {
-    unsafe fn as_kernel_arg(&self) -> KernelArgSizeAndPointer;
+pub unsafe trait KernelArg {
+    unsafe fn as_kernel_arg(&self) -> SizeAndPtr<*mut c_void>;
+}
+
+unsafe impl<T: ClNumber> KernelArg for ClMem<T> {
+    unsafe fn as_kernel_arg(&self) -> SizeAndPtr<*mut c_void> {
+        SizeAndPtr(
+            std::mem::size_of::<cl_mem>(),
+            self.mem_ptr_ref() as *const _ as *mut c_void
+        )
+    }
 }
 
 macro_rules! sized_scalar_kernel_arg {
     ($scalar:ty) => {
-        impl KernelArg for $scalar {
-            unsafe fn as_kernel_arg(&self) -> KernelArgSizeAndPointer {
-                (
+        unsafe impl KernelArg for $scalar {
+            unsafe fn as_kernel_arg(&self) -> SizeAndPtr<*mut c_void>{
+                SizeAndPtr(
                     std::mem::size_of::<$scalar>() as size_t,
-                    (self as *const $scalar) as *const c_void,
+                    (self as *const $scalar) as *mut c_void,
                 )
             }
         }
@@ -53,8 +61,7 @@ sized_scalar_kernel_arg!(f64);
 __release_retain!(kernel, Kernel);
 
 pub unsafe fn cl_set_kernel_arg<T: KernelArg>(kernel: cl_kernel, arg_index: usize, arg: &T) -> Output<()> {
-    let (arg_size, arg_ptr): KernelArgSizeAndPointer = arg.as_kernel_arg();
-
+    let SizeAndPtr(arg_size, arg_ptr) = arg.as_kernel_arg();
     let err_code = clSetKernelArg(
         kernel,
         arg_index as cl_uint,
@@ -69,7 +76,7 @@ pub unsafe fn cl_create_kernel(program: cl_program, name: &str) -> Output<cl_ker
     let c_name = strings::to_c_string(name)
         .ok_or_else(|| KernelError::CStringInvalidKernelName(name.to_string()))?;
     let mut err_code = 0;
-    let kernel = clCreateKernel(program, c_name.as_ptr(), &mut err_code);
+    let kernel: cl_kernel = clCreateKernel(program, c_name.as_ptr(), &mut err_code);
     build_output(kernel, err_code)
 }
 
@@ -201,6 +208,7 @@ impl Clone for ClKernel {
 #[cfg(test)]
 mod tests {
     use crate::*;
+    use crate::ffi::*;
 
     const SRC: &'static str = "
     __kernel void test123(__global int *i) {
@@ -217,42 +225,223 @@ mod tests {
 
     #[test]
     fn kernel_function_name_works() {
-        let (kernel, _program, _devices, _context) = ll_testing::get_kernel(SRC, KERNEL_NAME);
+        let (_context, _devices, _program, kernel) = ll_testing::get_kernel(SRC, KERNEL_NAME);
         let function_name = unsafe { kernel.function_name().unwrap() };
         assert_eq!(function_name, KERNEL_NAME);
     }
 
     #[test]
     fn kernel_num_args_works() {
-        let (kernel, _program, _devices, _context) = ll_testing::get_kernel(SRC, KERNEL_NAME);
+        let (_context, _devices, _program, kernel) = ll_testing::get_kernel(SRC, KERNEL_NAME);
         let num_args = unsafe { kernel.num_args().unwrap() };
         assert_eq!(num_args, 1);
     }
 
     #[test]
     fn kernel_reference_count_works() {
-        let (kernel, _program, _devices, _context) = ll_testing::get_kernel(SRC, KERNEL_NAME);
+        let (_context, _devices, _program, kernel) = ll_testing::get_kernel(SRC, KERNEL_NAME);
         let ref_count = unsafe { kernel.reference_count().unwrap() };
         assert_eq!(ref_count, 1);
     }
 
     #[test]
     fn kernel_context_works() {
-        let (kernel, _program, _devices, orig_context) = ll_testing::get_kernel(SRC, KERNEL_NAME);
+        let (orig_context, _devices, _program, kernel) = ll_testing::get_kernel(SRC, KERNEL_NAME);
         let context: ClContext = unsafe { kernel.context().unwrap() };
         assert_eq!(context, orig_context);
     }
 
     #[test]
     fn kernel_program_works() {
-        let (kernel, orig_program, _devices, _context) = ll_testing::get_kernel(SRC, KERNEL_NAME);
+        let (_context, _devices, orig_program, kernel) = ll_testing::get_kernel(SRC, KERNEL_NAME);
         let program: ClProgram = unsafe { kernel.program().unwrap() };
         assert_eq!(program, orig_program);
     }
 
     #[test]
     fn kernel_attributes_works() {
-        let (kernel, _program, _devices, _context) = ll_testing::get_kernel(SRC, KERNEL_NAME);
+        let (_context, _devices, _program, kernel) = ll_testing::get_kernel(SRC, KERNEL_NAME);
         let _attributes: String = unsafe { kernel.attributes().unwrap() };
     }
+
+   
+
+    #[test]
+    fn kernel_set_args_works_for_u8_scalar() {
+        let src: &str = "
+        __kernel void test123(uchar i) {
+            i + 1;
+        }";
+        let (_context, _devices, _program, mut kernel) = ll_testing::get_kernel(src, KERNEL_NAME);
+        let arg1 = 1u8 as cl_uchar;
+        let () = unsafe { kernel.set_arg(0, &arg1) }.unwrap();
+    }
+
+    #[test]
+    fn kernel_set_args_works_for_i8_scalar() {
+        let src: &str = "
+        __kernel void test123(char i) {
+            i + 1;
+        }";
+        let (_context, _devices, _program, mut kernel) = ll_testing::get_kernel(src, KERNEL_NAME);
+        let arg1 = 1i8 as cl_char;
+        let () = unsafe { kernel.set_arg(0, &arg1) }.unwrap();
+    }
+
+    #[test]
+    fn kernel_set_args_works_for_u16_scalar() {
+        let src: &str = "
+        __kernel void test123(ushort i) {
+            i + 1;
+        }";
+        let (_context, _devices, _program, mut kernel) = ll_testing::get_kernel(src, KERNEL_NAME);
+        let arg1 = 1u16 as cl_ushort;
+        let () = unsafe { kernel.set_arg(0, &arg1) }.unwrap();
+    }
+
+    #[test]
+    fn kernel_set_args_works_for_i16_scalar() {
+        let src: &str = "
+        __kernel void test123(short i) {
+            i + 1;
+        }";
+        let (_context, _devices, _program, mut kernel) = ll_testing::get_kernel(src, KERNEL_NAME);
+        let arg1 = 1i16 as cl_ushort;
+        let () = unsafe { kernel.set_arg(0, &arg1) }.unwrap();
+    }
+
+    #[test]
+    fn kernel_set_args_works_for_u32_scalar() {
+        let src: &str = "
+        __kernel void test123(uint i) {
+            i + 1;
+        }";
+        let (_context, _devices, _program, mut kernel) = ll_testing::get_kernel(src, KERNEL_NAME);
+        let arg1 = 1u32 as cl_uint;
+        let () = unsafe { kernel.set_arg(0, &arg1) }.unwrap();
+    }
+
+
+    #[test]
+    fn kernel_set_args_works_for_i32_scalar() {
+        let src: &str = "
+        __kernel void test123(int i) {
+            i + 1;
+        }";
+        let (_context, _devices, _program, mut kernel) = ll_testing::get_kernel(src, KERNEL_NAME);
+        let arg1 = 1i32 as cl_uint;
+        let () = unsafe { kernel.set_arg(0, &arg1) }.unwrap();
+    }
+
+    #[test]
+    fn kernel_set_args_works_for_f32_scalar() {
+        let src: &str = "
+        __kernel void test123(float i) {
+            i + 1.0;
+        }";
+        let (_context, _devices, _program, mut kernel) = ll_testing::get_kernel(src, KERNEL_NAME);
+        let arg1 = 1.0f32 as cl_float;
+        assert_eq!(std::mem::size_of::<cl_float>(), 4);
+        assert_eq!(std::mem::size_of::<f32>(), std::mem::size_of::<cl_float>());
+        let () = unsafe { kernel.set_arg(0, &arg1) }.unwrap();
+    }
+
+    #[test]
+    fn kernel_set_args_works_for_u64_scalar() {
+        let src: &str = "
+        __kernel void test123(ulong i) {
+            i + 1.0;
+        }";
+        let (_context, _devices, _program, mut kernel) = ll_testing::get_kernel(src, KERNEL_NAME);
+        let arg1 = 1u64 as cl_ulong;
+        assert_eq!(std::mem::size_of::<u64>(), std::mem::size_of::<cl_ulong>());
+        let () = unsafe { kernel.set_arg(0, &arg1) }.unwrap();
+    }
+
+    #[test]
+    fn kernel_set_args_works_for_i64_scalar() {
+        let src: &str = "
+        __kernel void test123(long i) {
+            i + 1.0;
+        }";
+        let (_context, _devices, _program, mut kernel) = ll_testing::get_kernel(src, KERNEL_NAME);
+        let arg1 = 1i64 as cl_long;
+        assert_eq!(std::mem::size_of::<i64>(), std::mem::size_of::<cl_long>());
+        let () = unsafe { kernel.set_arg(0, &arg1) }.unwrap();
+    }
+
+    #[test]
+    fn kernel_set_arg_works_for_f64_scalar() {
+        let src: &str = "
+        __kernel void test123(double i) {
+            i + 1.0;
+        }";
+        let (_context, _devices, _program, mut kernel) = ll_testing::get_kernel(src, KERNEL_NAME);
+        let arg1 = 1.0f64 as cl_double;
+        assert_eq!(std::mem::size_of::<f64>(), std::mem::size_of::<cl_double>());
+        let () = unsafe { kernel.set_arg(0, &arg1) }.unwrap();
+    }
+
+    fn build_session(src: &str) -> Session {
+        unsafe {
+            SessionBuilder::new()
+            .with_program_src(src)
+            .build()
+            .unwrap()
+        }
+    }
+
+    #[test]
+    fn kernel_set_arg_works_for_ffi_call() {
+        unsafe {            
+            let src: &str = "
+            __kernel void test123(__global uchar *i) {
+                *i += 1;
+            }";
+            
+            let session = build_session(src);
+            let kernel = session.create_kernel("test123").unwrap();
+
+            let mut data = vec![0u8, 0u8];
+            let mem_config = MemConfig{
+                host_access: HostAccess::ReadWrite,
+                kernel_access: KernelAccess::WriteOnly,
+                mem_location: MemLocation::ForceCopyToDevice,
+            };
+            let mem1 = session.create_mem(&mut data[..], mem_config).unwrap();
+            let mem_ptr = &mem1.mem_ptr() as *const _ as *const libc::c_void;
+            let err = clSetKernelArg(
+                kernel.kernel_ptr(),
+                0,
+                std::mem::size_of::<cl_mem>(),
+                mem_ptr,
+            );
+            assert_eq!(err, 0);
+        }
+    }    
+
+    #[test]
+    fn kernel_set_arg_works_for_buffer_u8() {
+        unsafe {
+            let src: &str = "
+            __kernel void test123(__global uchar *i) {
+                *i += 1;
+            }";
+            
+            let session = build_session(src);
+            let mut kernel = session.create_kernel("test123").unwrap();
+
+            let mut data = vec![0u8, 0u8];
+            let mem_config = MemConfig{
+                host_access: HostAccess::ReadWrite,
+                kernel_access: KernelAccess::WriteOnly,
+                mem_location: MemLocation::ForceCopyToDevice,
+            };
+            let mem1 = session.create_mem(&mut data[..], mem_config).unwrap();
+            assert_eq!(mem1.len().unwrap(), 2);
+            let () = kernel.set_arg(0, &mem1).unwrap();
+        }
+    }
+
+
 }

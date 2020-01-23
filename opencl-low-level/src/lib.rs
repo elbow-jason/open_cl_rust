@@ -24,14 +24,17 @@ pub mod strings;
 pub mod platform;
 pub mod device;
 pub mod context;
+pub mod context_builder;
 pub mod program;
 pub mod mem;
 pub mod kernel;
 pub mod event;
-pub mod wait_list;
+pub mod waitlist;
 pub mod command_queue;
 pub mod volume;
-
+pub mod dims;
+pub mod work;
+pub mod session;
 
 pub use cl_pointer::ClPointer;
 pub use output::{Output, build_output};
@@ -46,11 +49,16 @@ pub use cl_number::ClNumber;
 pub use platform::*;
 pub use device::*;
 pub use context::*;
+pub use context_builder::*;
+
 pub use program::*;
 pub use mem::*;
 pub use kernel::*;
 pub use event::*;
-pub use wait_list::*;
+pub use waitlist::*;
 pub use command_queue::*;
 pub use volume::*;
+pub use dims::*;
+pub use work::*;
+pub use session::*;
 // pub use device_ptr::DevicePtr;

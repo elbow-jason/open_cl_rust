@@ -10,6 +10,9 @@ use crate::platform::PlatformError;
 use crate::device::DeviceError;
 use crate::status_code::StatusCodeError;
 use crate::mem::MemError;
+use crate::event::EventError;
+use crate::context_builder::ContextBuilderError;
+use crate::session::{SessionBuilderError, SessionError};
 
 #[derive(Debug, Fail, PartialEq, Clone, Eq)]
 pub enum Error {
@@ -30,6 +33,18 @@ pub enum Error {
 
     #[fail(display = "{:?}", _0)]
     MemError(MemError),
+
+    #[fail(display = "{:?}", _0)]
+    EventError(EventError),
+    
+    #[fail(display = "{:?}", _0)]
+    ContextBuilderError(ContextBuilderError),
+
+    #[fail(display = "{:?}", _0)]
+    SessionBuilderError(SessionBuilderError),
+    
+    #[fail(display = "{:?}", _0)]
+    SessionError(SessionError),
 
     #[fail(display = "OpenCL returned a null pointer")]
     ClObjectCannotBeNull,
@@ -77,7 +92,23 @@ impl From<MemError> for Error {
     }
 }
 
+impl From<ContextBuilderError> for Error {
+    fn from(err: ContextBuilderError) -> Error {
+        Error::ContextBuilderError(err)
+    }
+}
 
+impl From<SessionBuilderError> for Error {
+    fn from(err: SessionBuilderError) -> Error {
+        Error::SessionBuilderError(err)
+    }
+}
+
+impl From<SessionError> for Error {
+    fn from(err: SessionError) -> Error {
+        Error::SessionError(err)
+    }
+}
 
 // impl From<EventError> for Error {
 //     fn from(ee: EventError) -> Error {

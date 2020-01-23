@@ -56,7 +56,7 @@ pub fn list_devices_by_type(
                 let devices: Vec<ClDeviceID> = cl_ptr
                     .into_vec()
                     .into_iter()
-                    .map(|d| ClDeviceID::from_retained(d))
+                    .map(|d| ClDeviceID::new(d))
                     .filter_map(Result::ok)
                     .collect();
                 Ok(devices)
@@ -115,11 +115,24 @@ pub struct ClDeviceID {
 }
 
 impl ClDeviceID {
-    pub unsafe fn unchecked_build(object: cl_device_id) -> ClDeviceID {
+    pub unsafe fn unchecked_new(object: cl_device_id) -> ClDeviceID {
         ClDeviceID{
             object,
             _unconstructable: (),
         }
+    }
+
+    pub unsafe fn new(device: cl_device_id) -> Output<ClDeviceID> {
+        utils::null_check(device)?;
+        device_usability_check(device)?;
+        Ok(ClDeviceID::unchecked_new(device))
+    }
+
+    pub unsafe fn retain_new(device: cl_device_id) -> Output<ClDeviceID> {
+        utils::null_check(device)?;
+        device_usability_check(device)?;
+        retain_device(device);
+        Ok(ClDeviceID::unchecked_new(device))
     }
 }
 
@@ -141,21 +154,6 @@ impl DevicePtr for cl_device_id {
     }
 }
 
-impl DeviceRefCount for ClDeviceID {
-    unsafe fn from_retained(device: cl_device_id) -> Output<ClDeviceID> {
-        utils::null_check(device)?;
-        device_usability_check(device)?;
-        Ok(ClDeviceID::unchecked_build(device))
-    }
-
-    unsafe fn from_unretained(device: cl_device_id) -> Output<ClDeviceID> {
-        utils::null_check(device)?;
-        device_usability_check(device)?;
-        retain_device(device);
-        Ok(ClDeviceID::unchecked_build(device))
-    }
-}
-
 impl Drop for ClDeviceID {
     fn drop(&mut self) {
         unsafe { release_device(self.device_ptr()) };
@@ -167,7 +165,7 @@ impl Clone for ClDeviceID {
         unsafe {
             let device_id = self.device_ptr();
             retain_device(device_id);
-            ClDeviceID::unchecked_build(device_id)
+            ClDeviceID::unchecked_new(device_id)
         }
     }
 }
@@ -385,7 +383,7 @@ mod tests {
     fn unusable_device_id_results_in_an_unusable_device_error() {
         let unusable_device_id = 0xFFFF_FFFF as cl_device_id;
         let error =
-            unsafe { ClDeviceID::from_retained(unusable_device_id) };
+            unsafe { ClDeviceID::new(unusable_device_id) };
         assert_eq!(error, Err(UNUSABLE_DEVICE_ERROR));
     }
 

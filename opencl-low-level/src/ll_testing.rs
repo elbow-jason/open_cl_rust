@@ -1,19 +1,36 @@
 use crate::{
     ClDeviceID, list_platforms, DeviceType, list_devices_by_type, ClContext,
-    ClProgram, ClNumber, ClMem, MemConfig, ClKernel
+    ClProgram, ClNumber, ClMem, MemConfig, ClKernel, ClCommandQueue,
 };
+use std::{thread, time};
 
-pub fn get_kernel(src: &str, kernel_name: &str) -> (ClKernel, ClProgram, Vec<ClDeviceID>, ClContext) {
-    let (program, devices, context) = get_program(src);
-    let kernel: ClKernel = unsafe { ClKernel::create(&program, kernel_name).unwrap() };
-    (kernel, program, devices, context)
+pub fn sleep(ms: u64) {
+    println!("Sleeping for {:?}ms", ms);
+    let dur = time::Duration::from_millis(ms);
+    thread::sleep(dur);
 }
 
-pub fn get_mem<T: ClNumber>(size: usize) -> (ClMem<T>, ClContext, Vec<ClDeviceID>) {
+pub fn get_kernel(src: &str, kernel_name: &str) -> (ClContext, Vec<ClDeviceID>, ClProgram, ClKernel) {
+    let (program, devices, context) = get_program(src);
+    let kernel: ClKernel = unsafe { ClKernel::create(&program, kernel_name).unwrap() };
+    (context, devices, program, kernel)
+}
+
+pub fn get_mem<T: ClNumber>(size: usize) -> (Vec<ClDeviceID>, ClContext, ClMem<T>) {
     let (context, devices) = get_context();
     let mem_config = MemConfig::default();
     let ll_mem = unsafe { ClMem::create_with_config(&context, size, mem_config).unwrap() };
-    (ll_mem, context, devices)
+    (devices, context, ll_mem)
+}
+
+pub fn mem_from_data_and_context<T: ClNumber>(data: &mut [T], context: &ClContext) -> ClMem<T> {
+    unsafe {
+        ClMem::create_with_config(
+            context,
+            data,
+            MemConfig::for_copy()
+        ).unwrap()
+    }
 }
 
 pub fn get_program(src: &str) -> (ClProgram, Vec<ClDeviceID>, ClContext) {
@@ -27,6 +44,18 @@ pub fn get_program(src: &str) -> (ClProgram, Vec<ClDeviceID>, ClContext) {
 pub fn get_context() -> (ClContext, Vec<ClDeviceID>) {
     let devices = list_devices();
     (context_from_devices(&devices[..]), devices)
+}
+
+pub fn get_command_queues() -> (Vec<ClCommandQueue>, ClContext, Vec<ClDeviceID>) {
+    let (context, devices) = get_context();
+    let cqs = devices
+        .iter()
+        .map(|device| unsafe {
+            ClCommandQueue::create(&context, device, None).unwrap()
+        })
+        .collect();
+
+    (cqs, context, devices)
 }
 
 pub fn context_from_devices(devices: &[ClDeviceID]) -> ClContext {

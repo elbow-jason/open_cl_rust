@@ -128,15 +128,16 @@ impl<T: ClNumber> BufferCreator<T> for usize {
 
 pub unsafe trait MemPtr<T: ClNumber> {
     unsafe fn mem_ptr(&self) -> cl_mem;
+    unsafe fn mem_ptr_ref(&self) -> &cl_mem;
     
     unsafe fn get_info<I: Copy>(&self, flag: MemInfo) -> Output<ClPointer<I>> {
         cl_get_mem_object_info::<I>(self.mem_ptr(), flag.into())
     }
 
     // len will panic if the mem is not in a valid state.
-    fn len(&self) -> usize {
-        let mem_size_in_bytes = unsafe { self.size().expect("Failed to get the size of mem ptr") };
-        mem_size_in_bytes / std::mem::size_of::<T>()
+    fn len(&self) -> Output<usize> {
+        let mem_size_in_bytes = unsafe { self.size() }?;
+        Ok(mem_size_in_bytes / std::mem::size_of::<T>())
     }
 
     // /// This is SUPER unsafe. Leave this out.
@@ -227,7 +228,6 @@ impl<T: ClNumber> ClMem<T> {
                 cl_mem_flags::from(host_access) | cl_mem_flags::from(kernel_access) | cl_mem_flags::from(mem_location),
                 buffer_creator
             )?;
-        
             Ok(ClMem::new(mem_object))
         }
     }
@@ -241,7 +241,6 @@ impl<T: ClNumber> ClMem<T> {
             mem_config.into(),
             buffer_creator
         )?;
-    
         Ok(ClMem::new(mem_object))
     }
 }
@@ -249,6 +248,10 @@ impl<T: ClNumber> ClMem<T> {
 unsafe impl<T: ClNumber> MemPtr<T> for ClMem<T> {
     unsafe fn mem_ptr(&self) -> cl_mem {
         self.object
+    }
+
+    unsafe fn mem_ptr_ref(&self) -> &cl_mem {
+        &self.object
     }
 }
 
@@ -301,21 +304,21 @@ mod tests {
 
         #[test]
         fn len_method_works() {
-            let (ll_mem, _context, _devices) = ll_testing::get_mem::<u32>(10);
-            let len = ll_mem.len();
+            let (_devices, _context, ll_mem) = ll_testing::get_mem::<u32>(10);
+            let len = ll_mem.len().unwrap();
             assert_eq!(len, 10);
         }
 
         #[test]
         fn reference_count_method_works() {
-            let (ll_mem, _context, _devices) = ll_testing::get_mem::<u32>(10);
+            let (_devices, _context, ll_mem) = ll_testing::get_mem::<u32>(10);
             let ref_count = unsafe { ll_mem.reference_count().unwrap() };
             assert_eq!(ref_count, 1);
         }
 
         #[test]
         fn size_method_returns_size_in_bytes() {
-            let (ll_mem, _context, _devices) = ll_testing::get_mem::<u32>(10);
+            let (_devices, _context, ll_mem) = ll_testing::get_mem::<u32>(10);
             let bytes_size = unsafe { ll_mem.size().unwrap() };
             assert_eq!(bytes_size, 10 * std::mem::size_of::<u32>());
         }
@@ -323,14 +326,14 @@ mod tests {
 
         #[test]
         fn offset_method_works() {
-            let (ll_mem, _context, _devices) = ll_testing::get_mem::<u32>(10);
+            let (_devices, _context, ll_mem) = ll_testing::get_mem::<u32>(10);
             let offset = unsafe { ll_mem.offset().unwrap() };
             assert_eq!(offset, 0);
         }
 
         #[test]
         fn flags_method_works() {
-            let (ll_mem, _context, _devices) = ll_testing::get_mem::<u32>(10);
+            let (_devices, _context, ll_mem) = ll_testing::get_mem::<u32>(10);
             let flags = unsafe { ll_mem.flags().unwrap() };
             assert_eq!(flags, MemFlags::READ_WRITE_ALLOC_HOST_PTR);
         }
@@ -432,9 +435,15 @@ impl From<MemLocation> for cl_mem_flags {
 }
 
 pub struct MemConfig {
-    host_access: HostAccess,
-    kernel_access: KernelAccess,
-    mem_location: MemLocation,
+    pub host_access: HostAccess,
+    pub kernel_access: KernelAccess,
+    pub mem_location: MemLocation,
+}
+
+impl MemConfig {
+    pub fn build(host_access: HostAccess, kernel_access: KernelAccess, mem_location: MemLocation) -> MemConfig {
+        MemConfig{host_access, kernel_access, mem_location}
+    }
 }
 
 

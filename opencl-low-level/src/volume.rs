@@ -1,6 +1,6 @@
 use libc::size_t;
 
-pub struct Volume(usize, usize, usize);
+pub struct Volume(pub usize, pub usize, pub usize);
 
 impl Volume {
     pub fn as_ptr(&self) -> *const size_t {
