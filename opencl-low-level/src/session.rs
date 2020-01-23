@@ -64,7 +64,16 @@ impl Session {
         ClKernel::create(self.program(), kernel_name)
     }
 
-    pub unsafe fn create_mem<T: ClNumber, B: BufferCreator<T>>(&self, buffer_creator: B, mem_config: MemConfig) -> Output<ClMem<T>> {
+    pub unsafe fn create_mem<T: ClNumber, B: BufferCreator<T>>(&self, buffer_creator: B) -> Output<ClMem<T>> {
+        let cfg = buffer_creator.mem_config();
+         ClMem::create_with_config(
+            self.context(),
+            buffer_creator,
+            cfg
+        )
+    }
+
+    pub unsafe fn create_mem_with_config<T: ClNumber, B: BufferCreator<T>>(&self, buffer_creator: B, mem_config: MemConfig) -> Output<ClMem<T>> {
          ClMem::create_with_config(
             self.context(),
             buffer_creator,

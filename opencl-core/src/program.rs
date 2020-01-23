@@ -88,6 +88,28 @@ impl fmt::Debug for UnbuiltProgram {
 }
 
 impl UnbuiltProgram {
+    pub fn create_with_source(context: &Context, src: &str) -> Output<UnbuiltProgram> {
+        unsafe {
+            let ll_prog = ClProgram::create_with_source(context.low_level_context(), src)?;
+            Ok(UnbuiltProgram::new(ll_prog, context.clone()))
+        }
+    }
+
+    pub fn create_with_binary(
+        context: &Context,
+        device: &Device,
+        binary: &[u8],
+    ) -> Output<UnbuiltProgram> {
+        unsafe {
+            let ll_prog = ClProgram::create_with_binary(
+                context.low_level_context(),
+                device.low_level_device(),
+                binary
+            )?;
+            Ok(UnbuiltProgram::new(ll_prog, context.clone()))
+        }
+    }
+
     pub fn low_level_program(&self) -> &ClProgram {
         &self.inner
     }
@@ -124,25 +146,15 @@ pub struct Program {
 
 impl Program {
     pub fn create_with_source(context: &Context, src: &str) -> Output<UnbuiltProgram> {
-        unsafe {
-            let ll_prog = ClProgram::create_with_source(context.low_level_context(), src)?;
-            Ok(UnbuiltProgram::new(ll_prog, context.clone()))
-        }
+        UnbuiltProgram::create_with_source(context, src)
     }
 
-    pub fn create_program_with_binary(
+    pub fn create_with_binary(
         context: &Context,
         device: &Device,
         binary: &[u8],
     ) -> Output<UnbuiltProgram> {
-        unsafe {
-            let ll_prog = ClProgram::create_with_binary(
-                context.low_level_context(),
-                device.low_level_device(),
-                binary
-            )?;
-            Ok(UnbuiltProgram::new(ll_prog, context.clone()))
-        }
+        UnbuiltProgram::create_with_binary(context, device, binary)
     }
 
     pub unsafe fn new(object: ClProgram, context: Context, devices: Vec<Device>) -> Program {

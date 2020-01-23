@@ -402,13 +402,13 @@ mod tests {
             let session = build_session(src);
             let kernel = session.create_kernel("test123").unwrap();
 
-            let mut data = vec![0u8, 0u8];
-            let mem_config = MemConfig{
-                host_access: HostAccess::ReadWrite,
-                kernel_access: KernelAccess::WriteOnly,
-                mem_location: MemLocation::ForceCopyToDevice,
-            };
-            let mem1 = session.create_mem(&mut data[..], mem_config).unwrap();
+            let data = vec![0u8, 0u8];
+            // let mem_config = MemConfig{
+            //     host_access: HostAccess::ReadWrite,
+            //     kernel_access: KernelAccess::WriteOnly,
+            //     mem_location: MemLocation::ForceCopyToDevice,
+            // };
+            let mem1 = session.create_mem(&data[..]).unwrap();
             let mem_ptr = &mem1.mem_ptr() as *const _ as *const libc::c_void;
             let err = clSetKernelArg(
                 kernel.kernel_ptr(),
@@ -431,13 +431,13 @@ mod tests {
             let session = build_session(src);
             let mut kernel = session.create_kernel("test123").unwrap();
 
-            let mut data = vec![0u8, 0u8];
-            let mem_config = MemConfig{
-                host_access: HostAccess::ReadWrite,
-                kernel_access: KernelAccess::WriteOnly,
-                mem_location: MemLocation::ForceCopyToDevice,
-            };
-            let mem1 = session.create_mem(&mut data[..], mem_config).unwrap();
+            let data = vec![0u8, 0u8];
+            // let mem_config = MemConfig{
+            //     host_access: HostAccess::ReadWrite,
+            //     kernel_access: KernelAccess::WriteOnly,
+            //     mem_location: MemLocation::ForceCopyToDevice,
+            // };
+            let mem1 = session.create_mem(&data[..]).unwrap();
             assert_eq!(mem1.len().unwrap(), 2);
             let () = kernel.set_arg(0, &mem1).unwrap();
         }

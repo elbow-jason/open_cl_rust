@@ -1,4 +1,3 @@
-use crate::Volume;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Dims {
@@ -10,18 +9,12 @@ pub enum Dims {
 use Dims::*;
 
 impl Dims {
-    pub fn as_size_volume(&self) -> Volume {
+    
+    pub fn as_offset_volume(&self) -> [usize; 3] {
         match *self {
-            One(x) => Volume(x, 1, 1),
-            Two(x, y) => Volume(x, y, 1),
-            Three(x, y, z) => Volume(x, y, z),
-        }
-    }
-    pub fn as_offset_volume(&self) -> Volume {
-        match *self {
-            One(x) => Volume(x, 0, 0),
-            Two(x, y) => Volume(x, y, 0),
-            Three(x, y, z) => Volume(x, y, z),
+            One(x) => [x, 0, 0],
+            Two(x, y) => [x, y, 0],
+            Three(x, y, z) => [x, y, z],
         }
     }
 

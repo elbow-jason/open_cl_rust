@@ -151,7 +151,7 @@ impl CommandQueue {
     }
 
     pub fn enqueue_kernel(
-        &mut self,
+        &self,
         kernel: &Kernel,
         work: &Work,
         opts: Option<CommandQueueOptions>,

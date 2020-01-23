@@ -120,8 +120,8 @@ mod tests {
     #[test]
     fn buffer_can_be_created_with_a_slice_of_data() {
         let context = testing::get_context();
-        let mut data = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-        let _buffer = Buffer::create(&context, &mut data[..],
+        let data = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+        let _buffer = Buffer::create(&context, &data[..],
             HostAccess::NoAccess,
             KernelAccess::ReadWrite,
             MemLocation::CopyToDevice

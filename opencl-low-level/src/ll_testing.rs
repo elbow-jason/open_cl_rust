@@ -23,12 +23,12 @@ pub fn get_mem<T: ClNumber>(size: usize) -> (Vec<ClDeviceID>, ClContext, ClMem<T
     (devices, context, ll_mem)
 }
 
-pub fn mem_from_data_and_context<T: ClNumber>(data: &mut [T], context: &ClContext) -> ClMem<T> {
+pub fn mem_from_data_and_context<T: ClNumber>(data: &[T], context: &ClContext) -> ClMem<T> {
     unsafe {
         ClMem::create_with_config(
             context,
             data,
-            MemConfig::for_copy()
+            MemConfig::for_data()
         ).unwrap()
     }
 }

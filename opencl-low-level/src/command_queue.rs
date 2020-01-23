@@ -12,9 +12,9 @@ use crate::ffi::{
 use crate::cl_helpers::cl_get_info5;
 use crate::{
     Output, CommandQueueInfo, build_output, DevicePtr, Waitlist, WaitlistSizeAndPtr,
-    Volume, ClInput, SizeAndPtr, ClPointer, ClEvent, EventPtr, utils, ClContext,
+    ClInput, SizeAndPtr, ClPointer, ClEvent, EventPtr, utils, ClContext,
     ClDeviceID, CommandQueueProperties, ContextPtr, ClMem, ClNumber, MemPtr, ClKernel,
-    Work, KernelPtr, BufferReadEvent
+    Work, KernelPtr, BufferReadEvent, GlobalWorkSize, LocalWorkSize,
 };
 use crate::CommandQueueInfo as CQInfo;
 
@@ -123,29 +123,26 @@ pub unsafe fn cl_finish(command_queue: cl_command_queue) -> Output<()> {
 pub unsafe fn cl_enqueue_nd_range_kernel<W: Waitlist>(
     queue: cl_command_queue,
     kernel: cl_kernel,
-    work_dim: u8,
-    global_work_offset: Option<Volume>,
-    global_work_size: Volume,
-    local_work_size: Option<Volume>,
+    work: &Work,
     waitlist: W,
 ) -> Output<cl_event> {
+
     let mut tracking_event: cl_event = new_tracking_event();
     let waiting_events = waitlist.new_waitlist();
     let SizeAndPtr(wl_len, wl_ptr) = waiting_events
         .as_slice()
         .waitlist_size_and_ptr();
 
-    let global_work_offset_ptr = global_work_offset.map_or_else(|| Volume::empty_ptr(),|g| Volume::from(g).as_ptr());
-    let global_work_size_ptr = Volume::from(global_work_size).as_ptr();
-    let local_work_size_ptr = local_work_size.map_or_else(|| Volume::empty_ptr(),|g| Volume::from(g).as_ptr());
+    let gws: GlobalWorkSize = work.global_work_size()?;
+    let lws: LocalWorkSize = work.local_work_size()?;
 
     let err_code = clEnqueueNDRangeKernel(
         queue,
         kernel,
-        u32::from(work_dim),
-        global_work_offset_ptr,
-        global_work_size_ptr,
-        local_work_size_ptr,
+        work.work_dims(),
+        work.global_work_offset().as_ptr(),
+        gws.as_ptr(),
+        lws.as_ptr(),
         wl_len as u32,
         wl_ptr,
         &mut tracking_event,
@@ -453,10 +450,7 @@ impl ClCommandQueue {
         let event = cl_enqueue_nd_range_kernel(
             self.command_queue_ptr(),
             kernel.kernel_ptr(),
-            work.work_dim(),
-            work.global_work_offset(),
-            work.global_work_size(),
-            work.local_work_size(),
+            work,
             &cq_opts.waitlist[..],
         )?;
         ClEvent::new(event)
@@ -624,7 +618,7 @@ mod tests {
                 ).unwrap();
                 let data3 = event.wait();
                 assert_eq!(data3, Ok(None));
-                
+
             }
         }
     }

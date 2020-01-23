@@ -89,30 +89,20 @@ where
 
 pub trait BufferCreator<T: ClNumber> : Sized {
     unsafe fn buffer_size_and_ptr(&mut self) -> SizeAndPtr<*mut c_void>;
+    fn mem_config(&self) -> MemConfig;
 }
 
 
-impl<T: ClNumber> BufferCreator<T> for &mut [T] {
+impl<T: ClNumber> BufferCreator<T> for &[T] {
     unsafe fn buffer_size_and_ptr(&mut self) -> SizeAndPtr<*mut c_void> {
-
-        // SizeAndPtr(
-        //     std::mem::size_of::<T>() * self.len(),
-        //     self.as_mut_ptr() as *mut c_void,
-        // )
-        // let self_ptr = self.as_ptr();
-        // println!("SELF POINTER {:?}", self_ptr);
-        // let self_ptr_star = (*self).as_ptr();
-        // println!("*SELF POINTER {:?}", self_ptr_star);
-        // let ptr = (**self).as_ptr() as *mut c_void;
-        let ptr = self.as_ptr() as *mut c_void;
-        // println!("**POINTER {:?}", ptr);
-
-        // let ref_ptr: *const *mut c_void = &ptr;
-        // println!("&ptr {:?}", ref_ptr);
         SizeAndPtr(
             std::mem::size_of::<T>() * self.len(),
-            ptr
+            self.as_ptr() as *mut c_void
         )
+    }
+
+    fn mem_config(&self) -> MemConfig {
+        MemConfig::for_data()
     }
 }
 
@@ -122,6 +112,10 @@ impl<T: ClNumber> BufferCreator<T> for usize {
             (std::mem::size_of::<T>() * *self) as usize,
             std::ptr::null_mut()
         )
+    }
+
+    fn mem_config(&self) -> MemConfig {
+        MemConfig::for_size()
     }
 }
 
@@ -295,8 +289,8 @@ mod tests {
     fn mem_can_be_created_with_slice() {
         let (context, _devices) = ll_testing::get_context();
         let mut data: Vec<u32> = vec![0, 1, 2, 3, 4];
-        let mem_config = MemConfig::for_copy();
-        let _mem: ClMem<u32> = unsafe { ClMem::create_with_config(&context, &mut data[..], mem_config).unwrap() };
+        let mem_config = MemConfig::for_data();
+        let _mem: ClMem<u32> = unsafe { ClMem::create_with_config(&context, &data[..], mem_config).unwrap() };
     }
 
     mod mem_ptr_trait {
@@ -472,8 +466,12 @@ impl Default for MemConfig {
 }
 
 impl MemConfig {
-    pub fn for_copy() -> MemConfig {
+    pub fn for_data() -> MemConfig {
         MemConfig{mem_location: MemLocation::CopyToDevice, .. MemConfig::default()}
+    }
+
+    pub fn for_size() -> MemConfig {
+        MemConfig{mem_location: MemLocation::AllocOnDevice, .. MemConfig::default()}
     }
 }
 

@@ -32,7 +32,6 @@ pub use opencl_low_level as ll;
 extern crate num;
 
 pub mod error;
-// pub mod utils;
 pub mod traits;
 
 pub mod platform;

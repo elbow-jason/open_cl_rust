@@ -13,6 +13,7 @@ use crate::mem::MemError;
 use crate::event::EventError;
 use crate::context_builder::ContextBuilderError;
 use crate::session::{SessionBuilderError, SessionError};
+use crate::work::WorkError;
 
 #[derive(Debug, Fail, PartialEq, Clone, Eq)]
 pub enum Error {
@@ -45,6 +46,9 @@ pub enum Error {
     
     #[fail(display = "{:?}", _0)]
     SessionError(SessionError),
+
+    #[fail(display = "{:?}", _0)]
+    WorkError(WorkError),
 
     #[fail(display = "OpenCL returned a null pointer")]
     ClObjectCannotBeNull,
@@ -107,6 +111,12 @@ impl From<SessionBuilderError> for Error {
 impl From<SessionError> for Error {
     fn from(err: SessionError) -> Error {
         Error::SessionError(err)
+    }
+}
+
+impl From<WorkError> for Error {
+    fn from(err: WorkError) -> Error {
+        Error::WorkError(err)
     }
 }
 
