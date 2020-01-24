@@ -1,7 +1,6 @@
-
 use crate::{
-    Error, ClPlatformID, DeviceType, ClDeviceID, list_platforms, list_devices_by_type,
-    Output, ClContext
+    list_devices_by_type, list_platforms, ClContext, ClDeviceID, ClPlatformID, DeviceType, Error,
+    Output,
 };
 
 #[derive(Debug, Fail, PartialEq, Eq, Clone)]
@@ -13,8 +12,10 @@ pub enum ContextBuilderError {
     CannotSpecifyDevicesAndPlatforms,
 }
 
-const DEVICES_AND_DEVICE_TYPE_ERROR: Error = Error::ContextBuilderError(ContextBuilderError::CannotSpecifyDevicesAndDeviceType);
-const DEVICES_AND_PLATFORMS_ERROR: Error = Error::ContextBuilderError(ContextBuilderError::CannotSpecifyDevicesAndPlatforms);
+const DEVICES_AND_DEVICE_TYPE_ERROR: Error =
+    Error::ContextBuilderError(ContextBuilderError::CannotSpecifyDevicesAndDeviceType);
+const DEVICES_AND_PLATFORMS_ERROR: Error =
+    Error::ContextBuilderError(ContextBuilderError::CannotSpecifyDevicesAndPlatforms);
 
 pub struct ClContextBuilder<'a> {
     pub platforms: Option<&'a [ClPlatformID]>,
@@ -49,13 +50,41 @@ impl<'a> ClContextBuilder<'a> {
     pub unsafe fn build(self) -> Output<BuiltClContext> {
         use ClContextBuilder as B;
         match self {
-            B{device_type: Some(device_type), devices: None, platforms: None} => ClContextBuilder::build_from_device_type(device_type),
-            B{devices: Some(devices), device_type: None, platforms: None} => ClContextBuilder::build_from_devices(devices),
-            B{platforms: Some(platforms), device_type: None, devices: None} => ClContextBuilder::build_from_platforms(platforms),
-            B{platforms: Some(platforms), device_type: Some(device_type), devices: None} => ClContextBuilder::build_from_platforms_with_device_type(platforms, device_type),
-            B{platforms: None, device_type: None, devices: None} => ClContextBuilder::build_with_defaults(),
-            B{device_type: Some(_), devices: Some(_), ..} => Err(DEVICES_AND_DEVICE_TYPE_ERROR),
-            B{devices: Some(_), platforms: Some(_), ..} => Err(DEVICES_AND_PLATFORMS_ERROR),
+            B {
+                device_type: Some(device_type),
+                devices: None,
+                platforms: None,
+            } => ClContextBuilder::build_from_device_type(device_type),
+            B {
+                devices: Some(devices),
+                device_type: None,
+                platforms: None,
+            } => ClContextBuilder::build_from_devices(devices),
+            B {
+                platforms: Some(platforms),
+                device_type: None,
+                devices: None,
+            } => ClContextBuilder::build_from_platforms(platforms),
+            B {
+                platforms: Some(platforms),
+                device_type: Some(device_type),
+                devices: None,
+            } => ClContextBuilder::build_from_platforms_with_device_type(platforms, device_type),
+            B {
+                platforms: None,
+                device_type: None,
+                devices: None,
+            } => ClContextBuilder::build_with_defaults(),
+            B {
+                device_type: Some(_),
+                devices: Some(_),
+                ..
+            } => Err(DEVICES_AND_DEVICE_TYPE_ERROR),
+            B {
+                devices: Some(_),
+                platforms: Some(_),
+                ..
+            } => Err(DEVICES_AND_PLATFORMS_ERROR),
         }
     }
 
@@ -68,8 +97,10 @@ impl<'a> ClContextBuilder<'a> {
         ClContextBuilder::build_from_platforms_with_device_type(platforms, DeviceType::ALL)
     }
 
-
-    pub unsafe fn build_from_platforms_with_device_type(platforms: &[ClPlatformID], device_type: DeviceType) -> Output<BuiltClContext> {
+    pub unsafe fn build_from_platforms_with_device_type(
+        platforms: &[ClPlatformID],
+        device_type: DeviceType,
+    ) -> Output<BuiltClContext> {
         let mut devices = Vec::new();
         for p in platforms.iter() {
             let p_devices = list_devices_by_type(p, device_type)?;
@@ -92,5 +123,5 @@ impl<'a> ClContextBuilder<'a> {
 
 pub enum BuiltClContext {
     Context(ClContext),
-    ContextWithDevices(ClContext, Vec<ClDeviceID>)
+    ContextWithDevices(ClContext, Vec<ClDeviceID>),
 }

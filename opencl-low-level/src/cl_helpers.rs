@@ -1,7 +1,7 @@
 // use std::marker::PhantomData;
 // use std::fmt;
 
-pub use crate::{ClPointer, Output, StatusCodeError, build_output, utils};
+pub use crate::{build_output, utils, ClPointer, Output, StatusCodeError};
 
 use crate::ffi::cl_int;
 

@@ -1,8 +1,8 @@
 use std::fmt;
 use std::marker::PhantomData;
 
-use crate::strings;
 use crate::ffi::cl_bool;
+use crate::strings;
 
 /// ClPointer is a very short-lived struct that is used to homogenize the returns from
 /// many of the CL API calls. If a call to an OpenCL C function successfully returns
@@ -87,7 +87,6 @@ impl<T: Copy> ClPointer<T> {
     pub fn is_null(&self) -> bool {
         self.ptr.is_null()
     }
-
 
     #[inline]
     pub unsafe fn into_one(self) -> T {

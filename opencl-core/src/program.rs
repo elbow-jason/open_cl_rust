@@ -1,10 +1,10 @@
-use std::mem::ManuallyDrop;
 use std::fmt;
+use std::mem::ManuallyDrop;
 
 use crate::ffi::cl_program;
 
+use crate::ll::{ClContext, ClProgram, Output, ProgramPtr};
 use crate::{Context, Device};
-use crate::ll::{ClProgram, ProgramPtr, Output, ClContext};
 
 // pub const DEVICE_LIST_CANNOT_BE_EMPTY: Error = Error::ProgramError(ProgramError::CannotBuildProgramWithEmptyDevicesList);
 
@@ -21,9 +21,6 @@ use crate::ll::{ClProgram, ProgramPtr, Output, ClContext};
 //     CannotBuildProgramWithEmptyDevicesList,
 // }
 
-
-
-
 pub struct UnbuiltProgram {
     context: ManuallyDrop<Context>,
     inner: ManuallyDrop<ClProgram>,
@@ -32,7 +29,7 @@ pub struct UnbuiltProgram {
 
 impl UnbuiltProgram {
     pub unsafe fn new(program: ClProgram, context: Context) -> UnbuiltProgram {
-        UnbuiltProgram{
+        UnbuiltProgram {
             context: ManuallyDrop::new(context),
             inner: ManuallyDrop::new(program),
             _unconstructable: (),
@@ -41,21 +38,19 @@ impl UnbuiltProgram {
 }
 
 unsafe impl ProgramPtr for UnbuiltProgram {
-      unsafe fn program_ptr(&self) -> cl_program {
+    unsafe fn program_ptr(&self) -> cl_program {
         (*self.inner).program_ptr()
     }
 }
-
 
 unsafe impl ProgramPtr for &mut UnbuiltProgram {
-      unsafe fn program_ptr(&self) -> cl_program {
+    unsafe fn program_ptr(&self) -> cl_program {
         (*self.inner).program_ptr()
     }
 }
 
-
 unsafe impl ProgramPtr for &UnbuiltProgram {
-      unsafe fn program_ptr(&self) -> cl_program {
+    unsafe fn program_ptr(&self) -> cl_program {
         (*self.inner).program_ptr()
     }
 }
@@ -104,7 +99,7 @@ impl UnbuiltProgram {
             let ll_prog = ClProgram::create_with_binary(
                 context.low_level_context(),
                 device.low_level_device(),
-                binary
+                binary,
             )?;
             Ok(UnbuiltProgram::new(ll_prog, context.clone()))
         }
@@ -120,17 +115,13 @@ impl UnbuiltProgram {
             let (program_ptr, context_ptr, context_devices) = (
                 self.program_ptr(),
                 self.context.context_ptr(),
-                self.context.devices()
+                self.context.devices(),
             );
             let ll_program = ClProgram::new(program_ptr)?;
             let ll_context = ClContext::new(context_ptr)?;
             let hl_context = Context::build(ll_context, context_devices.to_vec());
 
-            Program::new(
-                ll_program,
-                hl_context,
-                devices.to_vec()
-            )
+            Program::new(ll_program, hl_context, devices.to_vec())
         };
         std::mem::forget(self);
         Ok(built_prog)
@@ -159,7 +150,7 @@ impl Program {
 
     pub unsafe fn new(object: ClProgram, context: Context, devices: Vec<Device>) -> Program {
         Program {
-            inner: ManuallyDrop::new(object), 
+            inner: ManuallyDrop::new(object),
             _context: ManuallyDrop::new(context),
             _devices: ManuallyDrop::new(devices),
             _unconstructable: (),
@@ -191,11 +182,11 @@ impl Drop for Program {
 
 impl Clone for Program {
     fn clone(&self) -> Program {
-        Program{
+        Program {
             _devices: ManuallyDrop::new((*self._devices).clone()),
             _context: self._context.clone(),
             inner: ManuallyDrop::new((*self.inner).clone()),
-            _unconstructable: ()
+            _unconstructable: (),
         }
     }
 }
@@ -210,19 +201,19 @@ unsafe impl Sync for Program {}
 unsafe impl Send for Program {}
 
 unsafe impl ProgramPtr for Program {
-      unsafe fn program_ptr(&self) -> cl_program {
+    unsafe fn program_ptr(&self) -> cl_program {
         (*self.inner).program_ptr()
     }
 }
 
 unsafe impl ProgramPtr for &Program {
-      unsafe fn program_ptr(&self) -> cl_program {
+    unsafe fn program_ptr(&self) -> cl_program {
         (*self.inner).program_ptr()
     }
 }
 
 unsafe impl ProgramPtr for &mut Program {
-      unsafe fn program_ptr(&self) -> cl_program {
+    unsafe fn program_ptr(&self) -> cl_program {
         (*self.inner).program_ptr()
     }
 }
@@ -237,8 +228,8 @@ impl Eq for Program {}
 
 #[cfg(test)]
 mod tests {
-    use crate::*;
     use crate::ll::*;
+    use crate::*;
 
     const SRC: &str = "
     __kernel void test(__global int *i) {        
@@ -284,9 +275,7 @@ mod tests {
     #[test]
     fn program_method_source_works() {
         let program: Program = testing::get_program(SRC);
-        let output: String = program
-            .source()
-            .expect("Failed to call program.source()");
+        let output: String = program.source().expect("Failed to call program.source()");
         assert_eq!(output, SRC.to_string());
     }
 

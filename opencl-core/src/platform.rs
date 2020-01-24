@@ -11,19 +11,22 @@
 use std::default::Default;
 use std::fmt;
 
-use crate::ll::{ClPlatformID, PlatformPtr, PlatformInfo, Output};
 use crate::ll;
+use crate::ll::{ClPlatformID, Output, PlatformInfo, PlatformPtr};
 
 use ffi::cl_platform_id;
 
 pub struct Platform {
     inner: ClPlatformID,
-    _unconstructable: ()
+    _unconstructable: (),
 }
 
 impl Platform {
     pub fn new(p: ClPlatformID) -> Platform {
-        Platform { inner: p, _unconstructable: () }
+        Platform {
+            inner: p,
+            _unconstructable: (),
+        }
     }
 
     pub fn low_level_platform(&self) -> &ClPlatformID {
@@ -54,9 +57,7 @@ impl Default for Platform {
 
 impl Platform {
     pub fn list_all() -> Output<Vec<Platform>> {
-        ll::list_platforms().map(|plats| {
-            plats.into_iter().map(|p| Platform::new(p)).collect()
-        })
+        ll::list_platforms().map(|plats| plats.into_iter().map(|p| Platform::new(p)).collect())
     }
 
     fn info(&self, info_code: PlatformInfo) -> Output<String> {
@@ -109,7 +110,7 @@ impl fmt::Debug for Platform {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Platform, testing};
+    use crate::{testing, Platform};
     // use crate::device::{Device, DeviceType, DevicePtr};
 
     #[test]
@@ -128,7 +129,6 @@ mod tests {
         let platforms = testing::get_platforms();
         assert_ne!(platforms.len(), 0);
         for platform in platforms.into_iter() {
-
             let empty_string = "".to_string();
 
             let name = platform

@@ -1,39 +1,35 @@
-
-use std::mem::ManuallyDrop;
 use std::fmt;
+use std::mem::ManuallyDrop;
 
 use crate::Platform;
 
-use crate::ll;
-use crate::ll::{Output, ClDeviceID, DevicePtr, DeviceType};
 use crate::ffi::cl_device_id;
+use crate::ll;
+use crate::ll::{ClDeviceID, DevicePtr, DeviceType, Output};
 
 #[inline]
 fn from_low_level_vec(devices: Vec<ClDeviceID>) -> Vec<Device> {
-    devices
-        .into_iter()
-        .map(|d| Device::new(d))
-        .collect()
+    devices.into_iter().map(|d| Device::new(d)).collect()
 }
 
 #[derive(Hash)]
 pub struct Device {
     inner: ManuallyDrop<ClDeviceID>,
-    _unconstructable: ()
+    _unconstructable: (),
 }
 
 impl Device {
     pub fn new(device_id: ClDeviceID) -> Device {
         Device {
             inner: ManuallyDrop::new(device_id),
-            _unconstructable: ()
+            _unconstructable: (),
         }
     }
 }
 
 impl Drop for Device {
     fn drop(&mut self) {
-        unsafe { 
+        unsafe {
             ManuallyDrop::drop(&mut self.inner);
         }
     }
@@ -43,7 +39,7 @@ impl Clone for Device {
     fn clone(&self) -> Device {
         Device {
             inner: ManuallyDrop::new((*self.inner).clone()),
-            _unconstructable: ()
+            _unconstructable: (),
         }
     }
 }
@@ -59,7 +55,10 @@ impl Device {
         &*self.inner
     }
 
-    pub fn list_devices_by_type(platform: &Platform, device_type: DeviceType) -> Output<Vec<Device>> {
+    pub fn list_devices_by_type(
+        platform: &Platform,
+        device_type: DeviceType,
+    ) -> Output<Vec<Device>> {
         let device_ids = ll::list_devices_by_type(platform.low_level_platform(), device_type)?;
         Ok(from_low_level_vec(device_ids))
     }
@@ -110,12 +109,12 @@ impl fmt::Debug for Device {
 
 #[cfg(test)]
 mod tests {
-    use super::Device as Device;
+    use super::Device;
     use super::DeviceType;
+    use crate::ffi::*;
+    use crate::ll::*;
     use crate::platform::Platform;
     use crate::testing;
-    use crate::ll::*;
-    use crate::ffi::*;
 
     #[test]
     fn device_all_lists_all_devices() {

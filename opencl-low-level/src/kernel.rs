@@ -2,15 +2,15 @@ use std::fmt::Debug;
 
 use libc::{c_void, size_t};
 
+use crate::cl_helpers::cl_get_info5;
 use crate::ffi::{
-    clCreateKernel, clSetKernelArg, cl_kernel, cl_uint, cl_program, clGetKernelInfo,
-    cl_kernel_info, cl_context, cl_mem,
+    clCreateKernel, clGetKernelInfo, clSetKernelArg, cl_context, cl_kernel, cl_kernel_info, cl_mem,
+    cl_program, cl_uint,
 };
 use crate::{
-    Output, strings, build_output, KernelInfo, ClPointer, ClContext, ClProgram, utils,
-    ProgramPtr, ClNumber, ClMem, MemPtr, SizeAndPtr
+    build_output, strings, utils, ClContext, ClMem, ClNumber, ClPointer, ClProgram, KernelInfo,
+    MemPtr, Output, ProgramPtr, SizeAndPtr,
 };
-use crate::cl_helpers::cl_get_info5;
 
 pub unsafe trait KernelArg {
     unsafe fn as_kernel_arg(&self) -> SizeAndPtr<*mut c_void>;
@@ -20,7 +20,7 @@ unsafe impl<T: ClNumber> KernelArg for ClMem<T> {
     unsafe fn as_kernel_arg(&self) -> SizeAndPtr<*mut c_void> {
         SizeAndPtr(
             std::mem::size_of::<cl_mem>(),
-            self.mem_ptr_ref() as *const _ as *mut c_void
+            self.mem_ptr_ref() as *const _ as *mut c_void,
         )
     }
 }
@@ -28,7 +28,7 @@ unsafe impl<T: ClNumber> KernelArg for ClMem<T> {
 macro_rules! sized_scalar_kernel_arg {
     ($scalar:ty) => {
         unsafe impl KernelArg for $scalar {
-            unsafe fn as_kernel_arg(&self) -> SizeAndPtr<*mut c_void>{
+            unsafe fn as_kernel_arg(&self) -> SizeAndPtr<*mut c_void> {
                 SizeAndPtr(
                     std::mem::size_of::<$scalar>() as size_t,
                     (self as *const $scalar) as *mut c_void,
@@ -53,21 +53,19 @@ sized_scalar_kernel_arg!(u64);
 sized_scalar_kernel_arg!(f32);
 sized_scalar_kernel_arg!(f64);
 
-
 // pub use kernel_arg::{KernelArg, KernelArgSizeAndPointer};
 // use super::kernel_arg::{KernelArg, KernelArgSizeAndPointer};
 // use super::{Kernel, KernelError, KernelLock, KernelPtr, KernelRefCountWithProgram};
 
 __release_retain!(kernel, Kernel);
 
-pub unsafe fn cl_set_kernel_arg<T: KernelArg>(kernel: cl_kernel, arg_index: usize, arg: &T) -> Output<()> {
+pub unsafe fn cl_set_kernel_arg<T: KernelArg>(
+    kernel: cl_kernel,
+    arg_index: usize,
+    arg: &T,
+) -> Output<()> {
     let SizeAndPtr(arg_size, arg_ptr) = arg.as_kernel_arg();
-    let err_code = clSetKernelArg(
-        kernel,
-        arg_index as cl_uint,
-        arg_size,
-        arg_ptr,
-    );
+    let err_code = clSetKernelArg(kernel, arg_index as cl_uint, arg_size, arg_ptr);
 
     build_output((), err_code)
 }
@@ -84,11 +82,7 @@ pub unsafe fn cl_get_kernel_info<T: Copy>(
     kernel: cl_kernel,
     flag: cl_kernel_info,
 ) -> Output<ClPointer<T>> {
-    cl_get_info5(
-        kernel,
-        flag,
-        clGetKernelInfo,
-    )
+    cl_get_info5(kernel, flag, clGetKernelInfo)
 }
 
 /// An error related to a `Kernel`.
@@ -100,7 +94,6 @@ pub enum KernelError {
     )]
     CStringInvalidKernelName(String),
 }
-
 
 unsafe fn release_kernel(kernel: cl_kernel) {
     cl_release_kernel(kernel).unwrap_or_else(|e| {
@@ -122,7 +115,8 @@ pub unsafe trait KernelPtr: Sized {
     }
 
     unsafe fn function_name(&self) -> Output<String> {
-        self.info(KernelInfo::FunctionName).map(|ret| ret.into_string())
+        self.info(KernelInfo::FunctionName)
+            .map(|ret| ret.into_string())
     }
 
     unsafe fn num_args(&self) -> Output<u32> {
@@ -130,7 +124,8 @@ pub unsafe trait KernelPtr: Sized {
     }
 
     unsafe fn reference_count(&self) -> Output<u32> {
-        self.info(KernelInfo::ReferenceCount).map(|ret| ret.into_one())
+        self.info(KernelInfo::ReferenceCount)
+            .map(|ret| ret.into_one())
     }
 
     unsafe fn context(&self) -> Output<ClContext> {
@@ -144,7 +139,8 @@ pub unsafe trait KernelPtr: Sized {
     }
 
     unsafe fn attributes(&self) -> Output<String> {
-        self.info(KernelInfo::Attributes).map(|ret| ret.into_string())
+        self.info(KernelInfo::Attributes)
+            .map(|ret| ret.into_string())
     }
 
     // // OpenCL v2.0
@@ -158,7 +154,7 @@ pub unsafe trait KernelPtr: Sized {
 
 pub struct ClKernel {
     object: cl_kernel,
-    _unconstructable: ()
+    _unconstructable: (),
 }
 
 impl ClKernel {
@@ -167,18 +163,19 @@ impl ClKernel {
         Ok(ClKernel::unchecked_new(object))
     }
     pub unsafe fn unchecked_new(object: cl_kernel) -> ClKernel {
-        ClKernel { object, _unconstructable: () }
+        ClKernel {
+            object,
+            _unconstructable: (),
+        }
     }
 
     pub unsafe fn create(program: &ClProgram, name: &str) -> Output<ClKernel> {
-        cl_create_kernel(program.program_ptr(), name)
-            .and_then(|object| ClKernel::new(object))
+        cl_create_kernel(program.program_ptr(), name).and_then(|object| ClKernel::new(object))
     }
 
     pub unsafe fn set_arg<T: KernelArg>(&mut self, arg_index: usize, arg: &mut T) -> Output<()> {
         cl_set_kernel_arg(self.kernel_ptr(), arg_index, arg)
     }
-
 }
 
 unsafe impl KernelPtr for ClKernel {
@@ -202,14 +199,13 @@ impl Clone for ClKernel {
             retain_kernel(kernel);
             ClKernel::unchecked_new(kernel)
         }
-        
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::*;
     use crate::ffi::*;
+    use crate::*;
 
     const SRC: &'static str = "
     __kernel void test123(__global int *i) {
@@ -265,8 +261,6 @@ mod tests {
         let _attributes: String = unsafe { kernel.attributes().unwrap() };
     }
 
-   
-
     #[test]
     fn kernel_set_args_works_for_u8_scalar() {
         let src: &str = "
@@ -321,7 +315,6 @@ mod tests {
         let mut arg1 = 1u32 as cl_uint;
         let () = unsafe { kernel.set_arg(0, &mut arg1) }.unwrap();
     }
-
 
     #[test]
     fn kernel_set_args_works_for_i32_scalar() {
@@ -384,22 +377,17 @@ mod tests {
     }
 
     fn build_session(src: &str) -> Session {
-        unsafe {
-            SessionBuilder::new()
-            .with_program_src(src)
-            .build()
-            .unwrap()
-        }
+        unsafe { SessionBuilder::new().with_program_src(src).build().unwrap() }
     }
 
     #[test]
     fn kernel_set_arg_works_for_ffi_call() {
-        unsafe {            
+        unsafe {
             let src: &str = "
             __kernel void test123(__global uchar *i) {
                 *i += 1;
             }";
-            
+
             let session = build_session(src);
             let kernel = session.create_kernel("test123").unwrap();
 
@@ -419,7 +407,7 @@ mod tests {
             );
             assert_eq!(err, 0);
         }
-    }    
+    }
 
     #[test]
     fn kernel_set_arg_works_for_buffer_u8() {
@@ -428,7 +416,7 @@ mod tests {
             __kernel void test123(__global uchar *i) {
                 *i += 1;
             }";
-            
+
             let session = build_session(src);
             let mut kernel = session.create_kernel("test123").unwrap();
 
@@ -443,7 +431,4 @@ mod tests {
             let () = kernel.set_arg(0, &mut mem1).unwrap();
         }
     }
-
-
 }
-

@@ -3,13 +3,12 @@ use std::fmt;
 use crate::ffi::*;
 
 use crate::{
-    Output, DeviceInfo, DeviceExecCapabilities, DeviceLocalMemType,
-    DeviceMemCacheType, DeviceType, DeviceAffinityDomain,
-    ClPointer, PlatformPtr, utils, Error, ClPlatformID,
-    StatusCodeError
+    utils, ClPlatformID, ClPointer, DeviceAffinityDomain, DeviceExecCapabilities, DeviceInfo,
+    DeviceLocalMemType, DeviceMemCacheType, DeviceType, Error, Output, PlatformPtr,
+    StatusCodeError,
 };
 
-use crate::cl_helpers::{cl_get_object, cl_get_object_count, cl_get_info5};
+use crate::cl_helpers::{cl_get_info5, cl_get_object, cl_get_object_count};
 
 /// NOTE: UNUSABLE_DEVICE_ID might be osx specific? or OpenCL
 /// implementation specific?
@@ -29,7 +28,7 @@ pub fn device_usability_check(device_id: cl_device_id) -> Result<(), Error> {
         Err(UNUSABLE_DEVICE_ERROR)
     } else {
         Ok(())
-    }    
+    }
 }
 
 #[cfg(feature = "opencl_version_1_2_0")]
@@ -37,7 +36,7 @@ __release_retain!(device_id, Device);
 
 // NOTE: fix cl_device_type
 pub fn cl_get_device_count(platform: cl_platform_id, device_type: cl_device_type) -> Output<u32> {
-    unsafe { 
+    unsafe {
         cl_get_object_count::<cl_platform_id, cl_device_type, cl_device_id>(
             platform,
             device_type,
@@ -60,12 +59,11 @@ pub fn list_devices_by_type(
                     .filter_map(Result::ok)
                     .collect();
                 Ok(devices)
-            },
-            Err(Error::StatusCodeError(StatusCodeError{status_code: -1})) => Ok(vec![]),
-            Err(Error::StatusCodeError(StatusCodeError{status_code: -30})) => Ok(vec![]),
+            }
+            Err(Error::StatusCodeError(StatusCodeError { status_code: -1 })) => Ok(vec![]),
+            Err(Error::StatusCodeError(StatusCodeError { status_code: -30 })) => Ok(vec![]),
             Err(e) => Err(e),
         }
-        
     }
 }
 
@@ -76,7 +74,6 @@ where
     device_usability_check(device)?;
     cl_get_info5(device.device_ptr(), flag.into(), clGetDeviceInfo)
 }
-
 
 /// An error related to a Device.
 #[derive(Debug, Fail, PartialEq, Eq, Clone)]
@@ -98,13 +95,19 @@ pub trait DeviceRefCount: DevicePtr + fmt::Debug {
 
 unsafe fn release_device(device_id: cl_device_id) {
     cl_release_device_id(device_id).unwrap_or_else(|e| {
-        panic!("Failed to release cl_device_id {:?} due to {:?} ", device_id, e);
+        panic!(
+            "Failed to release cl_device_id {:?} due to {:?} ",
+            device_id, e
+        );
     });
 }
 
 unsafe fn retain_device(device_id: cl_device_id) {
     cl_retain_device_id(device_id).unwrap_or_else(|e| {
-        panic!("Failed to retain cl_device_id {:?} due to {:?}", device_id, e);
+        panic!(
+            "Failed to retain cl_device_id {:?} due to {:?}",
+            device_id, e
+        );
     });
 }
 
@@ -116,7 +119,7 @@ pub struct ClDeviceID {
 
 impl ClDeviceID {
     pub unsafe fn unchecked_new(object: cl_device_id) -> ClDeviceID {
-        ClDeviceID{
+        ClDeviceID {
             object,
             _unconstructable: (),
         }
@@ -173,7 +176,7 @@ impl Clone for ClDeviceID {
 macro_rules! info_fn {
     ($name:ident, $flag:ident, String) => {
         fn $name(&self) -> Output<String> {
-            unsafe{ 
+            unsafe{
                 cl_get_device_info(self.device_ptr(), DeviceInfo::$flag)
                     .map(|ret| ret.into_string() )
             }
@@ -191,13 +194,13 @@ macro_rules! info_fn {
 
     ($name:ident, $flag:ident, $cl_type:ty, Vec<$output_t:ty>) => {
         fn $name(&self) -> Output<Vec<$output_t>> {
-            unsafe { 
+            unsafe {
                 cl_get_device_info(self.device_ptr(), DeviceInfo::$flag).map(|ret| ret.into_vec())
             }
         }
     };
 
-    ($name:ident, $flag:ident, $output_t:ty) => {        
+    ($name:ident, $flag:ident, $output_t:ty) => {
         fn $name(&self) -> Output<$output_t> {
             unsafe {
                 cl_get_device_info(self.device_ptr(), DeviceInfo::$flag).map(|ret| ret.into_one())
@@ -215,7 +218,10 @@ macro_rules! info_fn {
     };
 }
 
-pub trait DevicePtr where Self: fmt::Debug + Sized {
+pub trait DevicePtr
+where
+    Self: fmt::Debug + Sized,
+{
     unsafe fn device_ptr(&self) -> cl_device_id;
 
     fn is_usable(&self) -> bool {
@@ -254,33 +260,88 @@ pub trait DevicePtr where Self: fmt::Debug + Sized {
     info_fn!(max_constant_args, MaxConstantArgs, cl_uint, u32);
     info_fn!(max_read_image_args, MaxReadImageArgs, cl_uint, u32);
     info_fn!(max_samplers, MaxSamplers, cl_uint, u32);
-    info_fn!(max_work_item_dimensions, MaxWorkItemDimensions, cl_uint, u32);
+    info_fn!(
+        max_work_item_dimensions,
+        MaxWorkItemDimensions,
+        cl_uint,
+        u32
+    );
     info_fn!(max_write_image_args, MaxWriteImageArgs, cl_uint, u32);
     info_fn!(mem_base_addr_align, MemBaseAddrAlign, cl_uint, u32);
     info_fn!(min_data_type_align_size, MinDataTypeAlignSize, cl_uint, u32);
-    info_fn!(native_vector_width_char, NativeVectorWidthChar, cl_uint, u32);
-    info_fn!(native_vector_width_short, NativeVectorWidthShort, cl_uint, u32);
+    info_fn!(
+        native_vector_width_char,
+        NativeVectorWidthChar,
+        cl_uint,
+        u32
+    );
+    info_fn!(
+        native_vector_width_short,
+        NativeVectorWidthShort,
+        cl_uint,
+        u32
+    );
     info_fn!(native_vector_width_int, NativeVectorWidthInt, cl_uint, u32);
-    info_fn!(native_vector_width_long, NativeVectorWidthLong, cl_uint, u32);
-    info_fn!(native_vector_width_float, NativeVectorWidthFloat, cl_uint, u32);
+    info_fn!(
+        native_vector_width_long,
+        NativeVectorWidthLong,
+        cl_uint,
+        u32
+    );
+    info_fn!(
+        native_vector_width_float,
+        NativeVectorWidthFloat,
+        cl_uint,
+        u32
+    );
     info_fn!(
         partition_max_sub_devices,
         PartitionMaxSubDevices,
         cl_uint,
         u32
     );
-    info_fn!(preferred_vector_width_char, PreferredVectorWidthChar, cl_uint, u32);
-    info_fn!(preferred_vector_width_short, PreferredVectorWidthShort, cl_uint, u32);
-    info_fn!(preferred_vector_width_int, PreferredVectorWidthInt, cl_uint, u32);
-    info_fn!(preferred_vector_width_long, PreferredVectorWidthLong, cl_uint, u32);
-    info_fn!(preferred_vector_width_float, PreferredVectorWidthFloat, cl_uint, u32);
+    info_fn!(
+        preferred_vector_width_char,
+        PreferredVectorWidthChar,
+        cl_uint,
+        u32
+    );
+    info_fn!(
+        preferred_vector_width_short,
+        PreferredVectorWidthShort,
+        cl_uint,
+        u32
+    );
+    info_fn!(
+        preferred_vector_width_int,
+        PreferredVectorWidthInt,
+        cl_uint,
+        u32
+    );
+    info_fn!(
+        preferred_vector_width_long,
+        PreferredVectorWidthLong,
+        cl_uint,
+        u32
+    );
+    info_fn!(
+        preferred_vector_width_float,
+        PreferredVectorWidthFloat,
+        cl_uint,
+        u32
+    );
     info_fn!(
         preferred_vector_width_double,
         PreferredVectorWidthDouble,
         cl_uint,
         u32
     );
-    info_fn!(preferred_vector_width_half, PreferredVectorWidthHalf, cl_uint, u32);
+    info_fn!(
+        preferred_vector_width_half,
+        PreferredVectorWidthHalf,
+        cl_uint,
+        u32
+    );
     info_fn!(vendor_id, VendorId, cl_uint, u32);
 
     // cl_bool
@@ -305,7 +366,12 @@ pub trait DevicePtr where Self: fmt::Debug + Sized {
     info_fn!(global_mem_cache_size, GlobalMemCacheSize, cl_ulong, u64);
     info_fn!(global_mem_size, GlobalMemSize, cl_ulong, u64);
     info_fn!(local_mem_size, LocalMemSize, cl_ulong, u64);
-    info_fn!(max_constant_buffer_size, MaxConstantBufferSize, cl_ulong, u64);
+    info_fn!(
+        max_constant_buffer_size,
+        MaxConstantBufferSize,
+        cl_ulong,
+        u64
+    );
     info_fn!(max_mem_alloc_size, MaxMemAllocSize, cl_ulong, u64);
 
     // size_t as usize
@@ -319,13 +385,23 @@ pub trait DevicePtr where Self: fmt::Debug + Sized {
     info_fn!(max_parameter_size, MaxParameterSize, size_t, usize);
     info_fn!(max_work_group_size, MaxWorkGroupSize, size_t, usize);
     info_fn!(printf_buffer_size, PrintfBufferSize, size_t, usize);
-    info_fn!(profiling_timer_resolution, ProfilingTimerResolution, size_t, usize);
+    info_fn!(
+        profiling_timer_resolution,
+        ProfilingTimerResolution,
+        size_t,
+        usize
+    );
 
     // size_t[]
     info_fn!(max_work_item_sizes, MaxWorkItemSizes, size_t, Vec<usize>);
 
     // cl_device_local_mem_type
-    info_fn!(local_mem_type, LocalMemType, cl_device_local_mem_type, DeviceLocalMemType);
+    info_fn!(
+        local_mem_type,
+        LocalMemType,
+        cl_device_local_mem_type,
+        DeviceLocalMemType
+    );
 
     // ExecutionCapabilities
     info_fn!(
@@ -376,33 +452,39 @@ impl fmt::Debug for ClDeviceID {
 
 #[cfg(test)]
 mod tests {
-    use crate::*;
     use crate::ffi::*;
+    use crate::*;
 
     #[test]
     fn unusable_device_id_results_in_an_unusable_device_error() {
         let unusable_device_id = 0xFFFF_FFFF as cl_device_id;
-        let error =
-            unsafe { ClDeviceID::new(unusable_device_id) };
+        let error = unsafe { ClDeviceID::new(unusable_device_id) };
         assert_eq!(error, Err(UNUSABLE_DEVICE_ERROR));
     }
 
     #[test]
     fn lists_all_devices() {
         let platform = ClPlatformID::default();
-        let devices = list_devices_by_type(&platform, DeviceType::ALL).expect("Failed to list all devices");
+        let devices =
+            list_devices_by_type(&platform, DeviceType::ALL).expect("Failed to list all devices");
         assert!(devices.len() > 0);
     }
 
     #[test]
     fn devices_of_many_types_can_be_listed_for_a_platform() {
         let platform = ClPlatformID::default();
-        let _ = list_devices_by_type(&platform, DeviceType::DEFAULT).expect("Failed to list DEFAULT devices");
-        let _ = list_devices_by_type(&platform, DeviceType::CPU).expect("Failed to list CPU devices");
-        let _ = list_devices_by_type(&platform, DeviceType::GPU).expect("Failed to list GPU devices");
-        let _ = list_devices_by_type(&platform, DeviceType::ACCELERATOR).expect("Failed to list ACCELERATOR devices");
-        let _ = list_devices_by_type(&platform, DeviceType::CUSTOM).expect("Failed to list CUSTOM devices");
-        let _ = list_devices_by_type(&platform, DeviceType::ALL).expect("Failed to list ALL devices");
+        let _ = list_devices_by_type(&platform, DeviceType::DEFAULT)
+            .expect("Failed to list DEFAULT devices");
+        let _ =
+            list_devices_by_type(&platform, DeviceType::CPU).expect("Failed to list CPU devices");
+        let _ =
+            list_devices_by_type(&platform, DeviceType::GPU).expect("Failed to list GPU devices");
+        let _ = list_devices_by_type(&platform, DeviceType::ACCELERATOR)
+            .expect("Failed to list ACCELERATOR devices");
+        let _ = list_devices_by_type(&platform, DeviceType::CUSTOM)
+            .expect("Failed to list CUSTOM devices");
+        let _ =
+            list_devices_by_type(&platform, DeviceType::ALL).expect("Failed to list ALL devices");
     }
 
     #[test]
@@ -422,7 +504,7 @@ mod device_ptr_tests {
     fn device_name_works() {
         ll_testing::with_each_device(|device| {
             let name: String = device.name().unwrap();
-            assert!(name.len() > 0);    
+            assert!(name.len() > 0);
         })
     }
 
@@ -436,7 +518,7 @@ mod device_ptr_tests {
                     })
                 }
             }
-        }
+        };
     }
 
     // u32

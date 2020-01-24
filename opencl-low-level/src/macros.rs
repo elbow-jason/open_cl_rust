@@ -1,5 +1,3 @@
-
-
 #[macro_export]
 macro_rules! panic_once {
     ($fmt:expr, $($arg:tt)+) => {
@@ -9,12 +7,11 @@ macro_rules! panic_once {
     }
 }
 
-
 #[macro_export]
 macro_rules! __release_retain {
     ($snake:ident, $pascal:ident) => {
         paste::item! {
-            
+
             use $crate::ffi::{
                 [<clRelease $pascal>],
                 [<clRetain $pascal>],

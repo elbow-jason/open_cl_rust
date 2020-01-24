@@ -1,13 +1,16 @@
-use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard, Arc};
-use std::mem::ManuallyDrop;
 use std::fmt;
+use std::mem::ManuallyDrop;
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
-use crate::{Context, Device, Kernel, Buffer};
+use crate::{Buffer, Context, Device, Kernel};
 // use crate::traits::Upcast;
 
 use crate::ll::*;
 
-pub trait CommandQueueLock<P> where P: CommandQueuePtr {
+pub trait CommandQueueLock<P>
+where
+    P: CommandQueuePtr,
+{
     unsafe fn write_lock(&self) -> RwLockWriteGuard<P>;
     unsafe fn read_lock(&self) -> RwLockReadGuard<P>;
     unsafe fn rw_lock(&self) -> &RwLock<P>;
@@ -27,7 +30,6 @@ pub struct CommandQueue {
     _device: ManuallyDrop<ClDeviceID>,
     _unconstructable: (),
 }
-
 
 impl CommandQueueLock<ClCommandQueue> for CommandQueue {
     unsafe fn read_lock(&self) -> RwLockReadGuard<ClCommandQueue> {
@@ -64,7 +66,7 @@ impl Clone for CommandQueue {
             _queue: ManuallyDrop::new((*self._queue).clone()),
             _context: self._context.clone(),
             _device: self._device.clone(),
-            _unconstructable: ()
+            _unconstructable: (),
         }
     }
 }
@@ -81,12 +83,16 @@ impl CommandQueue {
         )
     }
 
-    unsafe fn new_from_low_level(queue: ClCommandQueue, context: &ClContext, device: &ClDeviceID) -> CommandQueue {
-        CommandQueue{
+    unsafe fn new_from_low_level(
+        queue: ClCommandQueue,
+        context: &ClContext,
+        device: &ClDeviceID,
+    ) -> CommandQueue {
+        CommandQueue {
             _queue: ManuallyDrop::new(Arc::new(RwLock::new(queue))),
             _context: ManuallyDrop::new(context.clone()),
             _device: ManuallyDrop::new(device.clone()),
-            _unconstructable: ()
+            _unconstructable: (),
         }
     }
 
@@ -97,23 +103,27 @@ impl CommandQueue {
     ) -> Output<CommandQueue> {
         unsafe {
             let ll_queue = ClCommandQueue::create(
-            context.low_level_context(),
-            device.low_level_device(),
-            opt_props,
+                context.low_level_context(),
+                device.low_level_device(),
+                opt_props,
             )?;
             Ok(CommandQueue::new(ll_queue, context, device))
         }
     }
 
     pub fn create_copy(&self) -> Output<CommandQueue> {
-        unsafe { 
+        unsafe {
             let props = self.properties()?;
             let ll_queue = ClCommandQueue::create_from_raw_pointers(
                 (*self._context).context_ptr(),
                 (*self._device).device_ptr(),
-                props.into()            
+                props.into(),
             )?;
-            Ok(CommandQueue::new_from_low_level(ll_queue, &self._context, &self._device))
+            Ok(CommandQueue::new_from_low_level(
+                ll_queue,
+                &self._context,
+                &self._device,
+            ))
         }
     }
 
@@ -127,7 +137,12 @@ impl CommandQueue {
 
     /// write_buffer is used to move data from the host buffer (buffer: &[T]) to
     /// the OpenCL cl_mem pointer inside `d_mem: &Buffer<T>`.
-    pub fn write_buffer<T>(&self, device_buffer: &Buffer<T>, host_buffer: &[T], opts: Option<CommandQueueOptions>) -> Output<()>
+    pub fn write_buffer<T>(
+        &self,
+        device_buffer: &Buffer<T>,
+        host_buffer: &[T],
+        opts: Option<CommandQueueOptions>,
+    ) -> Output<()>
     where
         T: ClNumber,
     {
@@ -141,7 +156,12 @@ impl CommandQueue {
 
     /// read_buffer is used to move data from the `device_mem` (`cl_mem` pointer
     /// inside `&DeviceMem<T>`) into a `host_buffer` (`&mut [T]`).
-    pub fn read_buffer<T: ClNumber>(&self, device_buffer: &Buffer<T>, host_buffer: &mut [T], opts: Option<CommandQueueOptions>) -> Output<Option<Vec<T>>> {
+    pub fn read_buffer<T: ClNumber>(
+        &self,
+        device_buffer: &Buffer<T>,
+        host_buffer: &mut [T],
+        opts: Option<CommandQueueOptions>,
+    ) -> Output<Option<Vec<T>>> {
         unsafe {
             let mut qlock = self.write_lock();
             let buf_lock = device_buffer.read_lock();
@@ -159,14 +179,9 @@ impl CommandQueue {
         unsafe {
             let kernel_lock = kernel.write_lock();
             let mut qlock = self.write_lock();
-            let event = qlock.enqueue_kernel(
-                &*kernel_lock,
-                work,
-                opts
-            )?;
+            let event = qlock.enqueue_kernel(&*kernel_lock, work, opts)?;
             event.wait()
         }
-        
     }
 
     pub fn finish(&self) -> Output<()> {
@@ -203,7 +218,7 @@ impl CommandQueue {
     // }
 
     // pub fn info<T: Copy>(self, flag: CQInfo) -> Output<ClPointer<T>> {
-    //     unsafe { 
+    //     unsafe {
     //         let cq_lock = self.read_lock().info();
     //         info::fetch::<T>(cq_lock.command_queue_ptr(), flag)
     //     }
@@ -228,7 +243,12 @@ impl CommandQueue {
 
 impl PartialEq for CommandQueue {
     fn eq(&self, other: &Self) -> bool {
-        unsafe { std::ptr::eq(self.read_lock().command_queue_ptr(), other.read_lock().command_queue_ptr()) }
+        unsafe {
+            std::ptr::eq(
+                self.read_lock().command_queue_ptr(),
+                other.read_lock().command_queue_ptr(),
+            )
+        }
     }
 }
 
@@ -242,7 +262,6 @@ impl Eq for CommandQueue {}
 //     __kernel void test(__global int *i) {
 //         *i += 1;
 //     }";
-    
 
 //     #[test]
 //     pub fn command_queue_method_context_works() {
@@ -265,7 +284,7 @@ impl Eq for CommandQueue {}
 //             .command_queue()
 //             .context();
 //         let loaded_context: Context = session.command_queue().load_context().unwrap();
-//         assert_eq!(kept_context, &loaded_context); 
+//         assert_eq!(kept_context, &loaded_context);
 //     }
 
 //     #[test]
@@ -288,7 +307,7 @@ impl Eq for CommandQueue {}
 //             .command_queue()
 //             .device();
 //         let loaded_device = session.command_queue().load_device().unwrap();
-//         assert_eq!(kept_device, &loaded_device); 
+//         assert_eq!(kept_device, &loaded_device);
 //     }
 
 //     #[test]

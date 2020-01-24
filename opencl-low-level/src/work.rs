@@ -1,6 +1,6 @@
 // use std::marker::PhantomData;
-use std::cmp::max;
 use crate::{Dims, Error, Output};
+use std::cmp::max;
 
 #[derive(Debug, Fail, Clone, Eq, PartialEq)]
 pub enum WorkError {
@@ -17,7 +17,6 @@ pub enum WorkError {
 const INVALID_DIM_LENGTH: Error = Error::WorkError(WorkError::DimLengthCannotBeZero);
 const INVALID_DIMS_COUNT: Error = Error::WorkError(WorkError::InvalidDimsCount);
 const INVALID_WORK_SIZE: Error = Error::WorkError(WorkError::InvalidWorkSize);
-
 
 // #[repr(C)]
 // #[derive(Debug, Clone, Eq, PartialEq)]
@@ -201,7 +200,7 @@ impl NonZeroVolume3DArray {
         };
         match work_size {
             [0, _, _] | [_, 0, _] | [_, _, 0] => Err(INVALID_WORK_SIZE),
-            w => Ok(NonZeroVolume3DArray(w))
+            w => Ok(NonZeroVolume3DArray(w)),
         }
     }
 }
@@ -217,7 +216,6 @@ impl GlobalWorkSize {
     pub fn as_ptr(&self) -> *const usize {
         self.0.as_ptr()
     }
-    
 }
 
 pub enum LocalWorkSize {
@@ -265,9 +263,9 @@ impl GlobalWorkOffset {
 /// Work is a representation of 1, 2, or 3 dimensions.
 ///
 /// For global_size none of the specified dimensions can be 0.
-/// 
+///
 /// For global_offset any specficied dimension can be any usize.
-/// 
+///
 /// For local_size none of the specified dimensions can be 0.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Work {
@@ -294,7 +292,7 @@ impl Work {
         self.local_size = Some(local_size.into());
         self
     }
-    
+
     pub fn work_dims(&self) -> u32 {
         self.global_size.n_dimensions() as u32
     }
@@ -315,7 +313,7 @@ impl Work {
     /// collection/buffer the dimensionality of the data can be zero.
     /// `Some([0, 0, 0])` is a valid `global_work_offset`.
     pub fn global_work_offset(&self) -> GlobalWorkOffset {
-         match &self.global_offset {
+        match &self.global_offset {
             Some(dims) => GlobalWorkOffset::from_dims(dims),
             None => GlobalWorkOffset::Null,
         }

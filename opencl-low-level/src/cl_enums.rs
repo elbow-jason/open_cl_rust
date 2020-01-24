@@ -191,7 +191,6 @@ __cl_enum!(PlatformInfo, cl_platform_info, {
     // HostTimerResolution => 0x0905
 });
 
-
 // https://github.com/KhronosGroup/OpenCL-Headers/blob/master/CL/cl.h#L280-L387
 //
 // Note: removed due to deprecation
@@ -319,7 +318,6 @@ __cl_enum!(DevicePartitionProperty, cl_device_partition_property, {
     ByAffinityDomain => 0x1088
 });
 
-
 __cl_enum!(ContextInfo, cl_context_info, {
     ReferenceCount => 0x1080,
     Devices => 0x1081,
@@ -372,7 +370,6 @@ __cl_enum!(ProgramBinaryType, cl_program_binary_type, {
     Library => 0x2,
     Executable => 0x4
 });
-
 
 __cl_enum!(MemMigrationFlags, cl_mem_migration_flags, {
     Host => 1,
@@ -531,7 +528,6 @@ __cl_enum!(ProfilingInfo, cl_profiling_info, {
     Complete => 0x1284
 });
 
-
 // NOTE: Add support for d3d and khr flags
 // https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clCreateContext.html
 // CL_CONTEXT_D3D10_DEVICE_KHR 	    ID3D10Device* 	                    default: NULL
@@ -544,7 +540,6 @@ __cl_enum!(ProfilingInfo, cl_profiling_info, {
 // CL_CONTEXT_ADAPTER_D3D9EX_KHR    IDirect3DDeviceEx*                  (if the cl_khr_dx9_media_sharing extension is supported).
 // CL_CONTEXT_ADAPTER_DXVA_KHR      IDXVAHD_Device *                    (if the cl_khr_dx9_media_sharing extension is supported).
 // CL_CONTEXT_D3D11_DEVICE_KHR      ID3D11Device *                      default: NULL
-
 
 // NOTE: Version for cl_device_svm? 2.0?
 // __cl_enum!(DeviceSvm, cl_device_svm, {

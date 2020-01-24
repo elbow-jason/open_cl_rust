@@ -2,13 +2,13 @@ use std::fmt;
 use std::mem::ManuallyDrop;
 
 use crate::{
-    CommandExecutionStatus, ClPointer, Output, build_output, ProfilingInfo, EventInfo,
-    utils, ClCommandQueue, ClContext, Waitlist, ClNumber, Error,
+    build_output, utils, ClCommandQueue, ClContext, ClNumber, ClPointer, CommandExecutionStatus,
+    Error, EventInfo, Output, ProfilingInfo, Waitlist,
 };
 
 use crate::ffi::{
-    cl_event, clGetEventInfo, clGetEventProfilingInfo, cl_event_info, cl_profiling_info, cl_ulong,
-    cl_command_queue, cl_context
+    clGetEventInfo, clGetEventProfilingInfo, cl_command_queue, cl_context, cl_event, cl_event_info,
+    cl_profiling_info, cl_ulong,
 };
 
 use crate::cl_helpers::cl_get_info5;
@@ -28,7 +28,10 @@ unsafe fn retain_event(evt: cl_event) {
 }
 
 // NOTE: Fix cl_profiling_info arg // should be a bitflag or enum.
-pub unsafe fn cl_get_event_profiling_info(event: cl_event, info_flag: cl_profiling_info) -> Output<u64> {
+pub unsafe fn cl_get_event_profiling_info(
+    event: cl_event,
+    info_flag: cl_profiling_info,
+) -> Output<u64> {
     let mut time: cl_ulong = 0;
     let err_code = clGetEventProfilingInfo(
         event,
@@ -40,12 +43,11 @@ pub unsafe fn cl_get_event_profiling_info(event: cl_event, info_flag: cl_profili
     build_output(time as u64, err_code)
 }
 
-pub unsafe fn cl_get_event_info<T: Copy>(event: cl_event, info_flag: cl_event_info) -> Output<ClPointer<T>> {
-    cl_get_info5(
-        event,
-        info_flag,
-        clGetEventInfo,
-    )
+pub unsafe fn cl_get_event_info<T: Copy>(
+    event: cl_event,
+    info_flag: cl_event_info,
+) -> Output<ClPointer<T>> {
+    cl_get_info5(event, info_flag, clGetEventInfo)
 }
 
 pub unsafe trait EventPtr: Sized {
@@ -55,7 +57,6 @@ pub unsafe trait EventPtr: Sized {
         format!("{:?}", unsafe { self.event_ptr() })
     }
 }
-
 
 unsafe impl EventPtr for cl_event {
     unsafe fn event_ptr(&self) -> cl_event {
@@ -87,7 +88,7 @@ pub enum EventError {
 
 pub struct ClEvent {
     object: cl_event,
-    _unconstructable: ()
+    _unconstructable: (),
 }
 
 impl ClEvent {
@@ -137,26 +138,28 @@ impl ClEvent {
 
     pub fn reference_count(&self) -> Output<u32> {
         unsafe {
-            self.info(EventInfo::ReferenceCount).map(|ret| ret.into_one() )
+            self.info(EventInfo::ReferenceCount)
+                .map(|ret| ret.into_one())
         }
     }
 
-    pub unsafe fn cl_command_queue(&self) -> Output<cl_command_queue> { 
-        self.info(EventInfo::CommandQueue).map(|cl_ptr| cl_ptr.into_one())
+    pub unsafe fn cl_command_queue(&self) -> Output<cl_command_queue> {
+        self.info(EventInfo::CommandQueue)
+            .map(|cl_ptr| cl_ptr.into_one())
     }
 
     pub unsafe fn command_queue(&self) -> Output<ClCommandQueue> {
         self.cl_command_queue()
-            .and_then(|cq| ClCommandQueue::retain_new(cq) )
+            .and_then(|cq| ClCommandQueue::retain_new(cq))
     }
 
     pub unsafe fn cl_context(&self) -> Output<cl_context> {
-        self.info(EventInfo::Context).map(|cl_ptr| cl_ptr.into_one())
+        self.info(EventInfo::Context)
+            .map(|cl_ptr| cl_ptr.into_one())
     }
 
     pub unsafe fn context(&self) -> Output<ClContext> {
-        self.cl_context()
-            .and_then(|ctx| ClContext::retain_new(ctx))
+        self.cl_context().and_then(|ctx| ClContext::retain_new(ctx))
     }
 
     pub fn command_execution_status(&self) -> Output<CommandExecutionStatus> {
@@ -169,7 +172,7 @@ impl ClEvent {
 
 impl Clone for ClEvent {
     fn clone(&self) -> ClEvent {
-        unsafe { 
+        unsafe {
             let evt = self.object;
             retain_event(evt);
             ClEvent::unchecked_new(evt)
@@ -202,7 +205,9 @@ impl<T: ClNumber> BufferReadEvent<T> {
 
     pub fn wait(&mut self) -> Output<Option<Vec<T>>> {
         if self.is_consumed {
-            return Err(Error::EventError(EventError::EventAlreadyConsumed(self.event.address())))
+            return Err(Error::EventError(EventError::EventAlreadyConsumed(
+                self.event.address(),
+            )));
         }
         unsafe {
             self.event.wait()?;
@@ -212,7 +217,7 @@ impl<T: ClNumber> BufferReadEvent<T> {
                     std::mem::swap(&mut *self.host_buffer, &mut output);
                     self.is_consumed = true;
                     Ok(output)
-                },
+                }
                 None => Ok(None),
             }
         }

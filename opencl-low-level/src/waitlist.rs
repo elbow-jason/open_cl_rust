@@ -1,9 +1,11 @@
-
-use crate::{
-    Output, build_output, SizeAndPtr, ClEvent, EventPtr
-    // Error, EventPtr, cl_release_event,
-};
 use crate::ffi::{clWaitForEvents, cl_event};
+use crate::{
+    build_output,
+    ClEvent,
+    EventPtr, // Error, EventPtr, cl_release_event,
+    Output,
+    SizeAndPtr,
+};
 
 pub unsafe fn cl_wait_for_events(wl: &[cl_event]) -> Output<()> {
     let SizeAndPtr(len, ptr) = wl.waitlist_size_and_ptr();
@@ -71,14 +73,14 @@ unsafe impl<W: Waitlist> Waitlist for Option<W> {
     unsafe fn fill_waitlist(&self, wait_list: &mut Vec<cl_event>) {
         match self {
             None => (),
-            Some(event) => event.fill_waitlist(wait_list)
+            Some(event) => event.fill_waitlist(wait_list),
         }
     }
-    
+
     unsafe fn new_waitlist(&self) -> Vec<cl_event> {
         match self {
             None => vec![],
-            Some(event) => event.new_waitlist()
+            Some(event) => event.new_waitlist(),
         }
     }
 }

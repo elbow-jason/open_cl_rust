@@ -3,16 +3,15 @@
 // use crate::device_mem::DeviceMemError;
 // use crate::event::EventError;
 
-
-use crate::program::ProgramError;
-use crate::kernel::KernelError;
-use crate::platform::PlatformError;
-use crate::device::DeviceError;
-use crate::status_code::StatusCodeError;
-use crate::mem::MemError;
-use crate::event::EventError;
 use crate::context_builder::ContextBuilderError;
+use crate::device::DeviceError;
+use crate::event::EventError;
+use crate::kernel::KernelError;
+use crate::mem::MemError;
+use crate::platform::PlatformError;
+use crate::program::ProgramError;
 use crate::session::{SessionBuilderError, SessionError};
+use crate::status_code::StatusCodeError;
 use crate::work::WorkError;
 
 #[derive(Debug, Fail, PartialEq, Clone, Eq)]
@@ -37,13 +36,13 @@ pub enum Error {
 
     #[fail(display = "{:?}", _0)]
     EventError(EventError),
-    
+
     #[fail(display = "{:?}", _0)]
     ContextBuilderError(ContextBuilderError),
 
     #[fail(display = "{:?}", _0)]
     SessionBuilderError(SessionBuilderError),
-    
+
     #[fail(display = "{:?}", _0)]
     SessionError(SessionError),
 
@@ -125,5 +124,3 @@ impl From<WorkError> for Error {
 //         Error::EventError(ee)
 //     }
 // }
-
-

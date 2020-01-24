@@ -2,13 +2,12 @@ extern crate opencl_core;
 
 use std::fmt;
 
-use opencl_core::{
-    Platform, Device, Context, UnbuiltProgram, Program, CommandQueue, Buffer,
-    Kernel,
-};
 use opencl_core::ll::{
-    DevicePtr, ProgramPtr, HostAccess, KernelAccess, MemLocation, Work,
-    SessionBuilder, ClMem, Waitlist, MutHostBuffer, HostBuffer,
+    ClMem, DevicePtr, HostAccess, HostBuffer, KernelAccess, MemLocation, MutHostBuffer, ProgramPtr,
+    SessionBuilder, Waitlist, Work,
+};
+use opencl_core::{
+    Buffer, CommandQueue, Context, Device, Kernel, Platform, Program, UnbuiltProgram,
 };
 
 fn main() {
@@ -33,21 +32,23 @@ fn run_procedural() {
     let context = Context::create(&devices[..]).unwrap();
 
     println!("creating program...");
-    let unbuilt_program: UnbuiltProgram = UnbuiltProgram::create_with_source(&context, src).unwrap();
+    let unbuilt_program: UnbuiltProgram =
+        UnbuiltProgram::create_with_source(&context, src).unwrap();
 
     let names = devices.iter().map(|d| d.name().unwrap());
     println!("building program on devices {:?}...", names);
 
-    let program: Program = unbuilt_program.build(&devices[..]).unwrap_or_else(|e| panic!("Failed to build program {:?}", e));
-    
-    for device in devices[0..1].iter() {  
+    let program: Program = unbuilt_program
+        .build(&devices[..])
+        .unwrap_or_else(|e| panic!("Failed to build program {:?}", e));
+
+    for device in devices[0..1].iter() {
         let program2 = (&program).clone();
         let r_count = program2.reference_count().unwrap();
         let prog_log = program2.low_level_program().get_log(device).unwrap();
         let prog_src = program2.low_level_program().source().unwrap();
         println!("Program log {:?} {:?}, {:?}", r_count, prog_log, prog_src);
         println!("Device {:?}", device);
-
 
         let command_queue: CommandQueue = CommandQueue::create(&context, device, None).unwrap();
 
@@ -60,9 +61,30 @@ fn run_procedural() {
         let name = device.name().unwrap();
         println!("{}", name);
 
-        let mem_a = Buffer::create(&context, len, HostAccess::WriteOnly, KernelAccess::ReadOnly, MemLocation::AllocOnDevice).unwrap();
-        let mem_b = Buffer::create(&context, len, HostAccess::WriteOnly, KernelAccess::ReadOnly, MemLocation::AllocOnDevice).unwrap();
-        let mem_c = Buffer::create(&context, len, HostAccess::ReadOnly, KernelAccess::WriteOnly, MemLocation::AllocOnDevice).unwrap();
+        let mem_a = Buffer::create(
+            &context,
+            len,
+            HostAccess::WriteOnly,
+            KernelAccess::ReadOnly,
+            MemLocation::AllocOnDevice,
+        )
+        .unwrap();
+        let mem_b = Buffer::create(
+            &context,
+            len,
+            HostAccess::WriteOnly,
+            KernelAccess::ReadOnly,
+            MemLocation::AllocOnDevice,
+        )
+        .unwrap();
+        let mem_c = Buffer::create(
+            &context,
+            len,
+            HostAccess::ReadOnly,
+            KernelAccess::WriteOnly,
+            MemLocation::AllocOnDevice,
+        )
+        .unwrap();
         println!("Creating kernel simple_add");
         let simple_add = Kernel::create(&program2, "simple_add").unwrap();
 
@@ -87,7 +109,9 @@ fn run_procedural() {
         simple_add.set_arg(2, &mut *lock_c).unwrap();
 
         println!("calling enqueue_kernel on simple_add");
-        let () = command_queue.enqueue_kernel(&simple_add, &work, None).unwrap();
+        let () = command_queue
+            .enqueue_kernel(&simple_add, &work, None)
+            .unwrap();
 
         println!("Dropping locks...");
         std::mem::drop(lock_a);
@@ -107,36 +131,30 @@ fn run_procedural() {
 
 fn run_with_session() {
     let src = include_str!("simple_add.ocl");
-     unsafe {
+    unsafe {
         let session = SessionBuilder::new().with_program_src(src).build().unwrap();
-        
+
         let vec_a = vec![1isize, 2, 3];
         let vec_b = vec![0isize, -1, -2];
 
         let mut mem_a = session.create_mem(&vec_a[..]).unwrap();
         let mut mem_b = session.create_mem(&vec_b[..]).unwrap();
         let mut mem_c: ClMem<isize> = session.create_mem(vec_a.len()).unwrap();
-        
+
         let mut simple_add = session.create_kernel("simple_add").unwrap();
 
         println!("setting simple_add arg 0 as mem_a");
         simple_add.set_arg(0, &mut mem_a).unwrap();
 
-        
         println!("setting simple_add arg 1 as mem_b");
         simple_add.set_arg(1, &mut mem_b).unwrap();
 
-        
         println!("setting simple_add mut arg 2 as mem_c");
         simple_add.set_arg(2, &mut mem_c).unwrap();
         let work: Work = Work::new(vec_a.len());
-        
+
         let mut vec_c = vec_a.clone();
-
-    
-
-     }
-    
+    }
 }
 
 fn string_from_slice<T: fmt::Display>(slice: &[T]) -> String {

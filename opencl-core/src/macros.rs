@@ -107,8 +107,6 @@ macro_rules! __impl_cl_object_for_wrapper {
             pub unsafe fn release_raw_cl_object(handle: &$cl_object_type) -> Output<()> {
                 $release_func(*handle)
             }
-            
-            
         }
 
         impl $crate::cl::ClObject<$cl_object_type> for $wrapper {
@@ -144,8 +142,6 @@ macro_rules! __impl_cl_object_for_wrapper {
                     _unconstructable: (),
                 })
             }
-
-
         }
     };
 }
@@ -203,15 +199,10 @@ macro_rules! __impl_default_debug_for {
     ($wrapper:ident) => {
         impl std::fmt::Debug for $wrapper {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                write!(
-                    f,
-                    "#OpenCL::{}<[{:?}]>",
-                    stringify!($wrapper),
-                    self.inner
-                )
+                write!(f, "#OpenCL::{}<[{:?}]>", stringify!($wrapper), self.inner)
             }
         }
-    }
+    };
 }
 
 // all cl_release_* and cl_retain_* functions take a raw reference to the

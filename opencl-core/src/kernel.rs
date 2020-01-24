@@ -4,13 +4,13 @@ use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::ll::*;
 
-use crate::Program;
 use crate::Context;
+use crate::Program;
 
 pub struct Kernel {
     program: ManuallyDrop<Program>,
     inner: ManuallyDrop<RwLock<ClKernel>>,
-    _unconstructable: ()
+    _unconstructable: (),
 }
 
 impl Drop for Kernel {
@@ -28,7 +28,7 @@ impl Clone for Kernel {
         Kernel {
             inner: ManuallyDrop::new(RwLock::new(inner_clone)),
             program: ManuallyDrop::new(self.program().clone()),
-            _unconstructable: ()
+            _unconstructable: (),
         }
     }
 }
@@ -38,7 +38,7 @@ impl Kernel {
         Kernel {
             program: ManuallyDrop::new(program),
             inner: ManuallyDrop::new(RwLock::new(kernel)),
-            _unconstructable: ()
+            _unconstructable: (),
         }
     }
 
@@ -51,21 +51,21 @@ impl Kernel {
     where
         T: KernelArg + Debug,
     {
-        unsafe{ self.write_lock().set_arg(arg_index, arg) }
+        unsafe { self.write_lock().set_arg(arg_index, arg) }
     }
 
     pub fn function_name(&self) -> Output<String> {
         unsafe { self.read_lock().function_name() }
     }
-    
+
     pub fn num_args(&self) -> Output<u32> {
         unsafe { self.read_lock().num_args() }
     }
-    
+
     pub fn reference_count(&self) -> Output<u32> {
         unsafe { self.read_lock().reference_count() }
     }
-    
+
     pub fn context(&self) -> &Context {
         self.program().context()
     }
@@ -73,7 +73,7 @@ impl Kernel {
     pub fn program(&self) -> &Program {
         &*self.program
     }
-    
+
     pub fn attributes(&self) -> Output<String> {
         unsafe { self.read_lock().attributes() }
     }

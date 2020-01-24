@@ -1,4 +1,3 @@
-
 use crate::error::Error;
 use crate::status_code::StatusCodeError;
 
@@ -11,5 +10,3 @@ pub fn build_output<T>(payload: T, status_code: i32) -> Output<T> {
         Some(status_code_error) => Err(Error::from(status_code_error)),
     }
 }
-
-    

@@ -1,16 +1,16 @@
-use std::mem::ManuallyDrop;
 use std::fmt;
 use std::iter::Iterator;
+use std::mem::ManuallyDrop;
 
-use crate::ll::{Output, ClContext, ContextPtr, DevicePtr, ContextProperties};
 use crate::ffi::{cl_context, cl_device_id};
+use crate::ll::{ClContext, ContextProperties, ContextPtr, DevicePtr, Output};
 
 use crate::Device;
 
 pub struct Context {
     inner: ManuallyDrop<ClContext>,
     _devices: ManuallyDrop<Vec<Device>>,
-    _unconstructable: ()
+    _unconstructable: (),
 }
 
 impl Context {
@@ -33,9 +33,7 @@ impl Context {
         (*self.inner).context_ptr()
     }
 
-    pub fn create<'a, D: Into<Devices<'a>>>(
-        devices: D,
-    ) -> Output<Context> {
+    pub fn create<'a, D: Into<Devices<'a>>>(devices: D) -> Output<Context> {
         let devices = devices.into();
         let device_ptrs = devices.device_ptrs();
         let ll_context: ClContext = unsafe { ClContext::create(&device_ptrs[..]) }?;
@@ -65,16 +63,14 @@ impl Clone for Context {
         Context {
             inner: ManuallyDrop::new((*self.inner).clone()),
             _devices: ManuallyDrop::new(cloned_devices),
-            _unconstructable: ()
+            _unconstructable: (),
         }
     }
 }
 
 impl Drop for Context {
     fn drop(&mut self) {
-        unsafe {
-            ManuallyDrop::drop(&mut self.inner)
-        }
+        unsafe { ManuallyDrop::drop(&mut self.inner) }
     }
 }
 
@@ -91,7 +87,7 @@ pub enum Devices<'a> {
 }
 
 impl<'a> Devices<'a> {
-    pub fn iter(&self) -> impl Iterator<Item = &Device>  {
+    pub fn iter(&self) -> impl Iterator<Item = &Device> {
         match self {
             Devices::V(devices) => devices.iter(),
             Devices::S(devices) => devices.iter(),
@@ -99,9 +95,7 @@ impl<'a> Devices<'a> {
     }
 
     pub fn device_ptrs(&self) -> Vec<cl_device_id> {
-        self.iter()
-            .map(|d| unsafe { d.device_ptr() })
-            .collect()
+        self.iter().map(|d| unsafe { d.device_ptr() }).collect()
     }
 
     pub fn to_vec(self) -> Vec<Device> {
@@ -124,9 +118,6 @@ impl<'a> From<&'a [Device]> for Devices<'a> {
     }
 }
 
-
-
-
 impl PartialEq for Context {
     fn eq(&self, other: &Self) -> bool {
         *self.inner == *other.inner
@@ -147,20 +138,19 @@ mod tests {
     use crate::device::Device;
     use crate::testing;
 
-     #[test]
-     fn context_can_be_created_via_a_device() {
-         let device: Device = testing::get_device();
-         let devices = vec![device];
-         let _context: Context =
-             Context::create(&devices[..]).expect("Failed to create context from a device");
-     }
+    #[test]
+    fn context_can_be_created_via_a_device() {
+        let device: Device = testing::get_device();
+        let devices = vec![device];
+        let _context: Context =
+            Context::create(&devices[..]).expect("Failed to create context from a device");
+    }
 
-     #[test]
-     fn context_ptr_is_implemented() {
+    #[test]
+    fn context_ptr_is_implemented() {
         let ctx = testing::get_context();
         ctx.reference_count().unwrap();
         ctx.num_devices();
         ctx.properties().unwrap();
-     }
-
+    }
 }

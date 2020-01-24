@@ -1,6 +1,6 @@
 use crate::{
-    ClDeviceID, list_platforms, DeviceType, list_devices_by_type, ClContext,
-    ClProgram, ClNumber, ClMem, MemConfig, ClKernel, ClCommandQueue,
+    list_devices_by_type, list_platforms, ClCommandQueue, ClContext, ClDeviceID, ClKernel, ClMem,
+    ClNumber, ClProgram, DeviceType, MemConfig,
 };
 use std::{thread, time};
 
@@ -10,7 +10,10 @@ pub fn sleep(ms: u64) {
     thread::sleep(dur);
 }
 
-pub fn get_kernel(src: &str, kernel_name: &str) -> (ClContext, Vec<ClDeviceID>, ClProgram, ClKernel) {
+pub fn get_kernel(
+    src: &str,
+    kernel_name: &str,
+) -> (ClContext, Vec<ClDeviceID>, ClProgram, ClKernel) {
     let (program, devices, context) = get_program(src);
     let kernel: ClKernel = unsafe { ClKernel::create(&program, kernel_name).unwrap() };
     (context, devices, program, kernel)
@@ -24,13 +27,7 @@ pub fn get_mem<T: ClNumber>(size: usize) -> (Vec<ClDeviceID>, ClContext, ClMem<T
 }
 
 pub fn mem_from_data_and_context<T: ClNumber>(data: &[T], context: &ClContext) -> ClMem<T> {
-    unsafe {
-        ClMem::create_with_config(
-            context,
-            data,
-            MemConfig::for_data()
-        ).unwrap()
-    }
+    unsafe { ClMem::create_with_config(context, data, MemConfig::for_data()).unwrap() }
 }
 
 pub fn get_program(src: &str) -> (ClProgram, Vec<ClDeviceID>, ClContext) {
@@ -50,9 +47,7 @@ pub fn get_command_queues() -> (Vec<ClCommandQueue>, ClContext, Vec<ClDeviceID>)
     let (context, devices) = get_context();
     let cqs = devices
         .iter()
-        .map(|device| unsafe {
-            ClCommandQueue::create(&context, device, None).unwrap()
-        })
+        .map(|device| unsafe { ClCommandQueue::create(&context, device, None).unwrap() })
         .collect();
 
     (cqs, context, devices)
@@ -66,7 +61,8 @@ pub fn list_devices() -> Vec<ClDeviceID> {
     let platforms = list_platforms().expect("Failed to list_platforms");
     let mut devices = Vec::new();
     for platform in platforms.iter() {
-        let p_devices = list_devices_by_type(&platform, DeviceType::ALL).expect("Failed to list all devices");
+        let p_devices =
+            list_devices_by_type(&platform, DeviceType::ALL).expect("Failed to list all devices");
         devices.extend(p_devices);
     }
     if devices.is_empty() {
@@ -75,7 +71,10 @@ pub fn list_devices() -> Vec<ClDeviceID> {
     devices
 }
 
-pub fn with_each_device<F>(f: F) where F: Fn(&ClDeviceID) {
+pub fn with_each_device<F>(f: F)
+where
+    F: Fn(&ClDeviceID),
+{
     let devices = list_devices();
     for d in devices.iter() {
         f(d)
@@ -88,19 +87,19 @@ macro_rules! expect_method {
         let left = &$left;
         let right = &$expected;
         if !left.$method(right) {
-            panic!("
+            panic!(
+                "
             Assertion Failed!!!
                 failed expression: {}.{}({})
                 object: {:?}
                 arg: {:?}
             ",
-            stringify!($left),
-            stringify!($method),
-            stringify!($expected),
-            left,
-            right,
+                stringify!($left),
+                stringify!($method),
+                stringify!($expected),
+                left,
+                right,
             )
         }
-    }
+    };
 }
-

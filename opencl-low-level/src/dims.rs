@@ -1,4 +1,3 @@
-
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Dims {
     One(usize),
@@ -9,7 +8,6 @@ pub enum Dims {
 use Dims::*;
 
 impl Dims {
-    
     pub fn as_offset_volume(&self) -> [usize; 3] {
         match *self {
             One(x) => [x, 0, 0],

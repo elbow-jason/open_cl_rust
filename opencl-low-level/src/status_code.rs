@@ -2,14 +2,14 @@ use std::fmt;
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
 pub struct StatusCodeError {
-    pub status_code: i32
+    pub status_code: i32,
 }
 
 impl StatusCodeError {
     pub fn new(code: i32) -> Option<StatusCodeError> {
         match code {
             0 => None,
-            status_code => Some(StatusCodeError { status_code })
+            status_code => Some(StatusCodeError { status_code }),
         }
     }
 
@@ -76,12 +76,22 @@ impl StatusCodeError {
 
 impl fmt::Display for StatusCodeError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "OpenCL Status Code Error {} {}", self.status_code, self.description())
+        write!(
+            f,
+            "OpenCL Status Code Error {} {}",
+            self.status_code,
+            self.description()
+        )
     }
 }
 
 impl fmt::Debug for StatusCodeError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "OpenCL Status Code Error {} {}", self.status_code, self.description())
+        write!(
+            f,
+            "OpenCL Status Code Error {} {}",
+            self.status_code,
+            self.description()
+        )
     }
 }

@@ -4,16 +4,14 @@ use std::marker::PhantomData;
 use libc::c_void;
 
 use crate::ffi::{
-    clCreateBuffer, clGetMemObjectInfo, cl_int, cl_mem, cl_mem_flags,
-    cl_mem_info, cl_context,
+    clCreateBuffer, clGetMemObjectInfo, cl_context, cl_int, cl_mem, cl_mem_flags, cl_mem_info,
 };
 
-use crate::{
-    ClPointer, Output, build_output, ClNumber, ClContext, MemFlags, ContextPtr,
-    SizeAndPtr, MemInfo, Error, HostAccessMemFlags, KernelAccessMemFlags,
-    MemLocationMemFlags,
-};
 use crate::cl_helpers::cl_get_info5;
+use crate::{
+    build_output, ClContext, ClNumber, ClPointer, ContextPtr, Error, HostAccessMemFlags,
+    KernelAccessMemFlags, MemFlags, MemInfo, MemLocationMemFlags, Output, SizeAndPtr,
+};
 
 __release_retain!(mem, MemObject);
 
@@ -42,14 +40,13 @@ pub unsafe fn cl_create_buffer_with_creator<B, T>(
     context: cl_context,
     mem_flags: cl_mem_flags,
     mut buffer_creator: B,
-) -> Output<cl_mem> where T: ClNumber, B: BufferCreator<T> {
+) -> Output<cl_mem>
+where
+    T: ClNumber,
+    B: BufferCreator<T>,
+{
     let SizeAndPtr(buf_size, buf_ptr) = buffer_creator.buffer_size_and_ptr();
-    cl_create_buffer(
-        context,
-        mem_flags,
-        buf_size,
-        buf_ptr
-    )
+    cl_create_buffer(context, mem_flags, buf_size, buf_ptr)
 }
 
 pub unsafe fn cl_create_buffer(
@@ -59,45 +56,29 @@ pub unsafe fn cl_create_buffer(
     ptr: *mut c_void,
 ) -> Output<cl_mem> {
     let mut err_code: cl_int = 0;
-    let cl_mem_object: cl_mem = clCreateBuffer(
-        context,
-        mem_flags,
-        size_in_bytes,
-        ptr,
-        &mut err_code,
-    );
+    let cl_mem_object: cl_mem =
+        clCreateBuffer(context, mem_flags, size_in_bytes, ptr, &mut err_code);
     build_output(cl_mem_object, err_code)
 }
 
 // NOTE: Fix this cl_mem_info arg
-pub fn cl_get_mem_object_info<T>(
-    device_mem: cl_mem,
-    flag: cl_mem_info,
-) -> Output<ClPointer<T>>
+pub fn cl_get_mem_object_info<T>(device_mem: cl_mem, flag: cl_mem_info) -> Output<ClPointer<T>>
 where
-    
     T: Copy,
 {
-    unsafe {
-        cl_get_info5(
-            device_mem,
-            flag,
-            clGetMemObjectInfo,
-        )
-    }
+    unsafe { cl_get_info5(device_mem, flag, clGetMemObjectInfo) }
 }
 
-pub trait BufferCreator<T: ClNumber> : Sized {
+pub trait BufferCreator<T: ClNumber>: Sized {
     unsafe fn buffer_size_and_ptr(&mut self) -> SizeAndPtr<*mut c_void>;
     fn mem_config(&self) -> MemConfig;
 }
-
 
 impl<T: ClNumber> BufferCreator<T> for &[T] {
     unsafe fn buffer_size_and_ptr(&mut self) -> SizeAndPtr<*mut c_void> {
         SizeAndPtr(
             std::mem::size_of::<T>() * self.len(),
-            self.as_ptr() as *mut c_void
+            self.as_ptr() as *mut c_void,
         )
     }
 
@@ -110,7 +91,7 @@ impl<T: ClNumber> BufferCreator<T> for usize {
     unsafe fn buffer_size_and_ptr(&mut self) -> SizeAndPtr<*mut c_void> {
         SizeAndPtr(
             (std::mem::size_of::<T>() * *self) as usize,
-            std::ptr::null_mut()
+            std::ptr::null_mut(),
         )
     }
 
@@ -119,11 +100,10 @@ impl<T: ClNumber> BufferCreator<T> for usize {
     }
 }
 
-
 pub unsafe trait MemPtr<T: ClNumber> {
     unsafe fn mem_ptr(&self) -> cl_mem;
     unsafe fn mem_ptr_ref(&self) -> &cl_mem;
-    
+
     unsafe fn get_info<I: Copy>(&self, flag: MemInfo) -> Output<ClPointer<I>> {
         cl_get_mem_object_info::<I>(self.mem_ptr(), flag.into())
     }
@@ -179,9 +159,10 @@ pub unsafe trait MemPtr<T: ClNumber> {
     }
 
     unsafe fn reference_count(&self) -> Output<u32> {
-        self.get_info(MemInfo::ReferenceCount).map(|ret| ret.into_one())
+        self.get_info(MemInfo::ReferenceCount)
+            .map(|ret| ret.into_one())
     }
-    
+
     unsafe fn size(&self) -> Output<usize> {
         self.get_info(MemInfo::Size).map(|ret| ret.into_one())
     }
@@ -200,27 +181,37 @@ pub unsafe trait MemPtr<T: ClNumber> {
     // }
 }
 
-
 #[derive(Eq, PartialEq, Hash)]
 pub struct ClMem<T: ClNumber> {
     object: cl_mem,
-    _phantom: PhantomData<T>
+    _phantom: PhantomData<T>,
 }
 
 impl<T: ClNumber> ClMem<T> {
     pub unsafe fn new(object: cl_mem) -> ClMem<T> {
         ClMem {
             object,
-            _phantom: PhantomData
+            _phantom: PhantomData,
         }
     }
 
-    pub fn create<B>(context: &ClContext, buffer_creator: B, host_access: HostAccess, kernel_access: KernelAccess, mem_location: MemLocation) -> Output<ClMem<T>> where B: BufferCreator<T> {
-         unsafe {
+    pub fn create<B>(
+        context: &ClContext,
+        buffer_creator: B,
+        host_access: HostAccess,
+        kernel_access: KernelAccess,
+        mem_location: MemLocation,
+    ) -> Output<ClMem<T>>
+    where
+        B: BufferCreator<T>,
+    {
+        unsafe {
             let mem_object = cl_create_buffer_with_creator(
                 context.context_ptr(),
-                cl_mem_flags::from(host_access) | cl_mem_flags::from(kernel_access) | cl_mem_flags::from(mem_location),
-                buffer_creator
+                cl_mem_flags::from(host_access)
+                    | cl_mem_flags::from(kernel_access)
+                    | cl_mem_flags::from(mem_location),
+                buffer_creator,
             )?;
             Ok(ClMem::new(mem_object))
         }
@@ -228,12 +219,15 @@ impl<T: ClNumber> ClMem<T> {
     pub unsafe fn create_with_config<B>(
         context: &ClContext,
         buffer_creator: B,
-        mem_config: MemConfig
-    ) -> Output<ClMem<T>> where B: BufferCreator<T> {
+        mem_config: MemConfig,
+    ) -> Output<ClMem<T>>
+    where
+        B: BufferCreator<T>,
+    {
         let mem_object = cl_create_buffer_with_creator(
             context.context_ptr(),
             mem_config.into(),
-            buffer_creator
+            buffer_creator,
         )?;
         Ok(ClMem::new(mem_object))
     }
@@ -249,13 +243,16 @@ unsafe impl<T: ClNumber> MemPtr<T> for ClMem<T> {
     }
 }
 
-
-impl<T: ClNumber> Drop for ClMem<T> where T: ClNumber {
+impl<T: ClNumber> Drop for ClMem<T>
+where
+    T: ClNumber,
+{
     fn drop(&mut self) {
-        unsafe { release_mem(self.object); }
+        unsafe {
+            release_mem(self.object);
+        }
     }
 }
-
 
 impl<T: ClNumber> Clone for ClMem<T> {
     fn clone(&self) -> ClMem<T> {
@@ -277,12 +274,13 @@ impl<T: ClNumber> fmt::Debug for ClMem<T> {
 #[cfg(test)]
 mod tests {
     use crate::*;
-    
+
     #[test]
     fn mem_can_be_created_with_len() {
         let (context, _devices) = ll_testing::get_context();
         let mem_config = MemConfig::default();
-        let _mem: ClMem<u32> = unsafe { ClMem::create_with_config(&context, 10, mem_config).unwrap() };
+        let _mem: ClMem<u32> =
+            unsafe { ClMem::create_with_config(&context, 10, mem_config).unwrap() };
     }
 
     #[test]
@@ -290,7 +288,8 @@ mod tests {
         let (context, _devices) = ll_testing::get_context();
         let mut data: Vec<u32> = vec![0, 1, 2, 3, 4];
         let mem_config = MemConfig::for_data();
-        let _mem: ClMem<u32> = unsafe { ClMem::create_with_config(&context, &data[..], mem_config).unwrap() };
+        let _mem: ClMem<u32> =
+            unsafe { ClMem::create_with_config(&context, &data[..], mem_config).unwrap() };
     }
 
     mod mem_ptr_trait {
@@ -317,7 +316,6 @@ mod tests {
             assert_eq!(bytes_size, 10 * std::mem::size_of::<u32>());
         }
 
-
         #[test]
         fn offset_method_works() {
             let (_devices, _context, ll_mem) = ll_testing::get_mem::<u32>(10);
@@ -331,7 +329,6 @@ mod tests {
             let flags = unsafe { ll_mem.flags().unwrap() };
             assert_eq!(flags, MemFlags::READ_WRITE_ALLOC_HOST_PTR);
         }
-
     }
 }
 
@@ -393,9 +390,8 @@ impl From<HostAccess> for cl_mem_flags {
     }
 }
 
-
 /// The enumeration of how memory allocation (or not) can be directed.
-/// 
+///
 /// This forum post has some good explanations:
 ///   https://software.intel.com/en-us/forums/opencl/topic/708049
 pub enum MemLocation {
@@ -435,11 +431,18 @@ pub struct MemConfig {
 }
 
 impl MemConfig {
-    pub fn build(host_access: HostAccess, kernel_access: KernelAccess, mem_location: MemLocation) -> MemConfig {
-        MemConfig{host_access, kernel_access, mem_location}
+    pub fn build(
+        host_access: HostAccess,
+        kernel_access: KernelAccess,
+        mem_location: MemLocation,
+    ) -> MemConfig {
+        MemConfig {
+            host_access,
+            kernel_access,
+            mem_location,
+        }
     }
 }
-
 
 impl From<MemConfig> for MemFlags {
     fn from(mem_config: MemConfig) -> MemFlags {
@@ -450,103 +453,139 @@ impl From<MemConfig> for MemFlags {
 impl From<MemConfig> for cl_mem_flags {
     fn from(mem_config: MemConfig) -> cl_mem_flags {
         cl_mem_flags::from(mem_config.host_access)
-        | cl_mem_flags::from(mem_config.kernel_access)
-        | cl_mem_flags::from(mem_config.mem_location)
+            | cl_mem_flags::from(mem_config.kernel_access)
+            | cl_mem_flags::from(mem_config.mem_location)
     }
 }
 
 impl Default for MemConfig {
     fn default() -> MemConfig {
-        MemConfig{
+        MemConfig {
             host_access: HostAccess::ReadWrite,
             kernel_access: KernelAccess::ReadWrite,
-            mem_location: MemLocation::AllocOnDevice
+            mem_location: MemLocation::AllocOnDevice,
         }
     }
 }
 
 impl MemConfig {
     pub fn for_data() -> MemConfig {
-        MemConfig{mem_location: MemLocation::CopyToDevice, .. MemConfig::default()}
+        MemConfig {
+            mem_location: MemLocation::CopyToDevice,
+            ..MemConfig::default()
+        }
     }
 
     pub fn for_size() -> MemConfig {
-        MemConfig{mem_location: MemLocation::AllocOnDevice, .. MemConfig::default()}
+        MemConfig {
+            mem_location: MemLocation::AllocOnDevice,
+            ..MemConfig::default()
+        }
     }
 }
-
-
 
 #[cfg(test)]
 mod mem_flags_tests {
     use super::*;
-    use crate::{KernelAccessMemFlags};
+    use crate::KernelAccessMemFlags;
 
     #[test]
     fn kernel_access_read_only_conversion_into_kernel_access_mem_flag() {
         let kernel_access = KernelAccess::ReadOnly;
-        assert_eq!(KernelAccessMemFlags::from(kernel_access), KernelAccessMemFlags::READ_ONLY);
+        assert_eq!(
+            KernelAccessMemFlags::from(kernel_access),
+            KernelAccessMemFlags::READ_ONLY
+        );
     }
 
     #[test]
     fn kernel_access_write_only_conversion_into_kernel_access_mem_flag() {
         let kernel_access = KernelAccess::WriteOnly;
-        assert_eq!(KernelAccessMemFlags::from(kernel_access), KernelAccessMemFlags::WRITE_ONLY);
+        assert_eq!(
+            KernelAccessMemFlags::from(kernel_access),
+            KernelAccessMemFlags::WRITE_ONLY
+        );
     }
 
     #[test]
     fn kernel_access_convert_read_write_into_kernel_access_mem_flag() {
         let kernel_access = KernelAccess::ReadWrite;
-        assert_eq!(KernelAccessMemFlags::from(kernel_access), KernelAccessMemFlags::READ_WRITE);
+        assert_eq!(
+            KernelAccessMemFlags::from(kernel_access),
+            KernelAccessMemFlags::READ_WRITE
+        );
     }
-
 
     #[test]
     fn host_access_read_only_conversion_into_host_access_mem_flag() {
         let host_access = HostAccess::ReadOnly;
-        assert_eq!(HostAccessMemFlags::from(host_access), HostAccessMemFlags::READ_ONLY);
+        assert_eq!(
+            HostAccessMemFlags::from(host_access),
+            HostAccessMemFlags::READ_ONLY
+        );
     }
 
     #[test]
     fn host_access_write_only_conversion_into_host_access_mem_flag() {
         let host_access = HostAccess::WriteOnly;
-        assert_eq!(HostAccessMemFlags::from(host_access), HostAccessMemFlags::WRITE_ONLY);
+        assert_eq!(
+            HostAccessMemFlags::from(host_access),
+            HostAccessMemFlags::WRITE_ONLY
+        );
     }
 
     #[test]
     fn host_access_read_write_conversion_into_host_access_mem_flag() {
         let host_access = HostAccess::ReadWrite;
-        assert_eq!(HostAccessMemFlags::from(host_access), HostAccessMemFlags::READ_WRITE);
+        assert_eq!(
+            HostAccessMemFlags::from(host_access),
+            HostAccessMemFlags::READ_WRITE
+        );
     }
 
     #[test]
     fn host_access_no_access_conversion_into_host_access_mem_flag() {
         let host_access = HostAccess::NoAccess;
-        assert_eq!(HostAccessMemFlags::from(host_access), HostAccessMemFlags::NO_ACCESS);
+        assert_eq!(
+            HostAccessMemFlags::from(host_access),
+            HostAccessMemFlags::NO_ACCESS
+        );
     }
 
     #[test]
     fn mem_location_keep_in_place_conversion_into_mem_location_mem_flag() {
         let mem_location = MemLocation::KeepInPlace;
-        assert_eq!(MemLocationMemFlags::from(mem_location), MemLocationMemFlags::KEEP_IN_PLACE);
+        assert_eq!(
+            MemLocationMemFlags::from(mem_location),
+            MemLocationMemFlags::KEEP_IN_PLACE
+        );
     }
 
     #[test]
     fn mem_location_alloc_on_device_conversion_into_mem_location_mem_flag() {
         let mem_location = MemLocation::AllocOnDevice;
-        assert_eq!(MemLocationMemFlags::from(mem_location), MemLocationMemFlags::ALLOC_ON_DEVICE);
+        assert_eq!(
+            MemLocationMemFlags::from(mem_location),
+            MemLocationMemFlags::ALLOC_ON_DEVICE
+        );
     }
 
     #[test]
     fn mem_location_copy_to_device_conversion_into_mem_location_mem_flag() {
         let mem_location = MemLocation::CopyToDevice;
-        assert_eq!(MemLocationMemFlags::from(mem_location), MemLocationMemFlags::COPY_TO_DEVICE);
+        assert_eq!(
+            MemLocationMemFlags::from(mem_location),
+            MemLocationMemFlags::COPY_TO_DEVICE
+        );
     }
-    
+
     #[test]
     fn mem_location_force_copy_to_device_conversion_into_mem_location_mem_flag() {
         let mem_location = MemLocation::ForceCopyToDevice;
-        assert_eq!(MemLocationMemFlags::from(mem_location), MemLocationMemFlags::FORCE_COPY_TO_DEVICE);
+        assert_eq!(
+            MemLocationMemFlags::from(mem_location),
+            MemLocationMemFlags::FORCE_COPY_TO_DEVICE
+        );
     }
 
     #[test]
@@ -554,7 +593,7 @@ mod mem_flags_tests {
         let mem_location = MemLocation::AllocOnDevice;
         let host_access = HostAccess::ReadWrite;
         let kernel_access = KernelAccess::ReadWrite;
-        let mem_config = MemConfig{
+        let mem_config = MemConfig {
             mem_location,
             host_access,
             kernel_access,

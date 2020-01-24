@@ -1,18 +1,18 @@
 use std::convert::TryInto;
 use std::fmt;
 
+use crate::cl_helpers::{cl_get_info5, cl_get_info6};
 use crate::ffi::{
     clBuildProgram, clCreateProgramWithBinary, clCreateProgramWithSource, clGetProgramBuildInfo,
-    clGetProgramInfo, cl_device_id, cl_program, cl_program_build_info, cl_program_info,
-    cl_context
+    clGetProgramInfo, cl_context, cl_device_id, cl_program, cl_program_build_info, cl_program_info,
 };
-use crate::cl_helpers::{cl_get_info5, cl_get_info6, };
 use crate::{
-    build_output, ClPointer, Error, Output, strings, DevicePtr, utils, 
-    ProgramInfo, ClContext, ContextPtr, ClDeviceID, ProgramBuildInfo,
+    build_output, strings, utils, ClContext, ClDeviceID, ClPointer, ContextPtr, DevicePtr, Error,
+    Output, ProgramBuildInfo, ProgramInfo,
 };
 
-pub const DEVICE_LIST_CANNOT_BE_EMPTY: Error = Error::ProgramError(ProgramError::CannotBuildProgramWithEmptyDevicesList);
+pub const DEVICE_LIST_CANNOT_BE_EMPTY: Error =
+    Error::ProgramError(ProgramError::CannotBuildProgramWithEmptyDevicesList);
 
 __release_retain!(program, Program);
 
@@ -44,7 +44,7 @@ pub enum ProgramError {
 #[allow(clippy::transmuting_null)]
 #[allow(unused_mut)]
 pub unsafe fn cl_build_program(program: cl_program, device_ids: &[cl_device_id]) -> Output<()> {
-    // let device_id: *const cl_device_id = 
+    // let device_id: *const cl_device_id =
     let err_code = clBuildProgram(
         program,
         1u32,
@@ -55,21 +55,15 @@ pub unsafe fn cl_build_program(program: cl_program, device_ids: &[cl_device_id])
     );
     build_output((), err_code)
 }
-    
+
 pub unsafe fn cl_get_program_build_log(
     program: cl_program,
     device: cl_device_id,
     info_flag: cl_program_build_info,
 ) -> Output<ClPointer<u8>> {
-    device.usability_check()?;    
-    cl_get_info6(
-        program,
-        device,
-        info_flag,
-        clGetProgramBuildInfo,
-    )
+    device.usability_check()?;
+    cl_get_info6(program, device, info_flag, clGetProgramBuildInfo)
 }
-
 
 pub unsafe fn cl_create_program_with_source(context: cl_context, src: &str) -> Output<cl_program> {
     let src = strings::to_c_string(src).ok_or_else(|| ProgramError::CStringInvalidSourceCode)?;
@@ -112,18 +106,17 @@ pub unsafe fn cl_create_program_with_binary(
     build_output(program, err_code)
 }
 
-pub unsafe fn cl_get_program_info<T: Copy>(program: cl_program, flag: cl_program_info) -> Output<ClPointer<T>> {
-    cl_get_info5(
-        program,
-        flag,
-        clGetProgramInfo,
-    )
+pub unsafe fn cl_get_program_info<T: Copy>(
+    program: cl_program,
+    flag: cl_program_info,
+) -> Output<ClPointer<T>> {
+    cl_get_info5(program, flag, clGetProgramInfo)
 }
 
 pub struct ClProgram {
     object: cl_program,
 
-    _unconstructable: ()
+    _unconstructable: (),
 }
 
 impl ClProgram {
@@ -132,12 +125,12 @@ impl ClProgram {
         Ok(ClProgram::unchecked_new(prog))
     }
 
-    pub unsafe fn create_with_binary(context: &ClContext, device: &ClDeviceID, bin: &[u8]) -> Output<ClProgram> {
-        let prog = cl_create_program_with_binary(
-            context.context_ptr(),
-            device.device_ptr(),
-            bin,
-        )?;
+    pub unsafe fn create_with_binary(
+        context: &ClContext,
+        device: &ClDeviceID,
+        bin: &[u8],
+    ) -> Output<ClProgram> {
+        let prog = cl_create_program_with_binary(context.context_ptr(), device.device_ptr(), bin)?;
         Ok(ClProgram::unchecked_new(prog))
     }
 
@@ -159,25 +152,25 @@ impl ClProgram {
         Ok(ClProgram::unchecked_new(prog))
     }
 
-    pub fn build<D>(&mut self, devices: &[D]) -> Output<()> where D: DevicePtr {
+    pub fn build<D>(&mut self, devices: &[D]) -> Output<()>
+    where
+        D: DevicePtr,
+    {
         if devices.is_empty() {
             return Err(DEVICE_LIST_CANNOT_BE_EMPTY);
         }
         unsafe {
-            let device_ptrs: Vec<cl_device_id> = devices
-                .iter()
-                .map(|d| d.device_ptr())
-                .collect();
+            let device_ptrs: Vec<cl_device_id> = devices.iter().map(|d| d.device_ptr()).collect();
             cl_build_program(self.program_ptr(), &device_ptrs[..])
-        }   
+        }
     }
 
     pub fn get_log<D: DevicePtr>(&self, device: &D) -> Output<String> {
-        unsafe { 
+        unsafe {
             cl_get_program_build_log(
                 self.program_ptr(),
                 device.device_ptr(),
-                ProgramBuildInfo::Log.into()
+                ProgramBuildInfo::Log.into(),
             )
             .map(|ret| ret.into_string())
         }
@@ -188,7 +181,7 @@ impl Drop for ClProgram {
     fn drop(&mut self) {
         unsafe { release_program(self.object) };
     }
-}  
+}
 
 impl Clone for ClProgram {
     fn clone(&self) -> ClProgram {
@@ -227,35 +220,29 @@ pub unsafe trait ProgramPtr: Sized {
     unsafe fn program_ptr(&self) -> cl_program;
 
     fn reference_count(&self) -> Output<u32> {
-        get_info(self, ProgramInfo::ReferenceCount)
-            .map(|ret| unsafe { ret.into_one() })
+        get_info(self, ProgramInfo::ReferenceCount).map(|ret| unsafe { ret.into_one() })
     }
 
     fn num_devices(&self) -> Output<usize> {
-        get_info(self, ProgramInfo::NumDevices)
-            .map(|ret| unsafe { 
-                let num32: u32 = ret.into_one();
-                num32 as usize
-            })
+        get_info(self, ProgramInfo::NumDevices).map(|ret| unsafe {
+            let num32: u32 = ret.into_one();
+            num32 as usize
+        })
     }
 
     fn source(&self) -> Output<String> {
-        get_info(self, ProgramInfo::Source)
-            .map(|ret| unsafe { ret.into_string() })
+        get_info(self, ProgramInfo::Source).map(|ret| unsafe { ret.into_string() })
     }
     fn binary_sizes(&self) -> Output<Vec<usize>> {
-        get_info(self, ProgramInfo::BinarySizes)
-            .map(|ret| unsafe { ret.into_vec() })
+        get_info(self, ProgramInfo::BinarySizes).map(|ret| unsafe { ret.into_vec() })
     }
 
     fn binaries(&self) -> Output<Vec<u8>> {
-        get_info(self, ProgramInfo::Binaries)
-            .map(|ret| unsafe { ret.into_vec() })
+        get_info(self, ProgramInfo::Binaries).map(|ret| unsafe { ret.into_vec() })
     }
 
     fn num_kernels(&self) -> Output<usize> {
-        get_info(self, ProgramInfo::NumKernels)
-            .map(|ret| unsafe { ret.into_one() })
+        get_info(self, ProgramInfo::NumKernels).map(|ret| unsafe { ret.into_one() })
     }
 
     fn kernel_names(&self) -> Output<Vec<String>> {
@@ -299,7 +286,6 @@ mod tests {
         let num_devices = prog.num_devices().unwrap();
         assert!(num_devices > 0);
     }
-
 
     #[test]
     fn num_devices_matches_devices_len() {

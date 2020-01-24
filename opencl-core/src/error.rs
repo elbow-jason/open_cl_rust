@@ -13,7 +13,6 @@ use crate::opencl_low_level::Error as LowLevelError;
 pub enum Error {
     #[fail(display = "{:?}", _0)]
     LowLevelError(LowLevelError),
-
     // #[fail(display = "{:?}", _0)]
     // DeviceMemError(DeviceMemError),
 
@@ -35,8 +34,8 @@ pub enum Error {
     // #[fail(display = "{:?}", _0)]
     // DeviceError(DeviceError),
 
-//     #[fail(display = "OpenCL returned an error status code {:?} {:?}", _0, _1)]
-//     StatusCode(isize, ClError),
+    //     #[fail(display = "OpenCL returned an error status code {:?} {:?}", _0, _1)]
+    //     StatusCode(isize, ClError),
 }
 
 impl Error {

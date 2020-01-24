@@ -1,4 +1,3 @@
-
 use std::ffi::CString;
 
 pub fn to_c_string(string: &str) -> Option<CString> {

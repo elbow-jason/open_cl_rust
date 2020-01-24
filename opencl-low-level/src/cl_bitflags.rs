@@ -50,7 +50,6 @@ impl From<DeviceExecCapabilities> for cl_device_exec_capabilities {
     }
 }
 
-
 bitflags! {
     pub struct DeviceAffinityDomain: cl_device_affinity_domain {
         const NONE_SUPPORTED = 0;
@@ -138,14 +137,13 @@ impl From<MemFlags> for Option<MemLocationMemFlags> {
     }
 }
 
-
 bitflags! {
     pub struct MemFlags: cl_mem_flags {
         const EMPTY = 0;
         const KERNEL_READ_WRITE = 1;
         const KERNEL_WRITE_ONLY = 1 << 1;
         const KERNEL_READ_ONLY = 1 << 2;
-        
+
         const ALLOC_HOST_PTR = 1 << 4;
         const USE_HOST_PTR = 1 << 3;
         const COPY_HOST_PTR = 1 << 5;
@@ -192,4 +190,3 @@ impl From<CommandQueueProperties> for cl_command_queue_properties {
         d.bits()
     }
 }
-

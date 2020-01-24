@@ -7,7 +7,6 @@ pub fn vec_filled_with<T: Clone>(filler: T, len: usize) -> Vec<T> {
     out
 }
 
-
 pub fn null_check<T>(ptr: *mut T) -> Result<(), Error> {
     if ptr.is_null() {
         Err(Error::ClObjectCannotBeNull)

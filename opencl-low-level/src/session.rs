@@ -1,5 +1,5 @@
-use std::mem::ManuallyDrop;
 use std::marker::PhantomData;
+use std::mem::ManuallyDrop;
 
 use crate::*;
 
@@ -29,12 +29,13 @@ impl Session {
             let context = ClContext::create(&devices[..])?;
             let program = ClProgram::create_with_source(&context, src)?;
             let props = CommandQueueProperties::default();
-            let maybe_queues: Result<Vec<ClCommandQueue>, Error> = devices.iter()
+            let maybe_queues: Result<Vec<ClCommandQueue>, Error> = devices
+                .iter()
                 .map(|dev| ClCommandQueue::create(&context, dev, Some(props)))
                 .collect();
             let queues = maybe_queues?;
-            
-            let sess = Session{
+
+            let sess = Session {
                 devices: ManuallyDrop::new(devices),
                 context: ManuallyDrop::new(context),
                 program: ManuallyDrop::new(program),
@@ -64,21 +65,20 @@ impl Session {
         ClKernel::create(self.program(), kernel_name)
     }
 
-    pub unsafe fn create_mem<T: ClNumber, B: BufferCreator<T>>(&self, buffer_creator: B) -> Output<ClMem<T>> {
+    pub unsafe fn create_mem<T: ClNumber, B: BufferCreator<T>>(
+        &self,
+        buffer_creator: B,
+    ) -> Output<ClMem<T>> {
         let cfg = buffer_creator.mem_config();
-         ClMem::create_with_config(
-            self.context(),
-            buffer_creator,
-            cfg
-        )
+        ClMem::create_with_config(self.context(), buffer_creator, cfg)
     }
 
-    pub unsafe fn create_mem_with_config<T: ClNumber, B: BufferCreator<T>>(&self, buffer_creator: B, mem_config: MemConfig) -> Output<ClMem<T>> {
-         ClMem::create_with_config(
-            self.context(),
-            buffer_creator,
-            mem_config
-        )
+    pub unsafe fn create_mem_with_config<T: ClNumber, B: BufferCreator<T>>(
+        &self,
+        buffer_creator: B,
+        mem_config: MemConfig,
+    ) -> Output<ClMem<T>> {
+        ClMem::create_with_config(self.context(), buffer_creator, mem_config)
     }
 
     #[inline]
@@ -86,7 +86,6 @@ impl Session {
         self.queues
             .get_mut(index)
             .ok_or(SessionError::QueueIndexOutOfRange(index).into())
-        
     }
 
     pub unsafe fn write_buffer<T: ClNumber>(
@@ -97,7 +96,7 @@ impl Session {
         opts: Option<CommandQueueOptions>,
     ) -> Output<ClEvent> {
         let queue: &mut ClCommandQueue = self.get_queue_by_index(queue_index)?;
-        queue.write_buffer(mem, host_buffer, opts)       
+        queue.write_buffer(mem, host_buffer, opts)
     }
 
     pub unsafe fn read_buffer<T: ClNumber>(
@@ -141,7 +140,7 @@ impl Drop for Session {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct SessionQueue<'a>{
+pub struct SessionQueue<'a> {
     phantom: PhantomData<&'a ClCommandQueue>,
     index: usize,
 }
@@ -153,10 +152,7 @@ impl<'a> SessionQueue<'a> {
             phantom: PhantomData,
         }
     }
-
- 
 }
-
 
 /// An error related to Session Building.
 #[derive(Debug, Fail, PartialEq, Eq, Clone)]
@@ -164,23 +160,32 @@ pub enum SessionBuilderError {
     #[fail(display = "Given ClMem has no associated cl_mem object")]
     NoAssociatedMemObject,
 
-    #[fail(display = "For session building platforms AND devices cannot be specifed together; they are mutually exclusive.")]
+    #[fail(
+        display = "For session building platforms AND devices cannot be specifed together; they are mutually exclusive."
+    )]
     CannotSpecifyPlatformsAndDevices,
 
-    #[fail(display = "For session building program src AND binaries cannot be specifed together; they are mutually exclusive.")]
+    #[fail(
+        display = "For session building program src AND binaries cannot be specifed together; they are mutually exclusive."
+    )]
     CannotSpecifyProgramSrcAndProgramBinaries,
 
-    #[fail(display = "For session building either program src or program binaries must be specified.")]
+    #[fail(
+        display = "For session building either program src or program binaries must be specified."
+    )]
     MustSpecifyProgramSrcOrProgramBinaries,
 
-    #[fail(display = "Building a session with program binaries requires exactly 1 device: Got {:?} devices", _0)]
+    #[fail(
+        display = "Building a session with program binaries requires exactly 1 device: Got {:?} devices",
+        _0
+    )]
     BinaryProgramRequiresExactlyOneDevice(usize),
-    
 }
 
-const CANNOT_SPECIFY_SRC_AND_BINARIES: Error = Error::SessionBuilderError(SessionBuilderError::CannotSpecifyProgramSrcAndProgramBinaries);
-const MUST_SPECIFY_SRC_OR_BINARIES: Error = Error::SessionBuilderError(SessionBuilderError::MustSpecifyProgramSrcOrProgramBinaries);
-
+const CANNOT_SPECIFY_SRC_AND_BINARIES: Error =
+    Error::SessionBuilderError(SessionBuilderError::CannotSpecifyProgramSrcAndProgramBinaries);
+const MUST_SPECIFY_SRC_OR_BINARIES: Error =
+    Error::SessionBuilderError(SessionBuilderError::MustSpecifyProgramSrcOrProgramBinaries);
 
 pub struct SessionBuilder<'a> {
     pub program_src: Option<&'a str>,
@@ -193,7 +198,7 @@ pub struct SessionBuilder<'a> {
 
 impl<'a> SessionBuilder<'a> {
     pub fn new() -> SessionBuilder<'a> {
-        SessionBuilder{
+        SessionBuilder {
             program_src: None,
             program_binaries: None,
             device_type: None,
@@ -228,25 +233,32 @@ impl<'a> SessionBuilder<'a> {
         self
     }
 
-    pub fn with_command_queue_properties(mut self, props: CommandQueueProperties) -> SessionBuilder<'a> {
+    pub fn with_command_queue_properties(
+        mut self,
+        props: CommandQueueProperties,
+    ) -> SessionBuilder<'a> {
         self.command_queue_properties = Some(props);
         self
     }
     fn check_for_error_state(&self) -> Output<()> {
         match self {
-            Self{program_src: Some(_), program_binaries: Some(_), ..} => {
-                return Err(CANNOT_SPECIFY_SRC_AND_BINARIES)
-            },
-            Self{program_src: None, program_binaries: None, ..} => {
-                return Err(MUST_SPECIFY_SRC_OR_BINARIES)
-            },
-            _ => Ok(())
+            Self {
+                program_src: Some(_),
+                program_binaries: Some(_),
+                ..
+            } => return Err(CANNOT_SPECIFY_SRC_AND_BINARIES),
+            Self {
+                program_src: None,
+                program_binaries: None,
+                ..
+            } => return Err(MUST_SPECIFY_SRC_OR_BINARIES),
+            _ => Ok(()),
         }
     }
 
     pub unsafe fn build(self) -> Output<Session> {
-        let () = self.check_for_error_state()?; 
-        let context_builder = ClContextBuilder{
+        let () = self.check_for_error_state()?;
+        let context_builder = ClContextBuilder {
             devices: self.devices,
             device_type: self.device_type,
             platforms: self.platforms,
@@ -257,30 +269,50 @@ impl<'a> SessionBuilder<'a> {
             BuiltClContext::ContextWithDevices(ctx, owned_devices) => (ctx, owned_devices),
         };
         let program: ClProgram = match (&self, devices.len()) {
-            (Self{program_src: Some(src), ..}, _) => {
+            (
+                Self {
+                    program_src: Some(src),
+                    ..
+                },
+                _,
+            ) => {
                 let mut prog: ClProgram = ClProgram::create_with_source(&context, src)?;
                 prog.build(&devices[..])?;
                 Ok(prog)
-            },
-            (Self{program_binaries: Some(bins), ..}, 1) => {
-                let mut prog: ClProgram = ClProgram::create_with_binary(&context, &devices[0], *bins)?;
+            }
+            (
+                Self {
+                    program_binaries: Some(bins),
+                    ..
+                },
+                1,
+            ) => {
+                let mut prog: ClProgram =
+                    ClProgram::create_with_binary(&context, &devices[0], *bins)?;
                 prog.build(&devices[..])?;
                 Ok(prog)
-            },
-            (Self{program_binaries: Some(_), ..}, n_devices) => {
+            }
+            (
+                Self {
+                    program_binaries: Some(_),
+                    ..
+                },
+                n_devices,
+            ) => {
                 let e = SessionBuilderError::BinaryProgramRequiresExactlyOneDevice(n_devices);
                 Err(Error::SessionBuilderError(e))
-            },
-            _ => unreachable!()
+            }
+            _ => unreachable!(),
         }?;
-            
+
         let props = CommandQueueProperties::default();
-        let maybe_queues: Result<Vec<ClCommandQueue>, Error> = devices.iter()
+        let maybe_queues: Result<Vec<ClCommandQueue>, Error> = devices
+            .iter()
             .map(|dev| ClCommandQueue::create(&context, dev, Some(props)))
             .collect();
         let queues = maybe_queues?;
-        
-        let sess = Session{
+
+        let sess = Session {
             devices: ManuallyDrop::new(devices.clone()),
             context: ManuallyDrop::new(context),
             program: ManuallyDrop::new(program),

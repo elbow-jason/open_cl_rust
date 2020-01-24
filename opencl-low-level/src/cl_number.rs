@@ -3,7 +3,10 @@ use std::fmt::Debug;
 use num_complex::{Complex32, Complex64};
 
 // NOTE: f32 does not implement Eq so it's not here. WHYEEEEE...
-pub unsafe trait ClNumber: Sized + Clone + Copy + Send + Sync + PartialEq + Debug + 'static + Default {}
+pub unsafe trait ClNumber:
+    Sized + Clone + Copy + Send + Sync + PartialEq + Debug + 'static + Default
+{
+}
 
 //8
 unsafe impl ClNumber for u8 {}

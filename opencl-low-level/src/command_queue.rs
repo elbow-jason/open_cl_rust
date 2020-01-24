@@ -2,22 +2,20 @@ use std::fmt;
 
 use libc::c_void;
 
-
 use crate::ffi::{
     clCreateCommandQueue, clEnqueueNDRangeKernel, clEnqueueReadBuffer, clEnqueueWriteBuffer,
     clFinish, clGetCommandQueueInfo, cl_bool, cl_command_queue, cl_command_queue_info,
-    cl_command_queue_properties, cl_event, cl_kernel, cl_context, cl_device_id, cl_mem,
+    cl_command_queue_properties, cl_context, cl_device_id, cl_event, cl_kernel, cl_mem,
 };
 
 use crate::cl_helpers::cl_get_info5;
-use crate::{
-    Output, CommandQueueInfo, build_output, DevicePtr, Waitlist, WaitlistSizeAndPtr,
-    ClInput, SizeAndPtr, ClPointer, ClEvent, EventPtr, utils, ClContext,
-    ClDeviceID, CommandQueueProperties, ContextPtr, ClMem, ClNumber, MemPtr, ClKernel,
-    Work, KernelPtr, BufferReadEvent, GlobalWorkSize, LocalWorkSize,
-};
 use crate::CommandQueueInfo as CQInfo;
-
+use crate::{
+    build_output, utils, BufferReadEvent, ClContext, ClDeviceID, ClEvent, ClInput, ClKernel, ClMem,
+    ClNumber, ClPointer, CommandQueueInfo, CommandQueueProperties, ContextPtr, DevicePtr, EventPtr,
+    GlobalWorkSize, KernelPtr, LocalWorkSize, MemPtr, Output, SizeAndPtr, Waitlist,
+    WaitlistSizeAndPtr, Work,
+};
 
 pub struct CommandQueueOptions {
     pub is_blocking: bool,
@@ -40,7 +38,6 @@ impl From<Option<CommandQueueOptions>> for CommandQueueOptions {
         maybe_cq_opts.unwrap_or(CommandQueueOptions::default())
     }
 }
-
 
 unsafe impl Waitlist for CommandQueueOptions {
     unsafe fn fill_waitlist(&self, waitlist: &mut Vec<cl_event>) {
@@ -82,7 +79,6 @@ pub unsafe fn retain_command_queue(cq: cl_command_queue) {
     })
 }
 
-
 // unsafe fn async_enqueue_kernel_with_opts(
 //         cq: cl_command_queue,
 //         kernel: cl_kernel,
@@ -107,12 +103,7 @@ pub unsafe fn cl_create_command_queue(
 ) -> Output<cl_command_queue> {
     device.usability_check()?;
     let mut err_code = 0;
-    let command_queue = clCreateCommandQueue(
-        context,
-        device,
-        flags,
-        &mut err_code,
-    );
+    let command_queue = clCreateCommandQueue(context, device, flags, &mut err_code);
     build_output(command_queue, err_code)
 }
 
@@ -126,12 +117,9 @@ pub unsafe fn cl_enqueue_nd_range_kernel<W: Waitlist>(
     work: &Work,
     waitlist: W,
 ) -> Output<cl_event> {
-
     let mut tracking_event: cl_event = new_tracking_event();
     let waiting_events = waitlist.new_waitlist();
-    let SizeAndPtr(wl_len, wl_ptr) = waiting_events
-        .as_slice()
-        .waitlist_size_and_ptr();
+    let SizeAndPtr(wl_len, wl_ptr) = waiting_events.as_slice().waitlist_size_and_ptr();
 
     let gws: GlobalWorkSize = work.global_work_size()?;
     let lws: LocalWorkSize = work.local_work_size()?;
@@ -170,12 +158,13 @@ pub unsafe fn cl_enqueue_read_buffer<T>(
     mem: cl_mem,
     buffer: &mut [T],
     command_queue_opts: CommandQueueOptions,
-) -> Output<cl_event> where T: ClNumber {
+) -> Output<cl_event>
+where
+    T: ClNumber,
+{
     let mut tracking_event = new_tracking_event();
     let waitlist = command_queue_opts.new_waitlist();
-    let SizeAndPtr(wl_len, wl_ptr) = waitlist
-        .as_slice()
-        .waitlist_size_and_ptr();
+    let SizeAndPtr(wl_len, wl_ptr) = waitlist.as_slice().waitlist_size_and_ptr();
 
     let SizeAndPtr(buffer_size, buffer_ptr) = buffer.size_and_ptr();
 
@@ -203,14 +192,12 @@ pub unsafe fn cl_enqueue_write_buffer<T: ClNumber>(
     command_queue_opts: CommandQueueOptions,
 ) -> Output<cl_event> {
     let mut tracking_event = new_tracking_event();
-    
+
     let waitlist = command_queue_opts.new_waitlist();
-    let SizeAndPtr(wl_len, wl_ptr) = waitlist
-        .as_slice()
-        .waitlist_size_and_ptr();
+    let SizeAndPtr(wl_len, wl_ptr) = waitlist.as_slice().waitlist_size_and_ptr();
 
     let SizeAndPtr(buffer_size, buffer_ptr) = buffer.size_and_ptr();
-        
+
     let err_code = clEnqueueWriteBuffer(
         queue,
         mem,
@@ -244,11 +231,8 @@ pub unsafe trait CommandQueuePtr: Sized {
         format!("{:?}", unsafe { self.command_queue_ptr() })
     }
 
-    unsafe fn info<T: Copy>(&self, flag: CQInfo) -> Output<ClPointer<T>> { 
-        cl_get_command_queue_info(
-            self.command_queue_ptr(),
-            flag.into()
-        )
+    unsafe fn info<T: Copy>(&self, flag: CQInfo) -> Output<ClPointer<T>> {
+        cl_get_command_queue_info(self.command_queue_ptr(), flag.into())
     }
 
     unsafe fn cl_context(&self) -> Output<cl_context> {
@@ -264,7 +248,8 @@ pub unsafe trait CommandQueuePtr: Sized {
     }
 
     unsafe fn device(&self) -> Output<ClDeviceID> {
-        self.cl_device_id().and_then(|obj| ClDeviceID::retain_new(obj))
+        self.cl_device_id()
+            .and_then(|obj| ClDeviceID::retain_new(obj))
     }
 
     unsafe fn reference_count(&self) -> Output<u32> {
@@ -277,12 +262,11 @@ pub unsafe trait CommandQueuePtr: Sized {
     }
 
     unsafe fn properties(&self) -> Output<CommandQueueProperties> {
-        self.cl_command_queue_properties()
-            .map(|props| {
-                CommandQueueProperties::from_bits(props).unwrap_or_else(|| {
-                    panic!("Failed to convert cl_command_queue_properties");
-                })
+        self.cl_command_queue_properties().map(|props| {
+            CommandQueueProperties::from_bits(props).unwrap_or_else(|| {
+                panic!("Failed to convert cl_command_queue_properties");
             })
+        })
     }
 }
 
@@ -322,7 +306,7 @@ impl<'a, T: ClNumber> From<Vec<T>> for MutHostBuffer<'a, T> {
 
 pub struct ClCommandQueue {
     object: cl_command_queue,
-    _unconstructable: ()
+    _unconstructable: (),
 }
 
 impl ClCommandQueue {
@@ -332,9 +316,9 @@ impl ClCommandQueue {
     }
 
     pub unsafe fn unchecked_new(object: cl_command_queue) -> ClCommandQueue {
-        ClCommandQueue{
+        ClCommandQueue {
             object,
-            _unconstructable: ()
+            _unconstructable: (),
         }
     }
 
@@ -359,8 +343,12 @@ impl ClCommandQueue {
             properties.bits() as cl_command_queue_properties,
         )
     }
-    
-    pub unsafe fn create_from_raw_pointers(context: cl_context, device: cl_device_id, props: cl_command_queue_properties) -> Output<ClCommandQueue> {
+
+    pub unsafe fn create_from_raw_pointers(
+        context: cl_context,
+        device: cl_device_id,
+        props: cl_command_queue_properties,
+    ) -> Output<ClCommandQueue> {
         let cq_object = cl_create_command_queue(context, device, props)?;
         ClCommandQueue::new(cq_object)
     }
@@ -369,13 +357,8 @@ impl ClCommandQueue {
         let context = self.cl_context()?;
         let device = self.cl_device_id()?;
         let props = self.cl_command_queue_properties()?;
-        ClCommandQueue::create_from_raw_pointers(
-            context,
-            device,
-            props
-        )
+        ClCommandQueue::create_from_raw_pointers(context, device, props)
     }
-
 
     /// write_buffer is used to move data from the host buffer (buffer: &[T]) to
     /// the mutable OpenCL cl_mem pointer.
@@ -416,7 +399,7 @@ impl ClCommandQueue {
             MutHostBuffer::Slice(slc) => {
                 let event = self.read_buffer_into_slice(mem, slc, opts)?;
                 Ok(BufferReadEvent::new(event, None))
-            },
+            }
             MutHostBuffer::Vec(mut hb) => {
                 let event = self.read_buffer_into_slice(mem, &mut hb[..], opts)?;
                 Ok(BufferReadEvent::new(event, Some(hb)))
@@ -435,7 +418,7 @@ impl ClCommandQueue {
             self.command_queue_ptr(),
             mem.mem_ptr(),
             host_buffer,
-            opts.into()
+            opts.into(),
         )?;
         ClEvent::new(raw_event)
     }
@@ -455,11 +438,10 @@ impl ClCommandQueue {
         )?;
         ClEvent::new(event)
     }
-    
+
     pub unsafe fn finish(&mut self) -> Output<()> {
         cl_finish(self.object)
     }
-
 }
 
 unsafe impl CommandQueuePtr for ClCommandQueue {
@@ -476,9 +458,7 @@ impl Drop for ClCommandQueue {
 
 impl Clone for ClCommandQueue {
     fn clone(&self) -> ClCommandQueue {
-        unsafe {
-            ClCommandQueue::retain_new(self.object).unwrap()
-        }
+        unsafe { ClCommandQueue::retain_new(self.object).unwrap() }
     }
 }
 
@@ -561,7 +541,7 @@ mod tests {
     fn create_copy_works() {
         let (cqs, _context, _devices) = ll_testing::get_command_queues();
         for cq in cqs.iter() {
-            unsafe { 
+            unsafe {
                 let copied_cq = cq.create_copy().unwrap();
                 assert_eq!(copied_cq.context().unwrap(), cq.context().unwrap());
                 assert_eq!(copied_cq.device().unwrap(), cq.device().unwrap());
@@ -591,11 +571,7 @@ mod tests {
         let data_ref = &data;
         for cq in cqs.iter_mut() {
             unsafe {
-                let mut event = cq.read_buffer(
-                    &buffer,
-                    data_ref.clone(),
-                    None
-                ).unwrap();
+                let mut event = cq.read_buffer(&buffer, data_ref.clone(), None).unwrap();
                 let data2: Option<Vec<u8>> = event.wait().unwrap();
                 assert_eq!(data2, Some(data_ref.clone()));
             }
@@ -611,14 +587,9 @@ mod tests {
         for cq in cqs.iter_mut() {
             unsafe {
                 let mut data2 = vec![0u8, 0, 0, 0, 0, 0, 0, 0];
-                let mut event = cq.read_buffer(
-                    &buffer,
-                    &mut data2[..],
-                    None
-                ).unwrap();
+                let mut event = cq.read_buffer(&buffer, &mut data2[..], None).unwrap();
                 let data3 = event.wait();
                 assert_eq!(data3, Ok(None));
-
             }
         }
     }

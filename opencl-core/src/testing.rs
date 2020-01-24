@@ -1,10 +1,6 @@
-
-
-
-
 #![allow(dead_code)]
-use crate::*;
 use crate::ll::*;
+use crate::*;
 // use std::sync::RwLock;
 
 pub fn src_buffer_plus_one() -> &'static str {
@@ -25,9 +21,7 @@ pub fn get_all_devices() -> Vec<Device> {
 }
 
 fn unwrap_ctx(o: Output<Context>) -> Context {
-    o.unwrap_or_else(|e| {
-        panic!("Failed to create context: {:?}", e)
-    })
+    o.unwrap_or_else(|e| panic!("Failed to create context: {:?}", e))
 }
 
 pub fn get_context() -> Context {
@@ -52,8 +46,9 @@ pub fn get_buffer<T: ClNumber>(size: usize) -> Buffer<T> {
         size,
         HostAccess::ReadWrite,
         KernelAccess::ReadWrite,
-        MemLocation::AllocOnDevice
-    ).unwrap()
+        MemLocation::AllocOnDevice,
+    )
+    .unwrap()
 }
 
 // pub fn test_all<F>(test: &mut F)
@@ -105,7 +100,6 @@ pub fn get_buffer<T: ClNumber>(size: usize) -> Buffer<T> {
 //     }
 //     sessions
 // }
-    
 
 pub fn get_device() -> Device {
     let platform = Platform::default();
