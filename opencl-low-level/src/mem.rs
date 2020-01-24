@@ -286,7 +286,7 @@ mod tests {
     #[test]
     fn mem_can_be_created_with_slice() {
         let (context, _devices) = ll_testing::get_context();
-        let mut data: Vec<u32> = vec![0, 1, 2, 3, 4];
+        let data: Vec<u32> = vec![0, 1, 2, 3, 4];
         let mem_config = MemConfig::for_data();
         let _mem: ClMem<u32> =
             unsafe { ClMem::create_with_config(&context, &data[..], mem_config).unwrap() };

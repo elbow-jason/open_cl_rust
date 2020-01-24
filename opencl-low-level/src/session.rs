@@ -88,22 +88,22 @@ impl Session {
             .ok_or(SessionError::QueueIndexOutOfRange(index).into())
     }
 
-    pub unsafe fn write_buffer<T: ClNumber>(
+    pub unsafe fn write_buffer<'a, T: ClNumber, H: Into<HostBuffer<'a, T>>>(
         &mut self,
         queue_index: usize,
         mem: &mut ClMem<T>,
-        host_buffer: &[T],
+        host_buffer: H,
         opts: Option<CommandQueueOptions>,
     ) -> Output<ClEvent> {
         let queue: &mut ClCommandQueue = self.get_queue_by_index(queue_index)?;
         queue.write_buffer(mem, host_buffer, opts)
     }
 
-    pub unsafe fn read_buffer<T: ClNumber>(
+    pub unsafe fn read_buffer<'a, T: ClNumber, H: Into<MutHostBuffer<'a, T>>>(
         &mut self,
         queue_index: usize,
         mem: &ClMem<T>,
-        host_buffer: &mut [T],
+        host_buffer: H,
         opts: Option<CommandQueueOptions>,
     ) -> Output<BufferReadEvent<T>> {
         let queue: &mut ClCommandQueue = self.get_queue_by_index(queue_index)?;
