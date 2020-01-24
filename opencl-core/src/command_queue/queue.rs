@@ -152,7 +152,7 @@ impl CommandQueue {
 
     pub fn enqueue_kernel(
         &self,
-        kernel: &Kernel,
+        kernel: Kernel,
         work: &Work,
         opts: Option<CommandQueueOptions>,
     ) -> Output<()> {

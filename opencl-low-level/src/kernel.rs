@@ -175,9 +175,10 @@ impl ClKernel {
             .and_then(|object| ClKernel::new(object))
     }
 
-    pub unsafe fn set_arg<T: KernelArg>(&mut self, arg_index: usize, arg: &T) -> Output<()> {
+    pub unsafe fn set_arg<T: KernelArg>(&mut self, arg_index: usize, arg: &mut T) -> Output<()> {
         cl_set_kernel_arg(self.kernel_ptr(), arg_index, arg)
     }
+
 }
 
 unsafe impl KernelPtr for ClKernel {
@@ -273,8 +274,8 @@ mod tests {
             i + 1;
         }";
         let (_context, _devices, _program, mut kernel) = ll_testing::get_kernel(src, KERNEL_NAME);
-        let arg1 = 1u8 as cl_uchar;
-        let () = unsafe { kernel.set_arg(0, &arg1) }.unwrap();
+        let mut arg1 = 1u8 as cl_uchar;
+        let () = unsafe { kernel.set_arg(0, &mut arg1) }.unwrap();
     }
 
     #[test]
@@ -284,8 +285,8 @@ mod tests {
             i + 1;
         }";
         let (_context, _devices, _program, mut kernel) = ll_testing::get_kernel(src, KERNEL_NAME);
-        let arg1 = 1i8 as cl_char;
-        let () = unsafe { kernel.set_arg(0, &arg1) }.unwrap();
+        let mut arg1 = 1i8 as cl_char;
+        let () = unsafe { kernel.set_arg(0, &mut arg1) }.unwrap();
     }
 
     #[test]
@@ -295,8 +296,8 @@ mod tests {
             i + 1;
         }";
         let (_context, _devices, _program, mut kernel) = ll_testing::get_kernel(src, KERNEL_NAME);
-        let arg1 = 1u16 as cl_ushort;
-        let () = unsafe { kernel.set_arg(0, &arg1) }.unwrap();
+        let mut arg1 = 1u16 as cl_ushort;
+        let () = unsafe { kernel.set_arg(0, &mut arg1) }.unwrap();
     }
 
     #[test]
@@ -306,8 +307,8 @@ mod tests {
             i + 1;
         }";
         let (_context, _devices, _program, mut kernel) = ll_testing::get_kernel(src, KERNEL_NAME);
-        let arg1 = 1i16 as cl_ushort;
-        let () = unsafe { kernel.set_arg(0, &arg1) }.unwrap();
+        let mut arg1 = 1i16 as cl_ushort;
+        let () = unsafe { kernel.set_arg(0, &mut arg1) }.unwrap();
     }
 
     #[test]
@@ -317,8 +318,8 @@ mod tests {
             i + 1;
         }";
         let (_context, _devices, _program, mut kernel) = ll_testing::get_kernel(src, KERNEL_NAME);
-        let arg1 = 1u32 as cl_uint;
-        let () = unsafe { kernel.set_arg(0, &arg1) }.unwrap();
+        let mut arg1 = 1u32 as cl_uint;
+        let () = unsafe { kernel.set_arg(0, &mut arg1) }.unwrap();
     }
 
 
@@ -329,8 +330,8 @@ mod tests {
             i + 1;
         }";
         let (_context, _devices, _program, mut kernel) = ll_testing::get_kernel(src, KERNEL_NAME);
-        let arg1 = 1i32 as cl_uint;
-        let () = unsafe { kernel.set_arg(0, &arg1) }.unwrap();
+        let mut arg1 = 1i32 as cl_uint;
+        let () = unsafe { kernel.set_arg(0, &mut arg1) }.unwrap();
     }
 
     #[test]
@@ -340,10 +341,10 @@ mod tests {
             i + 1.0;
         }";
         let (_context, _devices, _program, mut kernel) = ll_testing::get_kernel(src, KERNEL_NAME);
-        let arg1 = 1.0f32 as cl_float;
+        let mut arg1 = 1.0f32 as cl_float;
         assert_eq!(std::mem::size_of::<cl_float>(), 4);
         assert_eq!(std::mem::size_of::<f32>(), std::mem::size_of::<cl_float>());
-        let () = unsafe { kernel.set_arg(0, &arg1) }.unwrap();
+        let () = unsafe { kernel.set_arg(0, &mut arg1) }.unwrap();
     }
 
     #[test]
@@ -353,9 +354,9 @@ mod tests {
             i + 1.0;
         }";
         let (_context, _devices, _program, mut kernel) = ll_testing::get_kernel(src, KERNEL_NAME);
-        let arg1 = 1u64 as cl_ulong;
+        let mut arg1 = 1u64 as cl_ulong;
         assert_eq!(std::mem::size_of::<u64>(), std::mem::size_of::<cl_ulong>());
-        let () = unsafe { kernel.set_arg(0, &arg1) }.unwrap();
+        let () = unsafe { kernel.set_arg(0, &mut arg1) }.unwrap();
     }
 
     #[test]
@@ -365,9 +366,9 @@ mod tests {
             i + 1.0;
         }";
         let (_context, _devices, _program, mut kernel) = ll_testing::get_kernel(src, KERNEL_NAME);
-        let arg1 = 1i64 as cl_long;
+        let mut arg1 = 1i64 as cl_long;
         assert_eq!(std::mem::size_of::<i64>(), std::mem::size_of::<cl_long>());
-        let () = unsafe { kernel.set_arg(0, &arg1) }.unwrap();
+        let () = unsafe { kernel.set_arg(0, &mut arg1) }.unwrap();
     }
 
     #[test]
@@ -377,9 +378,9 @@ mod tests {
             i + 1.0;
         }";
         let (_context, _devices, _program, mut kernel) = ll_testing::get_kernel(src, KERNEL_NAME);
-        let arg1 = 1.0f64 as cl_double;
+        let mut arg1 = 1.0f64 as cl_double;
         assert_eq!(std::mem::size_of::<f64>(), std::mem::size_of::<cl_double>());
-        let () = unsafe { kernel.set_arg(0, &arg1) }.unwrap();
+        let () = unsafe { kernel.set_arg(0, &mut arg1) }.unwrap();
     }
 
     fn build_session(src: &str) -> Session {
@@ -437,9 +438,9 @@ mod tests {
             //     kernel_access: KernelAccess::WriteOnly,
             //     mem_location: MemLocation::ForceCopyToDevice,
             // };
-            let mem1 = session.create_mem(&data[..]).unwrap();
+            let mut mem1 = session.create_mem(&data[..]).unwrap();
             assert_eq!(mem1.len().unwrap(), 2);
-            let () = kernel.set_arg(0, &mem1).unwrap();
+            let () = kernel.set_arg(0, &mut mem1).unwrap();
         }
     }
 

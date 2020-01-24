@@ -98,7 +98,35 @@ impl Session {
     ) -> Output<ClEvent> {
         let queue: &mut ClCommandQueue = self.get_queue_by_index(queue_index)?;
         queue.write_buffer(mem, host_buffer, opts)       
-    }   
+    }
+
+    pub unsafe fn read_buffer<T: ClNumber>(
+        &mut self,
+        queue_index: usize,
+        mem: &ClMem<T>,
+        host_buffer: &mut [T],
+        opts: Option<CommandQueueOptions>,
+    ) -> Output<BufferReadEvent<T>> {
+        let queue: &mut ClCommandQueue = self.get_queue_by_index(queue_index)?;
+        queue.read_buffer(mem, host_buffer, opts)
+    }
+    pub unsafe fn enqueue_kernel(
+        &mut self,
+        queue_index: usize,
+        kernel: &ClKernel,
+        work: &Work,
+        opts: Option<CommandQueueOptions>,
+    ) -> Output<ClEvent> {
+        let queue: &mut ClCommandQueue = self.get_queue_by_index(queue_index)?;
+        let cq_opts: CommandQueueOptions = opts.into();
+        let event = cl_enqueue_nd_range_kernel(
+            queue.command_queue_ptr(),
+            kernel.kernel_ptr(),
+            work,
+            &cq_opts.waitlist[..],
+        )?;
+        ClEvent::new(event)
+    }
 }
 
 impl Drop for Session {

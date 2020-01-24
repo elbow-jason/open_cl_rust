@@ -74,17 +74,17 @@ fn run_procedural() {
 
         println!("mem_a {:?}", mem_a);
 
-        let lock_a = mem_a.write_lock();
+        let mut lock_a = mem_a.write_lock();
         println!("setting simple_add arg 0 as mem_a");
-        simple_add.set_arg(0, &*lock_a).unwrap();
+        simple_add.set_arg(0, &mut *lock_a).unwrap();
 
-        let lock_b = mem_b.write_lock();
+        let mut lock_b = mem_b.write_lock();
         println!("setting simple_add arg 1 as mem_b");
-        simple_add.set_arg(1, &*lock_b).unwrap();
+        simple_add.set_arg(1, &mut *lock_b).unwrap();
 
-        let lock_c = mem_c.write_lock();
+        let mut lock_c = mem_c.write_lock();
         println!("setting simple_add mut arg 2 as mem_c");
-        simple_add.set_arg(2, &*lock_c).unwrap();
+        simple_add.set_arg(2, &mut *lock_c).unwrap();
 
         println!("calling enqueue_kernel on simple_add");
         let () = command_queue.enqueue_kernel(&simple_add, &work, None).unwrap();
@@ -113,22 +113,22 @@ fn run_with_session() {
         let vec_a = vec![1isize, 2, 3];
         let vec_b = vec![0isize, -1, -2];
 
-        let mem_a = session.create_mem(&vec_a[..]).unwrap();
-        let mem_b = session.create_mem(&vec_b[..]).unwrap();
-        let mem_c: ClMem<isize> = session.create_mem(vec_a.len()).unwrap();
+        let mut mem_a = session.create_mem(&vec_a[..]).unwrap();
+        let mut mem_b = session.create_mem(&vec_b[..]).unwrap();
+        let mut mem_c: ClMem<isize> = session.create_mem(vec_a.len()).unwrap();
         
         let mut simple_add = session.create_kernel("simple_add").unwrap();
 
         println!("setting simple_add arg 0 as mem_a");
-        simple_add.set_arg(0, &mem_a).unwrap();
+        simple_add.set_arg(0, &mut mem_a).unwrap();
 
         
         println!("setting simple_add arg 1 as mem_b");
-        simple_add.set_arg(1, &mem_b).unwrap();
+        simple_add.set_arg(1, &mut mem_b).unwrap();
 
         
         println!("setting simple_add mut arg 2 as mem_c");
-        simple_add.set_arg(2, &mem_c).unwrap();
+        simple_add.set_arg(2, &mut mem_c).unwrap();
         let work: Work = Work::new(vec_a.len());
         
         let mut vec_c = vec_a.clone();
