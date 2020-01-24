@@ -110,7 +110,7 @@ fn run_procedural() {
 
         println!("calling enqueue_kernel on simple_add");
         let () = command_queue
-            .enqueue_kernel(&simple_add, &work, None)
+            .enqueue_kernel(simple_add, &work, None)
             .unwrap();
 
         println!("Dropping locks...");
@@ -126,34 +126,6 @@ fn run_procedural() {
         println!("  {}", string_from_slice(&vec_a[..]));
         println!("+ {}", string_from_slice(&vec_b[..]));
         println!("= {}", string_from_slice(&vec_c[..]));
-    }
-}
-
-fn run_with_session() {
-    let src = include_str!("simple_add.ocl");
-    unsafe {
-        let session = SessionBuilder::new().with_program_src(src).build().unwrap();
-
-        let vec_a = vec![1isize, 2, 3];
-        let vec_b = vec![0isize, -1, -2];
-
-        let mut mem_a = session.create_mem(&vec_a[..]).unwrap();
-        let mut mem_b = session.create_mem(&vec_b[..]).unwrap();
-        let mut mem_c: ClMem<isize> = session.create_mem(vec_a.len()).unwrap();
-
-        let mut simple_add = session.create_kernel("simple_add").unwrap();
-
-        println!("setting simple_add arg 0 as mem_a");
-        simple_add.set_arg(0, &mut mem_a).unwrap();
-
-        println!("setting simple_add arg 1 as mem_b");
-        simple_add.set_arg(1, &mut mem_b).unwrap();
-
-        println!("setting simple_add mut arg 2 as mem_c");
-        simple_add.set_arg(2, &mut mem_c).unwrap();
-        let work: Work = Work::new(vec_a.len());
-
-        let mut vec_c = vec_a.clone();
     }
 }
 
