@@ -148,7 +148,7 @@ fn run_with_session() {
         let enqueue_event = session.enqueue_kernel(0, &simple_add, &work, None).unwrap();
         let () = enqueue_event.wait().unwrap();
         let mut read_event = session
-            .read_buffer(0, &mem_c, &mut vec_c[..], None)
+            .read_buffer(0, &mut mem_c, &mut vec_c[..], None)
             .unwrap();
         let read_output = read_event.wait().unwrap();
         assert_eq!(read_output, None);

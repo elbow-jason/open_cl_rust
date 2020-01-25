@@ -44,7 +44,7 @@ impl Session {
             .map(|d| unsafe { ClDeviceID::unchecked_new(d.device_ptr()) })
             .collect();
 
-        let ll_session = unsafe { ClSession::create_with_devices(ll_devices, src) }?;
+        let ll_session =  ClSession::create_with_devices(ll_devices, src)?;
         let (devices, context, program, queues) = unsafe { ll_session.decompose() };
         // (Vec<ClDeviceID>, ClContext, ClProgram, Vec<ClCommandQueue>)
 

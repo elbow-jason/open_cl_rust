@@ -17,7 +17,7 @@ unsafe fn take_manually_drop<T>(slot: &mut ManuallyDrop<T>) -> T {
 
 /// Session is the structure that is responsible for Dropping
 /// Low-Level OpenCL pointer wrappers in the correct order. Dropping OpenCL
-/// pointers in the wrong order is undefined behavior.
+/// pointers in the wrong order can lead to undefined behavior.
 pub struct Session {
     devices: ManuallyDrop<Vec<ClDeviceID>>,
     context: ManuallyDrop<ClContext>,
@@ -26,30 +26,40 @@ pub struct Session {
 }
 
 impl Session {
-    pub unsafe fn create_with_devices<'a, D>(devices: D, src: &str) -> Output<Session>
+    pub fn create_with_devices<'a, D>(devices: D, src: &str) -> Output<Session>
     where
         D: Into<VecOrSlice<'a, ClDeviceID>>,
     {
-        let devices = devices.into();
-        let context = ClContext::create(devices.as_slice())?;
-        let program = ClProgram::create_with_source(&context, src)?;
-        let props = CommandQueueProperties::default();
-        let maybe_queues: Result<Vec<ClCommandQueue>, Error> = devices
-            .iter()
-            .map(|dev| ClCommandQueue::create(&context, dev, Some(props)))
-            .collect();
-        let queues = maybe_queues?;
+        unsafe {            
+            let devices = devices.into();
+            let context = ClContext::create(devices.as_slice())?;
+            let program = ClProgram::create_with_source(&context, src)?;
+            let props = CommandQueueProperties::default();
+            let maybe_queues: Result<Vec<ClCommandQueue>, Error> = devices
+                .iter()
+                .map(|dev| ClCommandQueue::create(&context, dev, Some(props)))
+                .collect();
+            
+            let queues = maybe_queues?;
 
-        let sess = Session {
-            devices: ManuallyDrop::new(devices.to_vec()),
-            context: ManuallyDrop::new(context),
-            program: ManuallyDrop::new(program),
-            queues: ManuallyDrop::new(queues),
-        };
-        Ok(sess)
+            let sess = Session {
+                devices: ManuallyDrop::new(devices.to_vec()),
+                context: ManuallyDrop::new(context),
+                program: ManuallyDrop::new(program),
+                queues: ManuallyDrop::new(queues),
+            };
+            Ok(sess)
+        }
     }
 
-    pub unsafe fn create(src: &str) -> Output<Session> {
+    /// Given a string slice of OpenCL source code this function creates a session for
+    /// all available platforms and devices. A Session consists of:
+    /// 
+    /// one or more devices
+    /// one context (for sharing mem objects between devices)
+    /// one program (build on each of the devices)
+    /// one or more queues (each queue belongs to exactly one of the devices)
+    pub fn create(src: &str) -> Output<Session> {
         let platforms = list_platforms()?;
         let mut devices = Vec::new();
         for platform in platforms.iter() {
@@ -59,6 +69,13 @@ impl Session {
         Session::create_with_devices(devices, src)
     }
 
+    /// Consumes the session returning the parts as individual parts. 
+    /// 
+    /// # Safety
+    /// Moving the components of a Session out of the Session can easily lead to
+    /// undefined behavior. The Session has a carefully implemented drop that ensures
+    /// the an Object is dropped before it's dependencies. If any of the dependencies of an object are ever dropped
+    /// in the incorrect order or any dependency of an object is dropped and the object is then used the result is undefined behavior.
     pub unsafe fn decompose(
         mut self,
     ) -> (Vec<ClDeviceID>, ClContext, ClProgram, Vec<ClCommandQueue>) {
@@ -70,26 +87,45 @@ impl Session {
         (devices, context, program, queues)
     }
 
-    pub unsafe fn devices(&self) -> &[ClDeviceID] {
+    /// A slice of the ClDeviceIDs of this Session.
+    pub fn devices(&self) -> &[ClDeviceID] {
         &(*self.devices)[..]
     }
 
-    pub unsafe fn context(&self) -> &ClContext {
+    /// A reference to the ClContext of this Session.
+    pub fn context(&self) -> &ClContext {
         &(*self.context)
     }
 
-    pub unsafe fn program(&self) -> &ClProgram {
+    /// A reference to the ClProgram of this Session.
+    pub fn program(&self) -> &ClProgram {
         &(*self.program)
     }
 
-    pub unsafe fn queues(&self) -> &[ClCommandQueue] {
+
+    /// A slice of the ClCommandQueues of this Session.
+    pub fn queues(&self) -> &[ClCommandQueue] {
         &(*self.queues)[..]
     }
 
+    /// Creates a ClKernel from the session's program.
+    ///
+    /// # Safety
+    /// Note: This function may, in fact, be safe. However, creating a kernel with a
+    /// program object that is in an invalid state can lead to undefined behavior.
+    /// Using the ClKernel after the session has been released can lead to undefined behavior.
+    /// Using the ClKernel outside it's own context/program can lead to undefined behavior.
     pub unsafe fn create_kernel(&self, kernel_name: &str) -> Output<ClKernel> {
         ClKernel::create(self.program(), kernel_name)
     }
 
+    /// Creates a ClMem object in the given context, with the given buffer creator
+    /// (either a length or some data). This function uses the BufferCreator's implementation
+    /// to retrieve the appropriate MemConfig.
+    /// 
+    /// # Safety
+    /// This function can cause undefined behavior if the OpenCL context object that
+    /// is passed is not in a valid state (null, released, etc.)
     pub unsafe fn create_mem<T: ClNumber, B: BufferCreator<T>>(
         &self,
         buffer_creator: B,
@@ -98,6 +134,12 @@ impl Session {
         ClMem::create_with_config(self.context(), buffer_creator, cfg)
     }
 
+    /// Creates a ClMem object in the given context, with the given buffer creator
+    /// (either a length or some data) and a given MemConfig.
+    /// 
+    /// # Safety
+    /// This function can cause undefined behavior if the OpenCL context object that
+    /// is passed is not in a valid state (null, released, etc.)
     pub unsafe fn create_mem_with_config<T: ClNumber, B: BufferCreator<T>>(
         &self,
         buffer_creator: B,
@@ -110,9 +152,18 @@ impl Session {
     fn get_queue_by_index(&mut self, index: usize) -> Output<&mut ClCommandQueue> {
         self.queues
             .get_mut(index)
-            .ok_or(SessionError::QueueIndexOutOfRange(index).into())
+            .ok_or_else(|| SessionError::QueueIndexOutOfRange(index).into())
     }
 
+    /// This function copies data from the host buffer into the device mem buffer. The host
+    /// buffer must be a mutable slice or a vector to ensure the safety of the read_Buffer
+    /// operation.
+    /// 
+    /// # Safety
+    /// This function call is safe only if the ClMem object's dependencies are still valid, if the
+    /// ClMem is valid, if the ClCommandQueue's dependencies are valid, if the ClCommandQueue's object
+    /// itself still valid, if the device's size and type exactly match the host buffer's size and type,
+    /// if the waitlist's events are in a valid state and the list goes on...
     pub unsafe fn write_buffer<'a, T: ClNumber, H: Into<VecOrSlice<'a, T>>>(
         &mut self,
         queue_index: usize,
@@ -124,16 +175,33 @@ impl Session {
         queue.write_buffer(mem, host_buffer, opts)
     }
 
+
+    /// This function copies data from a device mem buffer into a host buffer. The host
+    /// buffer must be a mutable slice or a vector. For the moment the device mem must also
+    /// be passed as mutable; I don't trust OpenCL.
+    /// 
+    /// # Safety
+    /// This function call is safe only if the ClMem object's dependencies are still valid, if the
+    /// ClMem is valid, if the ClCommandQueue's dependencies are valid, if the ClCommandQueue's object
+    /// itself still valid, if the device's size and type exactly match the host buffer's size and type,
+    /// if the waitlist's events are in a valid state and the list goes on...
     pub unsafe fn read_buffer<'a, T: ClNumber, H: Into<MutVecOrSlice<'a, T>>>(
         &mut self,
         queue_index: usize,
-        mem: &ClMem<T>,
+        mem: &mut ClMem<T>,
         host_buffer: H,
         opts: Option<CommandQueueOptions>,
     ) -> Output<BufferReadEvent<T>> {
         let queue: &mut ClCommandQueue = self.get_queue_by_index(queue_index)?;
         queue.read_buffer(mem, host_buffer, opts)
     }
+    
+    /// This function enqueues a CLKernel into a command queue
+    /// 
+    /// # Safety
+    /// If the ClKernel is not in a usable state or any of the Kernel's dependent object
+    /// has been release, or the kernel belongs to a different session, or the ClKernel's
+    /// pointer is a null pointer, then calling this function will cause undefined behavior.
     pub unsafe fn enqueue_kernel(
         &mut self,
         queue_index: usize,
@@ -153,8 +221,17 @@ impl Session {
     }
 }
 
+/// Session can be safely sent between threads.
+/// 
+/// # Safety
+/// All the contained OpenCL objects Session are Send so Session is Send. However,
+/// The low level Session has ZERO Synchronization for mutable objects Program and
+/// CommandQueue. Therefore the low level Session is not Sync. If a Sync Session is
+/// required, the Session of opencl_core is Sync by synchronizing mutations of it's
+/// objects via RwLocks.
 unsafe impl Send for Session {}
-// low level session has ZERO Synchronization for mutable objects Program and CommandQueue
+
+
 // unsafe impl Sync for Session {}
 
 // preserve the ordering of these fields
@@ -223,6 +300,7 @@ const CANNOT_SPECIFY_SRC_AND_BINARIES: Error =
 const MUST_SPECIFY_SRC_OR_BINARIES: Error =
     Error::SessionBuilderError(SessionBuilderError::MustSpecifyProgramSrcOrProgramBinaries);
 
+#[derive(Default)]
 pub struct SessionBuilder<'a> {
     pub program_src: Option<&'a str>,
     pub program_binaries: Option<&'a [u8]>,
@@ -292,8 +370,15 @@ impl<'a> SessionBuilder<'a> {
         }
     }
 
+    /// Builds a SessionBuilder into a Session
+    /// 
+    /// # Safety
+    /// This function may, in fact, be safe, mismanagement of objects and lifetimes
+    /// are not possible as long as the underlying function calls are implemented
+    /// as intended. However, this claim needs to be reviewed. For now it remains
+    /// marked as unsafe.
     pub unsafe fn build(self) -> Output<Session> {
-        let () = self.check_for_error_state()?;
+        self.check_for_error_state()?;
         let context_builder = ClContextBuilder {
             devices: self.devices,
             device_type: self.device_type,
@@ -349,7 +434,7 @@ impl<'a> SessionBuilder<'a> {
         let queues = maybe_queues?;
 
         let sess = Session {
-            devices: ManuallyDrop::new(devices.clone()),
+            devices: ManuallyDrop::new(devices),
             context: ManuallyDrop::new(context),
             program: ManuallyDrop::new(program),
             queues: ManuallyDrop::new(queues),
