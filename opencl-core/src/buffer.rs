@@ -2,10 +2,8 @@ use std::fmt;
 use std::fmt::Debug;
 use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
-use crate::ll::{
-    BufferCreator, ClMem, ClNumber, HostAccess, KernelAccess, MemFlags, MemLocation, MemPtr, Output,
-};
-use crate::Context;
+use crate::ll::{ClMem, MemFlags, MemPtr};
+use crate::{BufferCreator, ClNumber, Context, HostAccess, KernelAccess, MemLocation, Output};
 
 pub struct Buffer<T: ClNumber> {
     inner: RwLock<ClMem<T>>,
@@ -13,6 +11,7 @@ pub struct Buffer<T: ClNumber> {
 }
 
 unsafe impl<T: ClNumber> Send for Buffer<T> {}
+unsafe impl<T: ClNumber> Sync for Buffer<T> {}
 
 impl<T: ClNumber> Clone for Buffer<T> {
     fn clone(&self) -> Buffer<T> {

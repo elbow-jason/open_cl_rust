@@ -3,8 +3,8 @@ use std::mem::ManuallyDrop;
 
 use crate::ffi::cl_program;
 
-use crate::ll::{ClContext, ClProgram, Output, ProgramPtr};
-use crate::{Context, Device};
+use crate::ll::{ClContext, ClProgram, ProgramPtr, ContextPtr};
+use crate::{Context, Device, Output};
 
 // pub const DEVICE_LIST_CANNOT_BE_EMPTY: Error = Error::ProgramError(ProgramError::CannotBuildProgramWithEmptyDevicesList);
 
@@ -22,36 +22,18 @@ use crate::{Context, Device};
 // }
 
 pub struct UnbuiltProgram {
-    context: ManuallyDrop<Context>,
+    context: ManuallyDrop<ClContext>,
     inner: ManuallyDrop<ClProgram>,
     _unconstructable: (),
 }
 
 impl UnbuiltProgram {
-    pub unsafe fn new(program: ClProgram, context: Context) -> UnbuiltProgram {
+    pub unsafe fn new(program: ClProgram, context: ClContext) -> UnbuiltProgram {
         UnbuiltProgram {
             context: ManuallyDrop::new(context),
             inner: ManuallyDrop::new(program),
             _unconstructable: (),
         }
-    }
-}
-
-unsafe impl ProgramPtr for UnbuiltProgram {
-    unsafe fn program_ptr(&self) -> cl_program {
-        (*self.inner).program_ptr()
-    }
-}
-
-unsafe impl ProgramPtr for &mut UnbuiltProgram {
-    unsafe fn program_ptr(&self) -> cl_program {
-        (*self.inner).program_ptr()
-    }
-}
-
-unsafe impl ProgramPtr for &UnbuiltProgram {
-    unsafe fn program_ptr(&self) -> cl_program {
-        (*self.inner).program_ptr()
     }
 }
 
@@ -78,7 +60,7 @@ impl Clone for UnbuiltProgram {
 
 impl fmt::Debug for UnbuiltProgram {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "UnbuiltProgram{{{:?}}}", unsafe { self.program_ptr() })
+        write!(f, "UnbuiltProgram{{{:?}}}", self.inner)
     }
 }
 
@@ -86,7 +68,7 @@ impl UnbuiltProgram {
     pub fn create_with_source(context: &Context, src: &str) -> Output<UnbuiltProgram> {
         unsafe {
             let ll_prog = ClProgram::create_with_source(context.low_level_context(), src)?;
-            Ok(UnbuiltProgram::new(ll_prog, context.clone()))
+            Ok(UnbuiltProgram::new(ll_prog, context.low_level_context().clone()))
         }
     }
 
@@ -101,26 +83,27 @@ impl UnbuiltProgram {
                 device.low_level_device(),
                 binary,
             )?;
-            Ok(UnbuiltProgram::new(ll_prog, context.clone()))
+            Ok(UnbuiltProgram::new(ll_prog, context.low_level_context().clone()))
         }
     }
 
-    pub fn low_level_program(&self) -> &ClProgram {
-        &self.inner
-    }
-
     pub fn build(mut self, devices: &[Device]) -> Output<Program> {
-        self.inner.build(devices)?;
         let built_prog: Program = unsafe {
+            self.inner.build(devices)?;
             let (program_ptr, context_ptr, context_devices) = (
-                self.program_ptr(),
+                self.inner.program_ptr(),
                 self.context.context_ptr(),
-                self.context.devices(),
+                self.context.devices()?,
             );
+
+            let context_devices2: Vec<Device> = context_devices
+                .into_iter()
+                .map(|d| Device::new(d))
+                .collect();
+        
             let ll_program = ClProgram::new(program_ptr)?;
             let ll_context = ClContext::new(context_ptr)?;
-            let hl_context = Context::build(ll_context, context_devices.to_vec());
-
+            let hl_context = Context::build(ll_context, context_devices2);
             Program::new(ll_program, hl_context, devices.to_vec())
         };
         std::mem::forget(self);

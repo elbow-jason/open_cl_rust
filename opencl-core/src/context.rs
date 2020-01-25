@@ -2,14 +2,16 @@ use std::fmt;
 use std::iter::Iterator;
 use std::mem::ManuallyDrop;
 
-use crate::ffi::{cl_context, cl_device_id};
-use crate::ll::{ClContext, ContextProperties, ContextPtr, DevicePtr, Output};
+use crate::ffi::cl_device_id;
+use crate::ll::{
+    ClContext, ContextProperties, VecOrSlice, ContextPtr, DevicePtr, ClDeviceID,
+};
 
-use crate::Device;
+use crate::{Device, Output};
 
 pub struct Context {
     inner: ManuallyDrop<ClContext>,
-    _devices: ManuallyDrop<Vec<Device>>,
+    _devices: ManuallyDrop<Vec<ClDeviceID>>,
     _unconstructable: (),
 }
 
@@ -17,10 +19,16 @@ impl Context {
     // Context::build is safe because all objects should be reference counted
     // and their wrapping structs should be droppable. If there is a memory
     // error from opencl it will not be caused by Context::build.
-    pub fn build(obj: ClContext, devices: Vec<Device>) -> Context {
+    pub fn build<'a, D>(obj: ClContext, devices: D) -> Context where D: Into<VecOrSlice<'a, Device>> {
+        let devices = devices.into();
+        let ll_devices = devices
+            .as_slice()
+            .iter()
+            .map(|d| d.low_level_device().clone())
+            .collect();
         Context {
             inner: ManuallyDrop::new(obj),
-            _devices: ManuallyDrop::new(devices),
+            _devices: ManuallyDrop::new(ll_devices),
             _unconstructable: (),
         }
     }
@@ -29,18 +37,16 @@ impl Context {
         &*self.inner
     }
 
-    pub unsafe fn context_ptr(&self) -> cl_context {
-        (*self.inner).context_ptr()
-    }
-
-    pub fn create<'a, D: Into<Devices<'a>>>(devices: D) -> Output<Context> {
+    pub fn create<'a, D: Into<VecOrSlice<'a, Device>>>(devices: D) -> Output<Context> {
         let devices = devices.into();
-        let device_ptrs = devices.device_ptrs();
+        let device_ptrs: Vec<cl_device_id> =
+            devices.iter().map(|d| unsafe { d.device_ptr() }).collect();
+
         let ll_context: ClContext = unsafe { ClContext::create(&device_ptrs[..]) }?;
-        Ok(Context::build(ll_context, devices.to_vec()))
+        Ok(Context::build(ll_context, devices))
     }
 
-    pub fn devices(&self) -> &[Device] {
+    pub fn devices(&self) -> &[ClDeviceID] {
         &self._devices[..]
     }
 
@@ -81,43 +87,6 @@ impl Drop for Context {
 unsafe impl Send for Context {}
 unsafe impl Sync for Context {}
 
-pub enum Devices<'a> {
-    V(Vec<Device>),
-    S(&'a [Device]),
-}
-
-impl<'a> Devices<'a> {
-    pub fn iter(&self) -> impl Iterator<Item = &Device> {
-        match self {
-            Devices::V(devices) => devices.iter(),
-            Devices::S(devices) => devices.iter(),
-        }
-    }
-
-    pub fn device_ptrs(&self) -> Vec<cl_device_id> {
-        self.iter().map(|d| unsafe { d.device_ptr() }).collect()
-    }
-
-    pub fn to_vec(self) -> Vec<Device> {
-        match self {
-            Devices::V(devices) => devices,
-            Devices::S(devices) => devices.to_vec(),
-        }
-    }
-}
-
-impl<'a> From<Vec<Device>> for Devices<'a> {
-    fn from(d: Vec<Device>) -> Devices<'a> {
-        Devices::V(d)
-    }
-}
-
-impl<'a> From<&'a [Device]> for Devices<'a> {
-    fn from(d: &'a [Device]) -> Devices<'a> {
-        Devices::S(d)
-    }
-}
-
 impl PartialEq for Context {
     fn eq(&self, other: &Self) -> bool {
         *self.inner == *other.inner
@@ -128,7 +97,7 @@ impl Eq for Context {}
 
 impl fmt::Debug for Context {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Context{{{:?}}}", unsafe { self.context_ptr() })
+        write!(f, "Context{{{:?}}}", unsafe { self.inner.context_ptr() })
     }
 }
 

@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
 
+use crate::vec_or_slice::VecOrSlice;
 use crate::*;
 
 /// An error related to Session Building.
@@ -10,6 +11,13 @@ pub enum SessionError {
     QueueIndexOutOfRange(usize),
 }
 
+unsafe fn take_manually_drop<T>(slot: &mut ManuallyDrop<T>) -> T {
+    ManuallyDrop::into_inner(std::ptr::read(slot))
+}
+
+/// Session is the structure that is responsible for Dropping
+/// Low-Level OpenCL pointer wrappers in the correct order. Dropping OpenCL
+/// pointers in the wrong order is undefined behavior.
 pub struct Session {
     devices: ManuallyDrop<Vec<ClDeviceID>>,
     context: ManuallyDrop<ClContext>,
@@ -18,31 +26,48 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn create(src: &str) -> Output<Session> {
-        unsafe {
-            let platforms = list_platforms()?;
-            let mut devices = Vec::new();
-            for platform in platforms.iter() {
-                let platform_devices = list_devices_by_type(platform, DeviceType::ALL)?;
-                devices.extend(platform_devices);
-            }
-            let context = ClContext::create(&devices[..])?;
-            let program = ClProgram::create_with_source(&context, src)?;
-            let props = CommandQueueProperties::default();
-            let maybe_queues: Result<Vec<ClCommandQueue>, Error> = devices
-                .iter()
-                .map(|dev| ClCommandQueue::create(&context, dev, Some(props)))
-                .collect();
-            let queues = maybe_queues?;
+    pub unsafe fn create_with_devices<'a, D>(devices: D, src: &str) -> Output<Session>
+    where
+        D: Into<VecOrSlice<'a, ClDeviceID>>,
+    {
+        let devices = devices.into();
+        let context = ClContext::create(devices.as_slice())?;
+        let program = ClProgram::create_with_source(&context, src)?;
+        let props = CommandQueueProperties::default();
+        let maybe_queues: Result<Vec<ClCommandQueue>, Error> = devices
+            .iter()
+            .map(|dev| ClCommandQueue::create(&context, dev, Some(props)))
+            .collect();
+        let queues = maybe_queues?;
 
-            let sess = Session {
-                devices: ManuallyDrop::new(devices),
-                context: ManuallyDrop::new(context),
-                program: ManuallyDrop::new(program),
-                queues: ManuallyDrop::new(queues),
-            };
-            Ok(sess)
+        let sess = Session {
+            devices: ManuallyDrop::new(devices.to_vec()),
+            context: ManuallyDrop::new(context),
+            program: ManuallyDrop::new(program),
+            queues: ManuallyDrop::new(queues),
+        };
+        Ok(sess)
+    }
+
+    pub unsafe fn create(src: &str) -> Output<Session> {
+        let platforms = list_platforms()?;
+        let mut devices = Vec::new();
+        for platform in platforms.iter() {
+            let platform_devices = list_devices_by_type(platform, DeviceType::ALL)?;
+            devices.extend(platform_devices);
         }
+        Session::create_with_devices(devices, src)
+    }
+
+    pub unsafe fn decompose(
+        mut self,
+    ) -> (Vec<ClDeviceID>, ClContext, ClProgram, Vec<ClCommandQueue>) {
+        let devices: Vec<ClDeviceID> = take_manually_drop(&mut self.devices);
+        let context: ClContext = take_manually_drop(&mut self.context);
+        let program: ClProgram = take_manually_drop(&mut self.program);
+        let queues: Vec<ClCommandQueue> = take_manually_drop(&mut self.queues);
+        std::mem::forget(self);
+        (devices, context, program, queues)
     }
 
     pub unsafe fn devices(&self) -> &[ClDeviceID] {
@@ -88,7 +113,7 @@ impl Session {
             .ok_or(SessionError::QueueIndexOutOfRange(index).into())
     }
 
-    pub unsafe fn write_buffer<'a, T: ClNumber, H: Into<HostBuffer<'a, T>>>(
+    pub unsafe fn write_buffer<'a, T: ClNumber, H: Into<VecOrSlice<'a, T>>>(
         &mut self,
         queue_index: usize,
         mem: &mut ClMem<T>,
@@ -99,7 +124,7 @@ impl Session {
         queue.write_buffer(mem, host_buffer, opts)
     }
 
-    pub unsafe fn read_buffer<'a, T: ClNumber, H: Into<MutHostBuffer<'a, T>>>(
+    pub unsafe fn read_buffer<'a, T: ClNumber, H: Into<MutVecOrSlice<'a, T>>>(
         &mut self,
         queue_index: usize,
         mem: &ClMem<T>,
@@ -128,6 +153,17 @@ impl Session {
     }
 }
 
+unsafe impl Send for Session {}
+// low level session has ZERO Synchronization for mutable objects Program and CommandQueue
+// unsafe impl Sync for Session {}
+
+// preserve the ordering of these fields
+// The drop order must be:
+// 1) program
+// 2) command_queue
+// 3) context
+// 4) device
+// Else... SEGFAULT :(
 impl Drop for Session {
     fn drop(&mut self) {
         unsafe {

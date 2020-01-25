@@ -13,8 +13,8 @@ use crate::CommandQueueInfo as CQInfo;
 use crate::{
     build_output, utils, BufferReadEvent, ClContext, ClDeviceID, ClEvent, ClInput, ClKernel, ClMem,
     ClNumber, ClPointer, CommandQueueInfo, CommandQueueProperties, ContextPtr, DevicePtr, EventPtr,
-    GlobalWorkSize, KernelPtr, LocalWorkSize, MemPtr, Output, SizeAndPtr, Waitlist,
-    WaitlistSizeAndPtr, Work,
+    GlobalWorkSize, KernelPtr, LocalWorkSize, MemPtr, MutVecOrSlice, Output, SizeAndPtr,
+    VecOrSlice, Waitlist, WaitlistSizeAndPtr, Work,
 };
 
 pub struct CommandQueueOptions {
@@ -270,40 +270,6 @@ pub unsafe trait CommandQueuePtr: Sized {
     }
 }
 
-pub enum HostBuffer<'a, T: ClNumber> {
-    Slice(&'a [T]),
-    Vec(Vec<T>),
-}
-
-impl<'a, T: ClNumber> From<&'a [T]> for HostBuffer<'a, T> {
-    fn from(slice: &'a [T]) -> HostBuffer<'a, T> {
-        HostBuffer::Slice(slice)
-    }
-}
-
-impl<'a, T: ClNumber> From<Vec<T>> for HostBuffer<'a, T> {
-    fn from(v: Vec<T>) -> HostBuffer<'a, T> {
-        HostBuffer::Vec(v)
-    }
-}
-
-pub enum MutHostBuffer<'a, T: ClNumber> {
-    Slice(&'a mut [T]),
-    Vec(Vec<T>),
-}
-
-impl<'a, T: ClNumber> From<&'a mut [T]> for MutHostBuffer<'a, T> {
-    fn from(slice: &'a mut [T]) -> MutHostBuffer<'a, T> {
-        MutHostBuffer::Slice(slice)
-    }
-}
-
-impl<'a, T: ClNumber> From<Vec<T>> for MutHostBuffer<'a, T> {
-    fn from(v: Vec<T>) -> MutHostBuffer<'a, T> {
-        MutHostBuffer::Vec(v)
-    }
-}
-
 pub struct ClCommandQueue {
     object: cl_command_queue,
     _unconstructable: (),
@@ -362,15 +328,15 @@ impl ClCommandQueue {
 
     /// write_buffer is used to move data from the host buffer (buffer: &[T]) to
     /// the mutable OpenCL cl_mem pointer.
-    pub unsafe fn write_buffer<'a, T: ClNumber, H: Into<HostBuffer<'a, T>>>(
+    pub unsafe fn write_buffer<'a, T: ClNumber, H: Into<VecOrSlice<'a, T>>>(
         &mut self,
         mem: &mut ClMem<T>,
         host_buffer: H,
         opts: Option<CommandQueueOptions>,
     ) -> Output<ClEvent> {
         match host_buffer.into() {
-            HostBuffer::Slice(hb) => self.write_buffer_from_slice(mem, hb, opts),
-            HostBuffer::Vec(hb) => self.write_buffer_from_slice(mem, &hb[..], opts),
+            VecOrSlice::Slice(hb) => self.write_buffer_from_slice(mem, hb, opts),
+            VecOrSlice::Vec(hb) => self.write_buffer_from_slice(mem, &hb[..], opts),
         }
     }
 
@@ -389,18 +355,18 @@ impl ClCommandQueue {
         ClEvent::new(event)
     }
 
-    pub unsafe fn read_buffer<'a, T: ClNumber, H: Into<MutHostBuffer<'a, T>>>(
+    pub unsafe fn read_buffer<'a, T: ClNumber, H: Into<MutVecOrSlice<'a, T>>>(
         &mut self,
         mem: &ClMem<T>,
         host_buffer: H,
         opts: Option<CommandQueueOptions>,
     ) -> Output<BufferReadEvent<T>> {
         match host_buffer.into() {
-            MutHostBuffer::Slice(slc) => {
+            MutVecOrSlice::Slice(slc) => {
                 let event = self.read_buffer_into_slice(mem, slc, opts)?;
                 Ok(BufferReadEvent::new(event, None))
             }
-            MutHostBuffer::Vec(mut hb) => {
+            MutVecOrSlice::Vec(mut hb) => {
                 let event = self.read_buffer_into_slice(mem, &mut hb[..], opts)?;
                 Ok(BufferReadEvent::new(event, Some(hb)))
             }
@@ -452,7 +418,10 @@ unsafe impl CommandQueuePtr for ClCommandQueue {
 
 impl Drop for ClCommandQueue {
     fn drop(&mut self) {
-        unsafe { release_command_queue(self.object) };
+        unsafe {
+            cl_finish(self.object).unwrap();
+            release_command_queue(self.object)
+        };
     }
 }
 

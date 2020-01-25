@@ -1,3 +1,8 @@
+/// I am not sure a core event should be exposed. It is very unsafe to
+/// allow a dependent datastructure, like Event, possible wander away from
+/// the safety of it's session.. will investigate. For now it stays
+/// Commented out for now....
+/// 
 
 // // use crate::ffi::{
 // //     // cl_command_queue,

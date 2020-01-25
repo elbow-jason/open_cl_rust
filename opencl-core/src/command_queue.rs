@@ -2,10 +2,12 @@ use std::fmt;
 use std::mem::ManuallyDrop;
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
-use crate::{Buffer, Context, Device, Kernel};
-// use crate::traits::Upcast;
+use crate::{
+    Buffer, ClNumber, CommandQueueOptions, CommandQueueProperties, Context, Device, Kernel, Output,
+    Waitlist, Work,
+};
 
-use crate::ll::*;
+use crate::ll::{ClCommandQueue, ClContext, ClDeviceID, CommandQueuePtr, ContextPtr, DevicePtr};
 
 pub trait CommandQueueLock<P>
 where

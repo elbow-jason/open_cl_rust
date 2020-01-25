@@ -33,9 +33,6 @@ pub use opencl_low_level as ll;
 
 extern crate num;
 
-pub mod error;
-pub mod traits;
-
 pub mod buffer;
 pub mod command_queue;
 pub mod context;
@@ -43,8 +40,7 @@ pub mod device;
 pub mod kernel;
 pub mod platform;
 pub mod program;
-
-// pub mod session;
+pub mod session;
 
 pub use buffer::Buffer;
 pub use command_queue::CommandQueue;
@@ -54,13 +50,7 @@ pub use kernel::Kernel;
 pub use platform::Platform;
 pub use program::{Program, UnbuiltProgram};
 
-// pub use command_queue::CommandQueue;
-// pub use device_mem::DeviceMem;
-// pub use event::Event;
-
-// pub use session::Session;
-
-// pub use utils::status_code::StatusCode;
-// pub use utils::work::Work;
-// pub use utils::Dims;
-// pub use utils::Volumetric;
+pub use ll::{
+    BufferCreator, ClNumber, CommandQueueOptions, CommandQueueProperties, DeviceType, Error,
+    HostAccess, KernelAccess, MemLocation, Output, VecOrSlice, Waitlist, Work,
+};

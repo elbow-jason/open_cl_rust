@@ -13,6 +13,9 @@ pub struct Kernel {
     _unconstructable: (),
 }
 
+unsafe impl Send for Kernel {}
+unsafe impl Sync for Kernel {}
+
 impl Drop for Kernel {
     fn drop(&mut self) {
         unsafe {

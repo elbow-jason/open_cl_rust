@@ -2,9 +2,10 @@ extern crate opencl_core;
 
 use std::fmt;
 
-use opencl_core::ll::{DevicePtr, HostAccess, KernelAccess, MemLocation, ProgramPtr, Work};
+use opencl_core::ll::{DevicePtr, ProgramPtr,};
 use opencl_core::{
     Buffer, CommandQueue, Context, Device, Kernel, Platform, Program, UnbuiltProgram,
+    HostAccess, KernelAccess, MemLocation,  Work
 };
 
 fn main() {
@@ -32,7 +33,7 @@ fn run_procedural() {
     let unbuilt_program: UnbuiltProgram =
         UnbuiltProgram::create_with_source(&context, src).unwrap();
 
-    let names = devices.iter().map(|d| d.name().unwrap());
+    let names = devices.iter().map(|d| d.low_level_device().name().unwrap());
     println!("building program on devices {:?}...", names);
 
     let program: Program = unbuilt_program
@@ -41,7 +42,7 @@ fn run_procedural() {
 
     for device in devices[0..1].iter() {
         let program2 = (&program).clone();
-        let r_count = program2.reference_count().unwrap();
+        let r_count = program2.low_level_program().reference_count().unwrap();
         let prog_log = program2.low_level_program().get_log(device).unwrap();
         let prog_src = program2.low_level_program().source().unwrap();
         println!("Program log {:?} {:?}, {:?}", r_count, prog_log, prog_src);
