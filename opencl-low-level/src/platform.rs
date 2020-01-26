@@ -20,20 +20,29 @@ lazy_static! {
     static ref PLATFORM_ACCESS: Mutex<()> = Mutex::new(());
 }
 
-pub unsafe fn cl_get_platform_ids() -> Output<ClPointer<cl_platform_id>> {
+
+/// Gets the cl_platform_ids of the host machine
+pub fn cl_get_platform_ids() -> Output<ClPointer<cl_platform_id>> {
     let platform_lock = PLATFORM_ACCESS.lock();
     // transactional access to the platform Mutex requires one lock.
     let mut num_platforms: cl_uint = 0;
-    let e1 = clGetPlatformIDs(0, std::ptr::null_mut(), &mut num_platforms);
+    let e1 = unsafe { clGetPlatformIDs(0, std::ptr::null_mut(), &mut num_platforms) };
     let mut ids: Vec<cl_platform_id> =
         utils::vec_filled_with(0 as cl_platform_id, num_platforms as usize);
     build_output((), e1)?;
-    let e2 = clGetPlatformIDs(num_platforms, ids.as_mut_ptr(), &mut num_platforms);
+    let e2 = unsafe { clGetPlatformIDs(num_platforms, ids.as_mut_ptr(), &mut num_platforms) };
     build_output((), e2)?;
     std::mem::drop(platform_lock);
-    Ok(ClPointer::from_vec(ids))
+    Ok(unsafe { ClPointer::from_vec(ids) })
 }
 
+/// Gets platform info for a given cl_platform_id and the given cl_platform_info flag via the
+/// OpenCL FFI call to clGetPlatformInfo.alloc
+/// 
+/// # Safety
+/// Use of an invalid cl_platform_id is undefined behavior. A mismatch between the
+/// types that the info flag is supposed to result in and the T of the Output<ClPointer<T>> is
+/// undefined behavior. Be careful. There be dragons.
 pub unsafe fn cl_get_platform_info<T: Copy>(
     platform: cl_platform_id,
     info_flag: cl_platform_info,
