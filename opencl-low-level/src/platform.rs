@@ -175,9 +175,11 @@ mod tests {
 
     #[test]
     fn test_cl_get_platforms() {
-        let cl_pointer: ClPointer<cl_platform_id> = unsafe {
-            cl_get_platform_ids().unwrap_or_else(|e| panic!("cl_get_platforms failed with {:?}", e))
-        };
+        let cl_pointer: ClPointer<cl_platform_id> = cl_get_platform_ids()
+            .unwrap_or_else(|e| {
+                panic!("cl_get_platforms failed with {:?}", e)
+            });
+        
         let platforms: Vec<cl_platform_id> = unsafe { cl_pointer.into_vec() };
         assert!(platforms.len() > 0);
 
