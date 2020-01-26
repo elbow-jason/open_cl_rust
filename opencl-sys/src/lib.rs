@@ -13,5 +13,4 @@ extern "C" {}
 #[cfg(target_os = "macos")]
 extern "C" {}
 
-
 include!("../bindgen/opencl_bindings.rs");

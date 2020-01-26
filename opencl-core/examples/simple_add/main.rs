@@ -2,87 +2,129 @@ extern crate opencl_core;
 
 use std::fmt;
 
-use opencl_core::*;
+use opencl_core::ll::{DevicePtr, ProgramPtr,};
+use opencl_core::{
+    Buffer, CommandQueue, Context, Device, Kernel, Platform, Program, UnbuiltProgram,
+    HostAccess, KernelAccess, MemLocation,  Work
+};
 
 fn main() {
-    match run() {
-        Ok(_) => (),
-        Err(e) => panic!("Example simple_add.rs failed: {:?}", e),
-    }
+    run_procedural()
 }
 
-fn run() -> Result<(), Error> {
-    let src: &str = include_str!("program.ocl");
-    let mut platforms = Platform::all()?;
+fn run_procedural() {
+    let src = include_str!("simple_add.ocl");
+
+    let mut platforms = Platform::list_all().unwrap();
 
     if platforms.len() == 0 {
         panic!("No platforms found!!!");
     }
 
     let platform = platforms.remove(0);
-    let mut devices = platform.all_devices()?;
+    let devices = Device::list_all_devices(&platform).unwrap();
 
     if devices.len() == 0 {
         panic!("No devices found!!!");
     }
-    let device = devices.remove(0);
-    let context = Context::create(&[&device])?;
-
-    let command_queue: CommandQueue = CommandQueue::create(&context, &device, None)?;
-    let name = device.name()?;
+    let context = Context::create(&devices[..]).unwrap();
 
     println!("creating program...");
-    let unbuilt_program: UnbuiltProgram = UnbuiltProgram::create_with_source(&context, src)?;
+    let unbuilt_program: UnbuiltProgram =
+        UnbuiltProgram::create_with_source(&context, src).unwrap();
 
-    println!("building program on device {}...", name);
-    let mut programs: Vec<Program> = unbuilt_program.build(&[device])?;
-    assert_eq!(programs.len(), 1);
-    let program = programs.remove(0);
+    let names = devices.iter().map(|d| d.low_level_device().name().unwrap());
+    println!("building program on devices {:?}...", names);
 
-    let vec_a = vec![1isize, 2, 3];
-    let vec_b = vec![0isize, -1, -2];
+    let program: Program = unbuilt_program
+        .build(&devices[..])
+        .unwrap_or_else(|e| panic!("Failed to build program {:?}", e));
 
-    let len = vec_a.len();
+    for device in devices[0..1].iter() {
+        let program2 = (&program).clone();
+        let r_count = program2.low_level_program().reference_count().unwrap();
+        let prog_log = program2.low_level_program().get_log(device).unwrap();
+        let prog_src = program2.low_level_program().source().unwrap();
+        println!("Program log {:?} {:?}, {:?}", r_count, prog_log, prog_src);
+        println!("Device {:?}", device);
 
-    let work: Work = Work::new(len);
+        let command_queue: CommandQueue = CommandQueue::create(&context, device, None).unwrap();
 
-    println!("{}", name);
+        let vec_a = vec![1isize, 2, 3];
+        let vec_b = vec![0isize, -1, -2];
 
-    let mem_a = DeviceMem::create_read_write(&context, len)?;
-    let mem_b = DeviceMem::create_read_write(&context, len)?;
-    let mem_c = DeviceMem::create_read_write(&context, len)?;
-    println!("fetching_kernel simple_add");
-    let simple_add = Kernel::create(&program, "simple_add")?;
+        let len = vec_a.len();
 
-    println!("writing buffer a...");
-    let _write_event_a = command_queue.write_buffer(&mem_a, &vec_a)?;
+        let work: Work = Work::new(len);
+        let name = device.name().unwrap();
+        println!("{}", name);
 
-    println!("writing buffer b...");
-    let _write_event_b = command_queue.write_buffer(&mem_b, &vec_b)?;
+        let mem_a = Buffer::create(
+            &context,
+            len,
+            HostAccess::WriteOnly,
+            KernelAccess::ReadOnly,
+            MemLocation::AllocOnDevice,
+        )
+        .unwrap();
+        let mem_b = Buffer::create(
+            &context,
+            len,
+            HostAccess::WriteOnly,
+            KernelAccess::ReadOnly,
+            MemLocation::AllocOnDevice,
+        )
+        .unwrap();
+        let mem_c = Buffer::create(
+            &context,
+            len,
+            HostAccess::ReadOnly,
+            KernelAccess::WriteOnly,
+            MemLocation::AllocOnDevice,
+        )
+        .unwrap();
+        println!("Creating kernel simple_add");
+        let simple_add = Kernel::create(&program2, "simple_add").unwrap();
 
-    println!("mem_a {:?}", mem_a);
+        println!("writing buffer a...");
+        let _write_event_a = command_queue.write_buffer(&mem_a, &vec_a, None).unwrap();
 
-    println!("setting simple_add arg 0 as mem_a");
-    simple_add.set_arg(0, &mem_a)?;
+        println!("writing buffer b...");
+        let _write_event_b = command_queue.write_buffer(&mem_b, &vec_b, None).unwrap();
 
-    println!("setting simple_add arg 1 as mem_b");
-    simple_add.set_arg(1, &mem_b)?;
+        println!("mem_a {:?}", mem_a);
 
-    println!("setting simple_add mut arg 2 as mem_c");
-    simple_add.set_arg(2, &mem_c)?;
+        let mut lock_a = mem_a.write_lock();
+        println!("setting simple_add arg 0 as mem_a");
+        simple_add.set_arg(0, &mut *lock_a).unwrap();
 
-    println!("calling sync_enqueue_kernel on simple_add");
-    let _exec_event = command_queue.sync_enqueue_kernel(&simple_add, &work)?;
+        let mut lock_b = mem_b.write_lock();
+        println!("setting simple_add arg 1 as mem_b");
+        simple_add.set_arg(1, &mut *lock_b).unwrap();
 
-    println!("done putting event into WaitList...");
-    let mut vec_c: Vec<isize> = vec![0; len];
+        let mut lock_c = mem_c.write_lock();
+        println!("setting simple_add mut arg 2 as mem_c");
+        simple_add.set_arg(2, &mut *lock_c).unwrap();
 
-    let _read_event = command_queue.read_buffer(&mem_c, &mut vec_c)?;
+        println!("calling enqueue_kernel on simple_add");
+        let () = command_queue
+            .enqueue_kernel(simple_add, &work, None)
+            .unwrap();
 
-    println!("  {}", string_from_slice(&vec_a[..]));
-    println!("+ {}", string_from_slice(&vec_b[..]));
-    println!("= {}", string_from_slice(&vec_c[..]));
-    Ok(())
+        println!("Dropping locks...");
+        std::mem::drop(lock_a);
+        std::mem::drop(lock_b);
+        std::mem::drop(lock_c);
+
+        println!("done putting event into WaitList...");
+        let mut vec_c: Vec<isize> = vec![0; len];
+
+        let _read_event = command_queue.read_buffer(&mem_c, &mut vec_c, None).unwrap();
+
+        println!("  {}", string_from_slice(&vec_a[..]));
+        println!("+ {}", string_from_slice(&vec_b[..]));
+        println!("= {}", string_from_slice(&vec_c[..]));
+    }
 }
 
 fn string_from_slice<T: fmt::Display>(slice: &[T]) -> String {

@@ -9,6 +9,7 @@ name = "opencl_core"
 
 [dependencies]
 opencl-sys = { version = "0.1.0", path = "../opencl-sys" }
+opencl-low-level = { version = "0.1.0", path = "../opencl-low-level" }
 paste = "0.1.6"
 libc = "0.2.65"
 # log = "0.4.8"

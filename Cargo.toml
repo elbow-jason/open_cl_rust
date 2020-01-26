@@ -1,5 +1,6 @@
 [workspace]
 members = [
     "opencl-core",
+    "opencl-low-level",
     "opencl-sys"
 ]
