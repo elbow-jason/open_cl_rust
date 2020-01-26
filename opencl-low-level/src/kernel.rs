@@ -173,6 +173,11 @@ impl ClKernel {
         cl_create_kernel(program.program_ptr(), name).and_then(|object| ClKernel::new(object))
     }
 
+
+    /// Set adds and arg to a kernel at a given index.
+    /// 
+    /// # Safety
+    /// Calling this function on invalid kernel or with invalid `arg` is undefined behavior.
     pub unsafe fn set_arg<T: KernelArg>(&mut self, arg_index: usize, arg: &mut T) -> Output<()> {
         cl_set_kernel_arg(self.kernel_ptr(), arg_index, arg)
     }
