@@ -37,6 +37,12 @@ impl Context {
         &*self.inner
     }
 
+    pub fn from_low_level_context(ll_context: &ClContext) -> Output<Context> {
+        let ll_devices = unsafe { ll_context.devices() }?;
+        let devices: Vec<Device> = ll_devices.into_iter().map(|d| Device::new(d)).collect();
+        Ok(Context::build(ll_context.clone(), devices))
+    }
+
     pub fn create<'a, D: Into<VecOrSlice<'a, Device>>>(devices: D) -> Output<Context> {
         let devices = devices.into();
         let device_ptrs: Vec<cl_device_id> =

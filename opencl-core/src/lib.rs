@@ -54,5 +54,6 @@ pub use session::{Session};
 
 pub use ll::{
     BufferCreator, ClNumber, CommandQueueOptions, CommandQueueProperties, DeviceType, Error,
-    HostAccess, KernelAccess, MemLocation, Output, VecOrSlice, Waitlist, Work,
+    HostAccess, KernelAccess, MemLocation, Output, Waitlist, Work,
+    MemConfig, MutVecOrSlice, VecOrSlice, 
 };

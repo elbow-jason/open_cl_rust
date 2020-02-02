@@ -2,7 +2,8 @@ use std::fmt;
 use std::fmt::Debug;
 use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
-use crate::ll::{ClMem, MemFlags, MemPtr};
+use crate::ll::{ClMem, MemFlags, MemPtr, ClContext};
+
 use crate::{BufferCreator, ClNumber, Context, HostAccess, KernelAccess, MemLocation, Output};
 
 pub struct Buffer<T: ClNumber> {
@@ -54,6 +55,24 @@ impl<T: ClNumber> Buffer<T> {
         Ok(Buffer::new(ll_mem, context.clone()))
     }
 
+    pub fn create_from_low_level_context<B: BufferCreator<T>>(
+        ll_context: &ClContext,
+        creator: B,
+        host_access: HostAccess,
+        kernel_access: KernelAccess,
+        mem_location: MemLocation,
+    ) -> Output<Buffer<T>> {
+        let ll_mem = ClMem::create(
+            ll_context,
+            creator,
+            host_access,
+            kernel_access,
+            mem_location,
+        )?;
+        let context = Context::from_low_level_context(ll_context)?;
+        Ok(Buffer::new(ll_mem, context))
+    }
+
     pub fn read_lock(&self) -> RwLockReadGuard<ClMem<T>> {
         self.inner.read().unwrap()
     }
@@ -72,6 +91,18 @@ impl<T: ClNumber> Buffer<T> {
 
     pub fn size(&self) -> Output<usize> {
         unsafe { self.read_lock().size() }
+    }
+
+    /// A non-panicking version of len.
+    pub fn length(&self) -> Output<usize> {
+        let size = unsafe { self.read_lock().size() }?;
+        Ok(size / std::mem::size_of::<T>())
+    }
+
+    /// A method for getting the len of the device memory buffer.
+    /// Panics if the buffer size info returns an error.
+    pub fn len(&self) -> usize {
+        self.length().unwrap()
     }
 
     pub fn offset(&self) -> Output<usize> {

@@ -16,6 +16,7 @@ pub enum WorkError {
 const INVALID_WORK_SIZE: Error = Error::WorkError(WorkError::InvalidWorkSize);
 
 /// WorkSize is the general, non-zero sized 3D array.
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct NonZeroVolume3DArray([usize; 3]);
 
 impl NonZeroVolume3DArray {
@@ -38,6 +39,7 @@ impl NonZeroVolume3DArray {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct GlobalWorkSize(NonZeroVolume3DArray);
 
 impl GlobalWorkSize {
@@ -51,6 +53,7 @@ impl GlobalWorkSize {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum LocalWorkSize {
     WorkSize(NonZeroVolume3DArray),
     Null,
@@ -70,6 +73,7 @@ impl LocalWorkSize {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum GlobalWorkOffset {
     Offset([usize; 3]),
     Null,

@@ -179,9 +179,9 @@ impl CommandQueue {
         opts: Option<CommandQueueOptions>,
     ) -> Output<()> {
         unsafe {
-            let kernel_lock = kernel.write_lock();
+            let mut kernel_lock = kernel.write_lock();
             let mut qlock = self.write_lock();
-            let event = qlock.enqueue_kernel(&*kernel_lock, work, opts)?;
+            let event = qlock.enqueue_kernel(&mut (*kernel_lock), work, opts)?;
             event.wait()
         }
     }

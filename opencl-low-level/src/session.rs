@@ -18,6 +18,7 @@ unsafe fn take_manually_drop<T>(slot: &mut ManuallyDrop<T>) -> T {
 /// Session is the structure that is responsible for Dropping
 /// Low-Level OpenCL pointer wrappers in the correct order. Dropping OpenCL
 /// pointers in the wrong order can lead to undefined behavior.
+#[derive(Debug)]
 pub struct Session {
     devices: ManuallyDrop<Vec<ClDeviceID>>,
     context: ManuallyDrop<ClContext>,
@@ -33,7 +34,8 @@ impl Session {
         unsafe {            
             let devices = devices.into();
             let context = ClContext::create(devices.as_slice())?;
-            let program = ClProgram::create_with_source(&context, src)?;
+            let mut program = ClProgram::create_with_source(&context, src)?;
+            program.build(devices.as_slice())?;
             let props = CommandQueueProperties::default();
             let maybe_queues: Result<Vec<ClCommandQueue>, Error> = devices
                 .iter()
@@ -230,9 +232,14 @@ impl Session {
 /// required, the Session of opencl_core is Sync by synchronizing mutations of it's
 /// objects via RwLocks.
 unsafe impl Send for Session {}
-
-
 // unsafe impl Sync for Session {}
+
+// impl fmt::Debug for Session {
+//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//         write!(f, "Session{{{:?}}}", self.address())
+//     }
+// }
+
 
 // preserve the ordering of these fields
 // The drop order must be:

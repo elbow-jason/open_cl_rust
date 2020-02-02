@@ -107,7 +107,7 @@ fn run_procedural() {
 
             println!("calling enqueue_kernel on simple_add");
             let event = command_queue
-                .enqueue_kernel(&simple_add, &work, None)
+                .enqueue_kernel(&mut simple_add, &work, None)
                 .unwrap();
             let () = event.wait().unwrap();
             println!("done putting event into WaitList...");

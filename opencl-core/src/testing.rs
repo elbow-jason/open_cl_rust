@@ -6,6 +6,12 @@ pub fn src_buffer_plus_one() -> &'static str {
     "__kernel void test(__global int *i) { *i += 1; }"
 }
 
+pub fn get_session(src: &str) -> Session {
+    Session::create(src).unwrap_or_else(|e| {
+        panic!("Failed to create session: {:?}", e);
+    })
+}
+
 pub fn get_platforms() -> Vec<Platform> {
     Platform::list_all().unwrap()
 }

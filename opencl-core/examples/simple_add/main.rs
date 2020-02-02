@@ -96,15 +96,15 @@ fn run_procedural() {
 
         let mut lock_a = mem_a.write_lock();
         println!("setting simple_add arg 0 as mem_a");
-        simple_add.set_arg(0, &mut *lock_a).unwrap();
+        unsafe { simple_add.set_arg(0, &mut *lock_a).unwrap() };
 
         let mut lock_b = mem_b.write_lock();
         println!("setting simple_add arg 1 as mem_b");
-        simple_add.set_arg(1, &mut *lock_b).unwrap();
+        unsafe { simple_add.set_arg(1, &mut *lock_b).unwrap() };
 
         let mut lock_c = mem_c.write_lock();
         println!("setting simple_add mut arg 2 as mem_c");
-        simple_add.set_arg(2, &mut *lock_c).unwrap();
+        unsafe { simple_add.set_arg(2, &mut *lock_c).unwrap() };
 
         println!("calling enqueue_kernel on simple_add");
         let () = command_queue

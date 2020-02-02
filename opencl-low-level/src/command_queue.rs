@@ -123,7 +123,17 @@ pub unsafe fn cl_enqueue_nd_range_kernel<W: Waitlist>(
 
     let gws: GlobalWorkSize = work.global_work_size()?;
     let lws: LocalWorkSize = work.local_work_size()?;
-
+    println!("ND KERNEL RANGE
+    work_dims: {:?}
+    global_work_offset: {:?}
+    global_work_size: {:?}
+    local_work_size: {:?}
+    ",
+    work.work_dims(),
+    work.global_work_offset(),
+    gws,
+    lws,
+    );
     let err_code = clEnqueueNDRangeKernel(
         queue,
         kernel,
@@ -391,7 +401,7 @@ impl ClCommandQueue {
 
     pub unsafe fn enqueue_kernel(
         &mut self,
-        kernel: &ClKernel,
+        kernel: &mut ClKernel,
         work: &Work,
         opts: Option<CommandQueueOptions>,
     ) -> Output<ClEvent> {
