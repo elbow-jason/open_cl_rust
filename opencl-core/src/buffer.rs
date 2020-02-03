@@ -2,7 +2,7 @@ use std::fmt;
 use std::fmt::Debug;
 use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
-use crate::ll::{ClMem, MemFlags, MemPtr, ClContext};
+use crate::ll::{ClContext, ClMem, MemFlags, MemPtr};
 
 use crate::{BufferCreator, ClNumber, Context, HostAccess, KernelAccess, MemLocation, Output};
 

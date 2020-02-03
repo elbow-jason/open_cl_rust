@@ -31,7 +31,7 @@ impl Session {
     where
         D: Into<VecOrSlice<'a, ClDeviceID>>,
     {
-        unsafe {            
+        unsafe {
             let devices = devices.into();
             let context = ClContext::create(devices.as_slice())?;
             let mut program = ClProgram::create_with_source(&context, src)?;
@@ -41,7 +41,7 @@ impl Session {
                 .iter()
                 .map(|dev| ClCommandQueue::create(&context, dev, Some(props)))
                 .collect();
-            
+
             let queues = maybe_queues?;
 
             let sess = Session {
@@ -56,7 +56,7 @@ impl Session {
 
     /// Given a string slice of OpenCL source code this function creates a session for
     /// all available platforms and devices. A Session consists of:
-    /// 
+    ///
     /// one or more devices
     /// one context (for sharing mem objects between devices)
     /// one program (build on each of the devices)
@@ -71,8 +71,8 @@ impl Session {
         Session::create_with_devices(devices, src)
     }
 
-    /// Consumes the session returning the parts as individual parts. 
-    /// 
+    /// Consumes the session returning the parts as individual parts.
+    ///
     /// # Safety
     /// Moving the components of a Session out of the Session can easily lead to
     /// undefined behavior. The Session has a carefully implemented drop that ensures
@@ -104,7 +104,6 @@ impl Session {
         &(*self.program)
     }
 
-
     /// A slice of the ClCommandQueues of this Session.
     pub fn queues(&self) -> &[ClCommandQueue] {
         &(*self.queues)[..]
@@ -124,7 +123,7 @@ impl Session {
     /// Creates a ClMem object in the given context, with the given buffer creator
     /// (either a length or some data). This function uses the BufferCreator's implementation
     /// to retrieve the appropriate MemConfig.
-    /// 
+    ///
     /// # Safety
     /// This function can cause undefined behavior if the OpenCL context object that
     /// is passed is not in a valid state (null, released, etc.)
@@ -138,7 +137,7 @@ impl Session {
 
     /// Creates a ClMem object in the given context, with the given buffer creator
     /// (either a length or some data) and a given MemConfig.
-    /// 
+    ///
     /// # Safety
     /// This function can cause undefined behavior if the OpenCL context object that
     /// is passed is not in a valid state (null, released, etc.)
@@ -160,7 +159,7 @@ impl Session {
     /// This function copies data from the host buffer into the device mem buffer. The host
     /// buffer must be a mutable slice or a vector to ensure the safety of the read_Buffer
     /// operation.
-    /// 
+    ///
     /// # Safety
     /// This function call is safe only if the ClMem object's dependencies are still valid, if the
     /// ClMem is valid, if the ClCommandQueue's dependencies are valid, if the ClCommandQueue's object
@@ -177,11 +176,10 @@ impl Session {
         queue.write_buffer(mem, host_buffer, opts)
     }
 
-
     /// This function copies data from a device mem buffer into a host buffer. The host
     /// buffer must be a mutable slice or a vector. For the moment the device mem must also
     /// be passed as mutable; I don't trust OpenCL.
-    /// 
+    ///
     /// # Safety
     /// This function call is safe only if the ClMem object's dependencies are still valid, if the
     /// ClMem is valid, if the ClCommandQueue's dependencies are valid, if the ClCommandQueue's object
@@ -197,9 +195,9 @@ impl Session {
         let queue: &mut ClCommandQueue = self.get_queue_by_index(queue_index)?;
         queue.read_buffer(mem, host_buffer, opts)
     }
-    
+
     /// This function enqueues a CLKernel into a command queue
-    /// 
+    ///
     /// # Safety
     /// If the ClKernel is not in a usable state or any of the Kernel's dependent object
     /// has been release, or the kernel belongs to a different session, or the ClKernel's
@@ -221,10 +219,34 @@ impl Session {
         )?;
         ClEvent::new(event)
     }
+
+    pub fn execute_sync_kernel_operation<T>(
+        &mut self,
+        queue_index: usize,
+        mut kernel_op: KernelOperation<T>,
+    ) -> Output<Option<KernelOpArg<T>>>
+    where
+        T: ClNumber + KernelArg,
+    {
+        unsafe {
+            let mut kernel = self.create_kernel(kernel_op.name())?;
+            let queue: &mut ClCommandQueue = self.get_queue_by_index(queue_index)?;
+            for (arg_index, arg) in kernel_op.mut_args().iter_mut().enumerate() {
+                match arg {
+                    KernelOpArg::Num(ref mut num) => kernel.set_arg(arg_index, num)?,
+                    KernelOpArg::Mem(ref mut mem) => kernel.set_arg(arg_index, mem)?,
+                }
+            }
+            let work = kernel_op.work()?;
+            let event = queue.enqueue_kernel(&mut kernel, &work, kernel_op.command_queue_opts())?;
+            event.wait()?;
+            kernel_op.return_value()
+        }
+    }
 }
 
 /// Session can be safely sent between threads.
-/// 
+///
 /// # Safety
 /// All the contained OpenCL objects Session are Send so Session is Send. However,
 /// The low level Session has ZERO Synchronization for mutable objects Program and
@@ -239,7 +261,6 @@ unsafe impl Send for Session {}
 //         write!(f, "Session{{{:?}}}", self.address())
 //     }
 // }
-
 
 // preserve the ordering of these fields
 // The drop order must be:
@@ -378,7 +399,7 @@ impl<'a> SessionBuilder<'a> {
     }
 
     /// Builds a SessionBuilder into a Session
-    /// 
+    ///
     /// # Safety
     /// This function may, in fact, be safe, mismanagement of objects and lifetimes
     /// are not possible as long as the underlying function calls are implemented
@@ -447,5 +468,49 @@ impl<'a> SessionBuilder<'a> {
             queues: ManuallyDrop::new(queues),
         };
         Ok(sess)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{BufferReadEvent, KernelOpArg, KernelOperation, Session};
+
+    const SRC: &'static str = "__kernel void test(__global int *data) {
+        data[get_global_id(0)] += 1;
+    }";
+    // use crate::ll_testing;
+    fn get_session(src: &str) -> Session {
+        Session::create(src).unwrap_or_else(|e| panic!("Failed to get_session {:?}", e))
+    }
+
+    #[test]
+    fn session_execute_sync_kernel_operation_works() {
+        let mut session = get_session(SRC);
+        let data: Vec<i32> = vec![1, 2, 3, 4, 5];
+        let dims = data.len();
+        let buff = unsafe { session.create_mem(&data[..]) }.unwrap();
+        let kernel_op = KernelOperation::new("test")
+            .with_dims(dims)
+            .add_arg(buff)
+            .returning_arg(0);
+        let data2: Option<KernelOpArg<i32>> = session
+            .execute_sync_kernel_operation(0, kernel_op)
+            .unwrap_or_else(|e| {
+                panic!("Failed to execute sync kernel operation: {:?}", e);
+            });
+        let mut mem = data2.unwrap().into_mem().unwrap();
+        let data3 = vec![0i32; 5];
+        unsafe {
+            let mut read_event: BufferReadEvent<i32> = session
+                .read_buffer(0, &mut mem, data3, None)
+                .unwrap_or_else(|e| {
+                    panic!("Failed to read buffer: {:?}", e);
+                });
+            let data4 = read_event
+                .wait()
+                .unwrap_or_else(|e| panic!("Failed to wait for read event: {:?}", e))
+                .unwrap();
+            assert_eq!(data4, vec![2, 3, 4, 5, 6]);
+        }
     }
 }

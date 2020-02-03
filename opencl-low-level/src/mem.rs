@@ -37,7 +37,7 @@ pub enum MemError {
 pub const NO_ASSOCIATED_MEM_OBJECT: Error = Error::MemError(MemError::NoAssociatedMemObject);
 
 /// Low-level helper for creating a cl_mem buffer from a context, mem flags, and a buffer creator.
-/// 
+///
 /// # Safety
 /// Use of a invalid cl_context in this function call is undefined behavior.
 pub unsafe fn cl_create_buffer_with_creator<B, T>(
@@ -53,9 +53,8 @@ where
     cl_create_buffer(context, mem_flags, buf_size, buf_ptr)
 }
 
-
 /// Low level helper functin for creating cl_mem buffer.
-/// 
+///
 /// # Safety
 /// Calling this function with an invalid context, or an incorrect size in bytes,
 /// or an invalid host pointer is undefined behavior.
@@ -79,9 +78,8 @@ where
 }
 
 pub trait BufferCreator<T: ClNumber>: Sized {
-
     /// The SizeAndPtr of a buffer creation arg.
-    /// 
+    ///
     /// Currently the only 2 types that implement BufferCreator are
     /// `usize` representiing length/size and &[T] for ClNumber T representing data.
     fn buffer_size_and_ptr(&mut self) -> SizeAndPtr<*mut c_void>;
@@ -114,15 +112,14 @@ impl<T: ClNumber> BufferCreator<T> for usize {
     }
 }
 
-
 /// The MemPtr trait gives access to the cl_mem of a wrapping object and provides
 /// functions for cl_mem info.
-/// 
+///
 /// # Safety
 /// This trait is unsafe because it allows access to an un-reference-counted raw pointer.
 pub unsafe trait MemPtr<T: ClNumber> {
     /// Returns a copy to the cl_mem of the implementor.
-    /// 
+    ///
     /// # Safety
     /// This function is unsafe because it returns an uncounted cl_mem
     /// object and gives access to a raw pointer.
@@ -136,7 +133,7 @@ pub unsafe trait MemPtr<T: ClNumber> {
     unsafe fn mem_ptr_ref(&self) -> &cl_mem;
 
     /// Returns the ClPointer of the info type of a given MemInfo flag.
-    /// 
+    ///
     /// # Safety
     /// Calling this function a mismatch between the MemInfo's expected type and T is
     /// undefined behavior.
@@ -144,9 +141,8 @@ pub unsafe trait MemPtr<T: ClNumber> {
         cl_get_mem_object_info::<I>(self.mem_ptr(), flag.into())
     }
 
-    
     /// Returns the len of the ClMem.
-    /// 
+    ///
     /// # Safety
     /// Calling this function with an invalid ClMem is invalid behavior.
     unsafe fn len(&self) -> Output<usize> {
@@ -155,7 +151,7 @@ pub unsafe trait MemPtr<T: ClNumber> {
     }
 
     /// Determines if ClMem is empty or not.
-    /// 
+    ///
     /// # Safety
     /// Calling this function with an invalid ClMem is invalid behavior.
     unsafe fn is_empty(&self) -> Output<bool> {
@@ -184,8 +180,8 @@ pub unsafe trait MemPtr<T: ClNumber> {
     //     }
     // }
 
-    /// Returns the associated_memobject of the ClMem. 
-    /// 
+    /// Returns the associated_memobject of the ClMem.
+    ///
     /// # Safety
     /// associated_memobject is unsafe because this method grants access to a
     /// cl_mem object that already exists as an owned cl_mem object. Without
@@ -204,8 +200,8 @@ pub unsafe trait MemPtr<T: ClNumber> {
             })
     }
 
-    /// Returns the ClContext of the ClMem. 
-    /// 
+    /// Returns the ClContext of the ClMem.
+    ///
     /// # Safety
     /// Calling this function with an invalid ClMem is invalid behavior.
     unsafe fn context(&self) -> Output<ClContext> {
@@ -214,7 +210,7 @@ pub unsafe trait MemPtr<T: ClNumber> {
     }
 
     /// Returns the reference count info for the ClMem.
-    /// 
+    ///
     /// # Safety
     /// Calling this function with an invalid ClMem is invalid behavior.
     unsafe fn reference_count(&self) -> Output<u32> {
@@ -223,7 +219,7 @@ pub unsafe trait MemPtr<T: ClNumber> {
     }
 
     /// Returns the size info for the ClMem.
-    /// 
+    ///
     /// # Safety
     /// Calling this function with an invalid ClMem is invalid behavior.
     unsafe fn size(&self) -> Output<usize> {
@@ -231,7 +227,7 @@ pub unsafe trait MemPtr<T: ClNumber> {
     }
 
     /// Returns the offset info for the ClMem.
-    /// 
+    ///
     /// # Safety
     /// Calling this function with an invalid ClMem is invalid behavior.
     unsafe fn offset(&self) -> Output<usize> {
@@ -239,7 +235,7 @@ pub unsafe trait MemPtr<T: ClNumber> {
     }
 
     /// Returns the MemFlag info for the ClMem.
-    /// 
+    ///
     /// # Safety
     /// Calling this function with an invalid ClMem is invalid behavior.
     unsafe fn flags(&self) -> Output<MemFlags> {
@@ -293,12 +289,12 @@ impl<T: ClNumber> ClMem<T> {
             Ok(ClMem::new(mem_object))
         }
     }
-    
+
     /// Created a device memory buffer given the context, the buffer creator and some config.
     /// There are some buffer creators that are not valid for some MemConfigs. However, a
     /// mismatch of type and configuration between a buffer creator and the MemConfig will,
     /// at worst, result in this function call returning an error.
-    /// 
+    ///
     /// # Safety
     /// Using an invalid context in this function call is undefined behavior.
     pub unsafe fn create_with_config<B>(
@@ -317,7 +313,6 @@ impl<T: ClNumber> ClMem<T> {
         Ok(ClMem::new(mem_object))
     }
 }
-
 
 unsafe impl<T: ClNumber> MemPtr<T> for ClMem<T> {
     unsafe fn mem_ptr(&self) -> cl_mem {

@@ -3,7 +3,7 @@ use std::mem::ManuallyDrop;
 
 use crate::ffi::cl_program;
 
-use crate::ll::{ClContext, ClProgram, ProgramPtr, ContextPtr};
+use crate::ll::{ClContext, ClProgram, ContextPtr, ProgramPtr};
 use crate::{Context, Device, Output};
 
 // pub const DEVICE_LIST_CANNOT_BE_EMPTY: Error = Error::ProgramError(ProgramError::CannotBuildProgramWithEmptyDevicesList);
@@ -68,7 +68,10 @@ impl UnbuiltProgram {
     pub fn create_with_source(context: &Context, src: &str) -> Output<UnbuiltProgram> {
         unsafe {
             let ll_prog = ClProgram::create_with_source(context.low_level_context(), src)?;
-            Ok(UnbuiltProgram::new(ll_prog, context.low_level_context().clone()))
+            Ok(UnbuiltProgram::new(
+                ll_prog,
+                context.low_level_context().clone(),
+            ))
         }
     }
 
@@ -83,7 +86,10 @@ impl UnbuiltProgram {
                 device.low_level_device(),
                 binary,
             )?;
-            Ok(UnbuiltProgram::new(ll_prog, context.low_level_context().clone()))
+            Ok(UnbuiltProgram::new(
+                ll_prog,
+                context.low_level_context().clone(),
+            ))
         }
     }
 
@@ -100,7 +106,7 @@ impl UnbuiltProgram {
                 .into_iter()
                 .map(|d| Device::new(d))
                 .collect();
-        
+
             let ll_program = ClProgram::new(program_ptr)?;
             let ll_context = ClContext::new(context_ptr)?;
             let hl_context = Context::build(ll_context, context_devices2);

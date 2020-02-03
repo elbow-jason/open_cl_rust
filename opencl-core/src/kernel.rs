@@ -50,7 +50,10 @@ impl Kernel {
         Ok(unsafe { Kernel::new(ll_kernel, program.clone()) })
     }
 
-    pub unsafe fn set_arg<T>(&self, arg_index: usize, arg: &mut T) -> Output<()> where T: KernelArg + Debug {
+    pub unsafe fn set_arg<T>(&self, arg_index: usize, arg: &mut T) -> Output<()>
+    where
+        T: KernelArg + Debug,
+    {
         self.write_lock().set_arg(arg_index, arg)
     }
 

@@ -20,7 +20,6 @@ lazy_static! {
     static ref PLATFORM_ACCESS: Mutex<()> = Mutex::new(());
 }
 
-
 /// Gets the cl_platform_ids of the host machine
 pub fn cl_get_platform_ids() -> Output<ClPointer<cl_platform_id>> {
     let platform_lock = PLATFORM_ACCESS.lock();
@@ -38,7 +37,7 @@ pub fn cl_get_platform_ids() -> Output<ClPointer<cl_platform_id>> {
 
 /// Gets platform info for a given cl_platform_id and the given cl_platform_info flag via the
 /// OpenCL FFI call to clGetPlatformInfo.alloc
-/// 
+///
 /// # Safety
 /// Use of an invalid cl_platform_id is undefined behavior. A mismatch between the
 /// types that the info flag is supposed to result in and the T of the Output<ClPointer<T>> is
@@ -176,10 +175,8 @@ mod tests {
     #[test]
     fn test_cl_get_platforms() {
         let cl_pointer: ClPointer<cl_platform_id> = cl_get_platform_ids()
-            .unwrap_or_else(|e| {
-                panic!("cl_get_platforms failed with {:?}", e)
-            });
-        
+            .unwrap_or_else(|e| panic!("cl_get_platforms failed with {:?}", e));
+
         let platforms: Vec<cl_platform_id> = unsafe { cl_pointer.into_vec() };
         assert!(platforms.len() > 0);
 

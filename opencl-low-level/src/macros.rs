@@ -19,7 +19,7 @@ macro_rules! __release_retain {
 
 
             /// This function is used to "Drop" the associated OpenCL ARC object.
-            /// 
+            ///
             /// # Safety
             /// This function atomically decrements the OpenCL reference count. Mismanagement
             /// of an object's OpenCL ARC can lead to undefined behavior.
@@ -32,7 +32,7 @@ macro_rules! __release_retain {
             /// This function is used to increase the atomic reference count of the associated
             /// OpenCL ARC object. This function should only be used when the OpenCL interface
             /// returns a ARC object that is not reference counted by OpenCL (yes, OpenCL let's you do that...)
-            /// 
+            ///
             /// # Safety
             /// This function atomically decrements the OpenCL reference count. Mismanagement
             /// of an object's OpenCL ARC can lead to undefined behavior.

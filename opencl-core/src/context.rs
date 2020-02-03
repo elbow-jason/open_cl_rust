@@ -3,9 +3,7 @@ use std::iter::Iterator;
 use std::mem::ManuallyDrop;
 
 use crate::ffi::cl_device_id;
-use crate::ll::{
-    ClContext, ContextProperties, VecOrSlice, ContextPtr, DevicePtr, ClDeviceID,
-};
+use crate::ll::{ClContext, ClDeviceID, ContextProperties, ContextPtr, DevicePtr, VecOrSlice};
 
 use crate::{Device, Output};
 
@@ -19,7 +17,10 @@ impl Context {
     // Context::build is safe because all objects should be reference counted
     // and their wrapping structs should be droppable. If there is a memory
     // error from opencl it will not be caused by Context::build.
-    pub fn build<'a, D>(obj: ClContext, devices: D) -> Context where D: Into<VecOrSlice<'a, Device>> {
+    pub fn build<'a, D>(obj: ClContext, devices: D) -> Context
+    where
+        D: Into<VecOrSlice<'a, Device>>,
+    {
         let devices = devices.into();
         let ll_devices = devices
             .as_slice()

@@ -2,10 +2,10 @@ extern crate opencl_core;
 
 use std::fmt;
 
-use opencl_core::ll::{DevicePtr, ProgramPtr,};
+use opencl_core::ll::{DevicePtr, ProgramPtr};
 use opencl_core::{
-    Buffer, CommandQueue, Context, Device, Kernel, Platform, Program, UnbuiltProgram,
-    HostAccess, KernelAccess, MemLocation,  Work
+    Buffer, CommandQueue, Context, Device, HostAccess, Kernel, KernelAccess, MemLocation, Platform,
+    Program, UnbuiltProgram, Work,
 };
 
 fn main() {

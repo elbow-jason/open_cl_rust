@@ -16,9 +16,8 @@ pub const DEVICE_LIST_CANNOT_BE_EMPTY: Error =
 
 __release_retain!(program, Program);
 
-
 /// Low level helper function that releases a cl_program or panics.
-/// 
+///
 /// # Safety
 /// Calling this function with an invalid cl_program is undefined behavior.
 /// Calling this function decrements the OpenCL atomic reference count for
@@ -32,7 +31,7 @@ pub unsafe fn release_program(program: cl_program) {
 }
 
 /// Low level helper function that retains a cl_program or panics.
-/// 
+///
 /// # Safety
 /// Calling this function with an invalid cl_program is undefined behavior.
 /// Calling this function increments the OpenCL atomic reference count for
@@ -58,9 +57,8 @@ pub enum ProgramError {
     CannotBuildProgramWithEmptyDevicesList,
 }
 
-
 /// A low-level helper function for calling the OpenCL FFI function clBuildProgram.
-/// 
+///
 /// # Safety
 /// if the devices or the program are in an invalid state this function call results in
 /// undefined behavior.
@@ -78,9 +76,8 @@ pub unsafe fn cl_build_program(program: cl_program, device_ids: &[cl_device_id])
     build_output((), err_code)
 }
 
-
 /// Low level helper function for clGetProgramBuildInfo.
-/// 
+///
 /// # Safety
 /// If the program or device is in an invalid state this function call is undefined behavior.
 pub unsafe fn cl_get_program_build_log(
@@ -93,7 +90,7 @@ pub unsafe fn cl_get_program_build_log(
 }
 
 /// Low level helper function for calling the OpenCL FFI function clCreateProgramWithSource.
-/// 
+///
 /// # Safety
 /// If the context or device is in an invalid state this function will cause undefined
 /// behavior.
@@ -116,9 +113,8 @@ pub unsafe fn cl_create_program_with_source(context: cl_context, src: &str) -> O
     build_output(program, err_code)
 }
 
-
 /// Low level helper function for calling the OpenCL FFI function clCreateProgramWithBinary.
-/// 
+///
 /// # Safety
 /// If the context or device is in an invalid state this function will cause undefined
 /// behavior. WRT the clippy::cast_ptr_alignment below the dereferncing of the pointer
@@ -144,9 +140,8 @@ pub unsafe fn cl_create_program_with_binary(
     build_output(program, err_code)
 }
 
-
 /// Low level helper function for the FFI call to clGetProgramInfo
-/// 
+///
 /// # Safety
 /// Calling this function with a cl_program that is not in a valid state is
 /// undefined behavior.
@@ -165,7 +160,7 @@ pub struct ClProgram {
 
 impl ClProgram {
     /// Creates a new ClProgram on the context and device with the given OpenCL source code.
-    /// 
+    ///
     /// # Safety
     /// The provided ClContext and ClDeviceID must be in valid state or else undefined behavior is
     /// expected.
@@ -175,7 +170,7 @@ impl ClProgram {
     }
 
     /// Creates a new ClProgram on the context and device with the given executable binary.
-    /// 
+    ///
     /// # Safety
     /// The provided ClContext and ClDeviceID must be in valid state or else undefined behavior is
     /// expected.
@@ -189,7 +184,7 @@ impl ClProgram {
     }
 
     /// Returns a new ClProgram, but does not check for null pointer.
-    /// 
+    ///
     /// # Safety
     /// Due to the lack of a null pointer check this function can lead to
     /// undefined behavior; dropping the new ClProgram will attempt to release a null pointer
@@ -202,7 +197,7 @@ impl ClProgram {
     }
 
     /// Wraps a raw cl_program pointer into a ClProgram.
-    /// 
+    ///
     /// # Safety
     /// This function should only be used for cl_program pointers that are already retained
     /// (like from clCreateProgramWithSource). When a ClProgram drops "release" is called on
@@ -213,7 +208,7 @@ impl ClProgram {
     }
 
     /// Retains and wraps a raw cl_program pointer into a ClProgram.
-    /// 
+    ///
     /// # Safety
     /// This function increments the OpenCL reference count of the given cl_program.
     /// This function should only be used on cl_program objects that are obtained from the
@@ -290,13 +285,12 @@ fn get_info<T: Copy, P: ProgramPtr>(program: &P, flag: ProgramInfo) -> Output<Cl
 }
 
 /// ProgramPtr is the trait to access a cl_program for wrappers of that cl_program.
-/// 
+///
 /// # Safety
 /// Direct interaction with any OpenCL pointer is unsafe so this trait is unsafe.
 pub unsafe trait ProgramPtr: Sized {
-
     /// program_ptr is the trait to access a cl_program for wrappers of that cl_program.
-    /// 
+    ///
     /// # Safety
     /// Direct interaction with any OpenCL pointer is unsafe so this trait is unsafe.
     unsafe fn program_ptr(&self) -> cl_program;
