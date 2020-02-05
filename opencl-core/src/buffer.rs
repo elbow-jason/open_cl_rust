@@ -1,13 +1,13 @@
 use std::fmt;
 use std::fmt::Debug;
-use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::ll::{ClContext, ClMem, MemFlags, MemPtr};
 
 use crate::{BufferCreator, ClNumber, Context, HostAccess, KernelAccess, MemLocation, Output};
 
 pub struct Buffer<T: ClNumber> {
-    inner: RwLock<ClMem<T>>,
+    inner: Arc<RwLock<ClMem<T>>>,
     _context: Context,
 }
 
@@ -16,9 +16,8 @@ unsafe impl<T: ClNumber> Sync for Buffer<T> {}
 
 impl<T: ClNumber> Clone for Buffer<T> {
     fn clone(&self) -> Buffer<T> {
-        let cloned = self.read_lock().clone();
         Buffer {
-            inner: RwLock::new(cloned),
+            inner: self.inner.clone(),
             _context: self._context.clone(),
         }
     }
@@ -33,7 +32,7 @@ impl<T: ClNumber> Debug for Buffer<T> {
 impl<T: ClNumber> Buffer<T> {
     pub fn new(ll_mem: ClMem<T>, context: Context) -> Buffer<T> {
         Buffer {
-            inner: RwLock::new(ll_mem),
+            inner: Arc::new(RwLock::new(ll_mem)),
             _context: context,
         }
     }
