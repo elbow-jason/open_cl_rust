@@ -11,10 +11,6 @@ pub enum SessionError {
     QueueIndexOutOfRange(usize),
 }
 
-unsafe fn take_manually_drop<T>(slot: &mut ManuallyDrop<T>) -> T {
-    ManuallyDrop::into_inner(std::ptr::read(slot))
-}
-
 /// Session is the structure that is responsible for Dropping
 /// Low-Level OpenCL pointer wrappers in the correct order. Dropping OpenCL
 /// pointers in the wrong order can lead to undefined behavior.
@@ -81,10 +77,10 @@ impl Session {
     pub unsafe fn decompose(
         mut self,
     ) -> (Vec<ClDeviceID>, ClContext, ClProgram, Vec<ClCommandQueue>) {
-        let devices: Vec<ClDeviceID> = take_manually_drop(&mut self.devices);
-        let context: ClContext = take_manually_drop(&mut self.context);
-        let program: ClProgram = take_manually_drop(&mut self.program);
-        let queues: Vec<ClCommandQueue> = take_manually_drop(&mut self.queues);
+        let devices: Vec<ClDeviceID> = utils::take_manually_drop(&mut self.devices);
+        let context: ClContext = utils::take_manually_drop(&mut self.context);
+        let program: ClProgram = utils::take_manually_drop(&mut self.program);
+        let queues: Vec<ClCommandQueue> = utils::take_manually_drop(&mut self.queues);
         std::mem::forget(self);
         (devices, context, program, queues)
     }

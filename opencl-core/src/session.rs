@@ -1,9 +1,9 @@
 use std::mem::ManuallyDrop;
-use std::sync::RwLock;
+use std::sync::{RwLock, RwLockReadGuard};
 
 use crate::{
     Buffer, BufferCreator, CommandQueueOptions, Context, Device, DeviceType, Kernel, MemConfig,
-    MutVecOrSlice, Output, Program, VecOrSlice, Waitlist, Work,
+    MutVecOrSlice, Output, Program, VecOrSlice, Waitlist, Work
 };
 
 use crate::ll::Session as ClSession;
@@ -14,11 +14,39 @@ use crate::ll::{
 };
 
 #[derive(Debug)]
+pub struct Queues {
+    inner: Vec<RwLock<ClCommandQueue>>,
+}
+
+unsafe impl Send for Queues {}
+
+impl Queues {
+    pub fn new(queues: Vec<RwLock<ClCommandQueue>>) -> Queues {
+        Queues { inner: queues }
+    }
+
+    pub fn get(&self, index: usize) -> Output<&RwLock<ClCommandQueue>> {
+        self.inner
+            .get(index)
+            .ok_or_else(|| SessionError::QueueIndexOutOfRange(index).into())
+    }
+
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+
+    pub fn as_slice(&self) -> &[RwLock<ClCommandQueue>] {
+        &self.inner[..]
+    }
+}
+
+
+#[derive(Debug)]
 pub struct Session {
     _devices: ManuallyDrop<Vec<ClDeviceID>>,
     _program: ManuallyDrop<ClProgram>,
     _context: ManuallyDrop<ClContext>,
-    _queues: ManuallyDrop<Vec<RwLock<ClCommandQueue>>>,
+    _queues: ManuallyDrop<RwLock<Queues>>,
     _unconstructable: (),
 }
 
@@ -40,14 +68,17 @@ impl Session {
 
         // (Vec<ClDeviceID>, ClContext, ClProgram, Vec<ClCommandQueue>)
         let (devices, context, program, queues) = unsafe { ll_session.decompose() };
-        let queues_with_locks: Vec<RwLock<ClCommandQueue>> =
-            queues.into_iter().map(|q| RwLock::new(q)).collect();
+        let queues_with_locks: Vec<RwLock<ClCommandQueue>> = queues
+            .into_iter()
+            .map(|q| RwLock::new(q))
+            .collect();
+
 
         let sess = Session {
             _devices: ManuallyDrop::new(devices),
             _context: ManuallyDrop::new(context),
             _program: ManuallyDrop::new(program),
-            _queues: ManuallyDrop::new(queues_with_locks),
+            _queues: ManuallyDrop::new(RwLock::new(Queues::new(queues_with_locks))),
             _unconstructable: (),
         };
         Ok(sess)
@@ -75,6 +106,10 @@ impl Session {
             .collect()
     }
 
+    pub fn queues(&self) -> RwLockReadGuard<Queues> {
+        self._queues.read().unwrap()
+    }
+
     pub fn program(&self) -> Program {
         unsafe { Program::new((*self._program).clone(), self.context(), self.devices()) }
     }
@@ -91,16 +126,15 @@ impl Session {
         &self._program
     }
 
-    pub fn low_level_queues(&self) -> &[RwLock<ClCommandQueue>] {
-        &self._queues[..]
-    }
+    
 
     pub fn create_copy(&self) -> Output<Session> {
         let cloned_devices = self._devices.clone();
         let cloned_context = self._context.clone();
         let cloned_program = self._program.clone();
-        let mut copied_queues = Vec::with_capacity(self._queues.len());
-        for q in self._queues.iter() {
+        let queues = self._queues.read().unwrap();
+        let mut copied_queues = Vec::with_capacity(queues.len());
+        for q in queues.inner.iter() {
             let queue_copy = unsafe { q.read().unwrap().create_copy() }?;
             copied_queues.push(RwLock::new(queue_copy));
         }
@@ -108,7 +142,7 @@ impl Session {
             _devices: cloned_devices,
             _context: cloned_context,
             _program: cloned_program,
-            _queues: ManuallyDrop::new(copied_queues),
+            _queues: ManuallyDrop::new(RwLock::new(Queues::new(copied_queues))),
             _unconstructable: (),
         })
     }
@@ -140,7 +174,7 @@ impl Session {
 
     /// Creates a ClMem object in the given context, with the given buffer creator
     /// (either a length or some data) and a given MemConfig.
-    pub unsafe fn create_buffer_with_config<T: ClNumber, B: BufferCreator<T>>(
+    pub fn create_buffer_with_config<T: ClNumber, B: BufferCreator<T>>(
         &self,
         buffer_creator: B,
         mem_config: MemConfig,
@@ -154,28 +188,40 @@ impl Session {
         )
     }
 
-    #[inline]
-    fn get_queue_by_index(&mut self, index: usize) -> Output<&RwLock<ClCommandQueue>> {
-        self._queues
-            .get(index)
-            .ok_or_else(|| SessionError::QueueIndexOutOfRange(index).into())
-    }
+    // #[inline]
+    // fn get_queue_by_index(&self, index: usize) -> Output<(RwLockReadGuard<ClCommandQueue>> {
+        
+    //         .map(|rw_lock| rw_lock.read().unwrap())
+    //         .ok_or_else(|| SessionError::QueueIndexOutOfRange(index).into())
+            
+    // }
+
+    //  #[inline]
+    // fn get_queue_by_index_mut(&self, index: usize) -> Output<RwLockWriteGuard<ClCommandQueue>> {
+    //     self._queues
+    //         .read()
+    //         .unwrap()
+    //         .get(index)
+    //         .ok_or_else(|| SessionError::QueueIndexOutOfRange(index).into())
+    //         .map(|rw_lock| rw_lock.write().unwrap())
+    // }
 
     /// This function copies data from the host buffer into the device mem buffer. The host
     /// buffer must be a mutable slice or a vector to ensure the safety of the read_Buffer
     /// operation.
     pub fn sync_write_buffer<'a, T: ClNumber, H: Into<VecOrSlice<'a, T>>>(
-        &mut self,
+        &self,
         queue_index: usize,
         buffer: &Buffer<T>,
         host_buffer: H,
         opts: Option<CommandQueueOptions>,
     ) -> Output<()> {
-        let queue_locker: &RwLock<ClCommandQueue> = self.get_queue_by_index(queue_index)?;
-        let mut queue_lock = queue_locker.write().unwrap();
+        let queues: RwLockReadGuard<Queues> = self.queues();
+        let queue_locker: &RwLock<ClCommandQueue> = queues.get(queue_index)?;
+        let mut queue = queue_locker.write().unwrap();
         let mut buffer_lock = buffer.write_lock();
         unsafe {
-            let event: ClEvent = queue_lock.write_buffer(&mut (*buffer_lock), host_buffer, opts)?;
+            let event: ClEvent = queue.write_buffer(&mut (*buffer_lock), host_buffer, opts)?;
             event.wait()
         }
     }
@@ -184,18 +230,20 @@ impl Session {
     /// buffer must be a mutable slice or a vector. For the moment the device mem must also
     /// be passed as mutable; I don't trust OpenCL.
     pub fn sync_read_buffer<'a, T: ClNumber, H: Into<MutVecOrSlice<'a, T>>>(
-        &mut self,
+        &self,
         queue_index: usize,
         buffer: &Buffer<T>,
         host_buffer: H,
         opts: Option<CommandQueueOptions>,
     ) -> Output<Option<Vec<T>>> {
-        let queue_locker: &RwLock<ClCommandQueue> = self.get_queue_by_index(queue_index)?;
-        let mut queue_lock = queue_locker.write().unwrap();
+        let queues: RwLockReadGuard<Queues> = self.queues();
+        let queue_locker: &RwLock<ClCommandQueue> = queues.get(queue_index)?;
+        let mut queue = queue_locker.write().unwrap();
+        
         let buffer_lock = buffer.read_lock();
         unsafe {
             let mut event: BufferReadEvent<T> =
-                queue_lock.read_buffer(&(*buffer_lock), host_buffer, opts)?;
+                queue.read_buffer(&(*buffer_lock), host_buffer, opts)?;
             event.wait()
         }
     }
@@ -207,23 +255,24 @@ impl Session {
     /// has been release, or the kernel belongs to a different session, or the ClKernel's
     /// pointer is a null pointer, then calling this function will cause undefined behavior.
     pub fn sync_enqueue_kernel(
-        &mut self,
+        &self,
         queue_index: usize,
         kernel: &Kernel,
         work: &Work,
         opts: Option<CommandQueueOptions>,
     ) -> Output<()> {
-        let queue_locker: &RwLock<ClCommandQueue> = self.get_queue_by_index(queue_index)?;
-        let mut queue_lock = queue_locker.write().unwrap();
+        let queues: RwLockReadGuard<Queues> = self.queues();
+        let queue_locker: &RwLock<ClCommandQueue> = queues.get(queue_index)?;
+        let mut queue = queue_locker.write().unwrap();
         let mut kernel_lock = kernel.write_lock();
         unsafe {
-            let event = queue_lock.enqueue_kernel(&mut (*kernel_lock), work, opts)?;
+            let event = queue.enqueue_kernel(&mut (*kernel_lock), work, opts)?;
             event.wait()
         }
     }
 
     pub fn execute_sync_kernel_operation<T>(
-        &mut self,
+        &self,
         queue_index: usize,
         mut kernel_op: KernelOperation<T>,
     ) -> Output<Option<KernelOpArg<T>>>
@@ -240,7 +289,8 @@ impl Session {
                 }
             }
             let work = kernel_op.work()?;
-            let queue_locker: &RwLock<ClCommandQueue> = self.get_queue_by_index(queue_index)?;
+            let queues: RwLockReadGuard<Queues> = self.queues();
+            let queue_locker: &RwLock<ClCommandQueue> = queues.get(queue_index)?;
             let mut queue = queue_locker.write().unwrap();
             let mut ll_kernel = kernel.write_lock();
             let event =
@@ -255,6 +305,9 @@ impl Clone for Session {
     fn clone(&self) -> Session {
         let cloned_queues: Vec<RwLock<ClCommandQueue>> = self
             ._queues
+            .read()
+            .unwrap()
+            .inner
             .iter()
             .map(|q| RwLock::new(q.read().unwrap().clone()))
             .collect();
@@ -263,24 +316,17 @@ impl Clone for Session {
             _devices: self._devices.clone(),
             _context: self._context.clone(),
             _program: self._program.clone(),
-            _queues: ManuallyDrop::new(cloned_queues),
+            _queues: ManuallyDrop::new(RwLock::new(Queues::new(cloned_queues))),
             _unconstructable: (),
         }
     }
 }
 impl PartialEq for Session {
     fn eq(&self, other: &Self) -> bool {
-        self._queues.len() == other._queues.len()
-            && self
-                ._queues
-                .iter()
-                .zip(other._queues.iter())
-                .fold(true, |acc, (q, o)| {
-                    acc && match (q.try_read(), o.try_read()) {
-                        (Ok(l), Ok(r)) => *l == *r,
-                        _ => false,
-                    }
-                })
+        let self_queues = self.queues();
+        let other_queues = other.queues();
+        // Vecs with the same pointer are the same queues.
+        std::ptr::eq(self_queues.inner.as_ptr(), other_queues.inner.as_ptr())
     }
 }
 
@@ -346,10 +392,10 @@ mod tests {
         let session_copy = session.create_copy().unwrap_or_else(|e| {
             panic!("Failed to create_copy of session: {:?}", e);
         });
-        let zipped_queues = session
-            .low_level_queues()
-            .iter()
-            .zip(session_copy.low_level_queues());
+        let s1_queues = session.queues();
+        let s2_queues = session_copy.queues();
+
+        let zipped_queues = s1_queues.as_slice().iter().zip(s2_queues.as_slice().iter());
         for (orig, copy) in zipped_queues {
             let q_orig = orig.read().unwrap();
             let q_copy = copy.read().unwrap();
@@ -396,7 +442,7 @@ mod tests {
     #[test]
     fn session_can_write_and_read_buffer() {
         let data: Vec<i32> = vec![0, 1, 2, 3, 4, 5, 6, 7];
-        let mut session = new_session();
+        let session = new_session();
         let buffer: Buffer<i32> = session
             .create_buffer(&data[..])
             .unwrap_or_else(|e| panic!("Session failed to create buffer: {:?}", e));
@@ -421,7 +467,7 @@ mod tests {
     #[test]
     fn session_sync_enqueue_kernel_and_read_buffer() {
         let data: Vec<i32> = vec![0, 1, 2, 3, 4, 5, 6, 7];
-        let mut session = new_session();
+        let session = new_session();
         let buffer: Buffer<i32> = session
             .create_buffer(&data[..])
             .unwrap_or_else(|e| panic!("Session failed to create buffer: {:?}", e));
