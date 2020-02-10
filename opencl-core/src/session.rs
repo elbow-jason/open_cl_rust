@@ -321,6 +321,7 @@ impl Clone for Session {
         }
     }
 }
+
 impl PartialEq for Session {
     fn eq(&self, other: &Self) -> bool {
         let self_queues = self.queues();
@@ -331,6 +332,17 @@ impl PartialEq for Session {
 }
 
 impl Eq for Session {}
+
+impl Drop for Session {
+    fn drop(&mut self) {
+        unsafe {
+            ManuallyDrop::drop(&mut self._queues);
+            ManuallyDrop::drop(&mut self._program);
+            ManuallyDrop::drop(&mut self._context);
+            ManuallyDrop::drop(&mut self._devices);
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
