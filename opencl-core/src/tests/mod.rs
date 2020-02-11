@@ -1,97 +1,90 @@
-// use crate::*;
-// use crate::opencl_low_level::*;
+use crate::*;
+use crate::opencl_low_level::*;
 
-// #[allow(unused_macros)]
+#[test]
+fn core_program_unbuilt_to_built() {
+    let src = "__kernel void test(__global int *i) { \
+                *i += 1; \
+                }";
+    testing::test_all_devices(&mut |device, context, _| {
+        let devices = vec![device.clone()];
+        let unbuilt_prog: UnbuiltProgram = UnbuiltProgram::create_with_source(context, src).unwrap();
+        let _build: Program = unbuilt_prog.build(&devices[..]).unwrap();
+    })
+}
 
-// #[cfg(test)]
-// mod basic_tests {
-//     use super::test_all;
-//     use crate::*;
-//     #[test]
-//     fn program_build_mid_level() {
-//         let src = "__kernel void test(__global int *i) { \
-//                    *i += 1; \
-//                    }";
-//         test_all(&mut |device, context, _| {
-//             let prog = UnbuiltProgram::create_with_source(context, src).unwrap();
-//             let devices = vec![device];
-//             prog.build(&devices[..]).unwrap();
-//         })
-//     }
+#[test]
+fn simple_kernel_test() {
+    let src = "
+    __kernel void test(__global int *i) {
+        *i += 1;
+    }";
 
-//     #[test]
-//     fn simple_kernel_test() {
-//         let src = "
-//         __kernel void test(__global int *i) {
-//             *i += 1;
-//         }";
-//         use event::event_info::CommandExecutionStatus;
+    testing::test_all_devices(&mut |device, context, queue| {
+        let unbuilt_program = UnbuiltProgram::create_with_source(context, src).unwrap();
+        let devices = vec![device.clone()];
+        let program = unbuilt_program.build(&devices[..]).unwrap();
+        let k = Kernel::create(&program, "test").unwrap();
+        let mut v1: Vec<isize> = vec![1];
+        let mem_config = MemConfig::for_size();
+        let buffer = Buffer::create(context, v1.len(), mem_config.host_access, mem_config.kernel_access, mem_config.mem_location).unwrap();
+        let work_size = v1.len();
+        let work: Work = Work::new(work_size);
+        queue.write_buffer(&buffer, &v1, None).unwrap();
+        let mut buffer_write = buffer.write_lock();
+        // assert!(write_event.command_execution_status() == Ok(CommandExecutionStatus::Complete));
 
-//         test_all(&mut |device, context, queue| {
-//             let unbuilt_program = UnbuiltProgram::create_with_source(context, src).unwrap();
-//             let devices = vec![device];
-//             let programs = unbuilt_program.build(&devices[..]).unwrap();
-//             let k = Kernel::create(&programs[0], "test").unwrap();
-//             let mut v1: Vec<isize> = vec![1];
-//             let mem1 = DeviceMem::create_read_write(context, v1.len()).unwrap();
-//             let work_size = v1.len();
-//             let work: Work = Work::new(work_size);
-//             let write_event = queue.write_buffer(&mem1, &v1).unwrap();
+        let () = unsafe { k.set_arg(0, &mut *buffer_write).unwrap() };
+            queue.enqueue_kernel(k, &work, None)
+                .unwrap_or_else(|error| {
+                    panic!("Failed to unwrap sync_enqueue_kernel result: {:?}", error);
+                });
+        std::mem::drop(buffer_write);
+        let _read_event = queue.read_buffer(&buffer, &mut v1[..], None).unwrap();
 
-//             assert!(write_event.command_execution_status() == Ok(CommandExecutionStatus::Complete));
+        assert_eq!(v1.len(), 1);
+        assert_eq!(v1[0], 2);
+    })
+}
 
-//             let () = k.set_arg(0, &mem1).unwrap();
-//             let _queue_event: Event =
-//                 queue
-//                     .sync_enqueue_kernel(&k, &work)
-//                     .unwrap_or_else(|error| {
-//                         panic!("Failed to unwrap sync_enqueue_kernel result: {:?}", error);
-//                     });
+#[test]
+fn add_scalar_int_var_to_buffer_test() {
+    let src = "
+    __kernel void test(__global int *i, long int num) {
+        *i += num;
+    }";
 
-//             let _read_event = queue.read_buffer(&mem1, &mut v1).unwrap();
+    testing::test_all_devices(&mut |device, context, queue| {
+        let unbuilt_program = UnbuiltProgram::create_with_source(context, src).unwrap();
+        let devices = vec![device.clone()];
+        let program = unbuilt_program.build(&devices[..]).unwrap();
 
-//             expect!(v1.len(), 1);
-//             expect!(v1[0], 2);
-//         })
-//     }
+        let add_scalar_var: Kernel = Kernel::create(&program, "test").unwrap();
+        let initial_values = vec![1i32];
+        let buffer = Buffer::create_with_creator(context, initial_values.len()).unwrap();
+        let _write_event = queue.write_buffer(&buffer, &initial_values[..], None).unwrap();
 
-//     #[test]
-//     fn add_scalar_int_var_to_buffer_test() {
-//         let src = "
-//         __kernel void test(__global int *i, long int num) {
-//             *i += num;
-//         }";
+        
+        unsafe {
+            let mut mem1 = buffer.write_lock();
+            let mut arg = 42i32;
+            let () = add_scalar_var.set_arg(0, &mut *mem1).unwrap();
+            let () = add_scalar_var.set_arg(1, &mut arg).unwrap();
+        }
+        let work_size = initial_values.len();
+        let work: Work = Work::new(work_size);
+        queue.enqueue_kernel(add_scalar_var, &work, None)
+            .unwrap_or_else(|error| {
+                panic!("Failed to unwrap sync_enqueue_kernel result: {:?}", error);
+            });
+        let mut result = vec![0i32];
+        let _write_event = queue.read_buffer(&buffer, &mut result[..], None).unwrap();
 
-//         test_all(&mut |device, context, queue| {
-//             let unbuilt_program = UnbuiltProgram::create_with_source(context, src).unwrap();
-//             let devices = vec![device];
-//             let programs = unbuilt_program.build(&devices[..]).unwrap();
-
-//             let add_scalar_var: Kernel = Kernel::create(&programs[0], "test").unwrap();
-//             let initial_values = vec![1i32];
-//             let mem1 = DeviceMem::create_write_only(context, initial_values.len()).unwrap();
-//             let _write_event = queue.write_buffer(&mem1, &initial_values[..]).unwrap();
-
-//             let () = add_scalar_var.set_arg(0, &mem1).unwrap();
-
-//             let arg = 42i32;
-//             let () = add_scalar_var.set_arg(1, &arg).unwrap();
-
-//             let work_size = initial_values.len();
-//             let work: Work = Work::new(work_size);
-//             let _queue_event: Event = queue
-//                 .sync_enqueue_kernel(&add_scalar_var, &work)
-//                 .unwrap_or_else(|error| {
-//                     panic!("Failed to unwrap sync_enqueue_kernel result: {:?}", error);
-//                 });
-//             let mut result = vec![0i32];
-//             let _write_event = queue.read_buffer(&mem1, &mut result[..]).unwrap();
-
-//             expect!(initial_values[0], 1);
-//             expect!(result[0], 43);
-//             expect!(initial_values.len(), result.len());
-//         })
-//     }
+        assert_eq!(initial_values[0], 1);
+        assert_eq!(result[0], 43);
+        assert_eq!(initial_values.len(), result.len());
+    })
+}
 
 //     #[test]
 //     fn kernel_2d() {

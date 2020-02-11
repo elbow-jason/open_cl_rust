@@ -4,7 +4,7 @@ use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::ll::{ClContext, ClMem, MemFlags, MemPtr};
 
-use crate::{BufferCreator, ClNumber, Context, HostAccess, KernelAccess, MemLocation, Output};
+use crate::{BufferCreator, ClNumber, Context, HostAccess, KernelAccess, MemLocation, Output, MemConfig};
 
 pub struct Buffer<T: ClNumber> {
     _mem: Arc<RwLock<ClMem<T>>>,
@@ -64,6 +64,17 @@ impl<T: ClNumber> Buffer<T> {
             mem_location,
         )?;
         Ok(Buffer::new(ll_mem, context.clone()))
+    }
+
+    pub fn create_with_creator<B: BufferCreator<T>>(context: &Context, creator: B) -> Output<Buffer<T>> {
+        let mem_config = {
+             creator.mem_config()
+        };
+        Buffer::create_with_config(context, creator, mem_config)
+    }
+
+    pub fn create_with_config<B: BufferCreator<T>>(context: &Context, creator: B, mem_config: MemConfig) -> Output<Buffer<T>> {
+        Buffer::create(context, creator, mem_config.host_access, mem_config.kernel_access, mem_config.mem_location)
     }
 
     pub fn create_from_low_level_context<B: BufferCreator<T>>(

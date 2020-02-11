@@ -7,9 +7,13 @@ pub fn src_buffer_plus_one() -> &'static str {
 }
 
 pub fn get_session(src: &str) -> Session {
+    get_sessions(src).remove(0)
+}
+
+pub fn get_sessions(src: &str) -> Vec<Session> {
     Session::create(src).unwrap_or_else(|e| {
         panic!("Failed to create session: {:?}", e);
-    }).remove(0)
+    })
 }
 
 pub fn get_platforms() -> Vec<Platform> {
@@ -56,37 +60,27 @@ pub fn get_buffer<T: ClNumber>(size: usize) -> Buffer<T> {
     .unwrap()
 }
 
-// pub fn test_all<F>(test: &mut F)
-// where
-//     F: FnMut(&Device, &Context, &CommandQueue),
-// {
-//     let platforms = list_platforms().unwrap_or_else(|e| {
-//         panic!("Failed to retrieve plaforms via list_platforms() due to {:?}", e);
-//     });
-//     for p in platforms.iter() {
-//         let devices: Vec<Device> = p
-//             .all_devices()
-//             .unwrap_or_else(|e| {
-//                 panic!("Failed list all devices for {:?} due to {:?}", p, e);
-//             })
-//             .into_iter()
-//             .filter(|d| d.is_usable())
-//             .collect();
+pub fn test_all_devices<F>(callback: &mut F)
+where
+    F: FnMut(&Device, &Context, &CommandQueue),
+{
+    let devices = get_all_devices();
 
-//         assert!(devices.len() > 0, "No usable devices found");
-//         let context = Context::create(&devices[..])
-//                 .unwrap_or_else(|e| {
-//                     panic!("Failed to Context::create with devices {:?} due to {:?}", devices, e);
-//                 });
-//         for device in devices {
-//             let queue = CommandQueue::create(&context, &device, None)
-//                 .unwrap_or_else(|e| {
-//                     panic!("Failed to CommandQueue::create due to {:?}", e);
-//                 });
-//             test(&device, &context, &queue);
-//         }
-//     }
-// }
+    assert!(devices.len() > 0, "No usable devices found");
+
+    let context = Context::create(&devices[..])
+            .unwrap_or_else(|e| {
+                panic!("Failed to Context::create with devices {:?} due to {:?}", devices, e);
+            });
+    for device in devices {
+        let queue = CommandQueue::create(&context, &device, None)
+            .unwrap_or_else(|e| {
+                panic!("Failed to CommandQueue::create due to {:?}", e);
+            });
+        callback(&device, &context, &queue);
+    }
+}
+
 
 // pub fn get_session(src: &str) -> Session {
 //     Session::create_sessions(&[Device::default()], src)

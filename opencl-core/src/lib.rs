@@ -42,6 +42,9 @@ pub mod platform;
 pub mod program;
 pub mod session;
 
+#[cfg(test)]
+mod tests;
+
 pub use buffer::Buffer;
 pub use command_queue::CommandQueue;
 pub use context::Context;
