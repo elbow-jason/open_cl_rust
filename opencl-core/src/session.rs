@@ -1,5 +1,5 @@
 use std::mem::ManuallyDrop;
-use std::sync::{RwLock, RwLockReadGuard};
+use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::{
     Buffer, BufferCreator, CommandQueueOptions, Context, Device, DeviceType, Kernel, MemConfig,
@@ -9,7 +9,7 @@ use crate::{
 use crate::ll::Session as ClSession;
 use crate::ll::{
     list_devices_by_type, list_platforms, BufferReadEvent, ClCommandQueue, ClContext, ClDeviceID,
-    ClEvent, ClKernel, ClNumber, ClProgram, DevicePtr, KernelArg, 
+    ClEvent, ClKernel, ClNumber, ClProgram, DevicePtr, KernelArg, ClMem,
     SessionError,
 };
 
@@ -281,24 +281,29 @@ impl Session {
     {
         unsafe {
             let kernel = self.create_kernel(kernel_op.name())?;
-
+            let work = kernel_op.work()?;
+            let command_queue_opts = kernel_op.command_queue_opts();
+            let mut mem_locks: Vec<RwLockWriteGuard<ClMem<T>>> = Vec::new();
             for (arg_index, arg) in kernel_op.mut_args().iter_mut().enumerate() {
                 match arg {
                     KernelOpArg::Num(ref mut num) => kernel.set_arg(arg_index, num)?,
                     KernelOpArg::Buffer(ref buffer) => {
                         let mut mem = buffer.write_lock();
-                        kernel.set_arg(arg_index, &mut *mem)
-                    }?,
+                        kernel.set_arg(arg_index, &mut *mem)?;
+                        mem_locks.push(mem);
+                    },
                 }
             }
-            let work = kernel_op.work()?;
+            
             let queues: RwLockReadGuard<Queues> = self.queues();
             let queue_locker: &RwLock<ClCommandQueue> = queues.get(queue_index)?;
             let mut queue = queue_locker.write().unwrap();
             let mut ll_kernel = kernel.write_lock();
             let event =
-                queue.enqueue_kernel(&mut ll_kernel, &work, kernel_op.command_queue_opts())?;
+                queue.enqueue_kernel(&mut ll_kernel, &work, command_queue_opts)?;
             event.wait()?;
+            // Wait until queue drops
+            std::mem::drop(mem_locks);
             kernel_op.return_value()
         }
     }
