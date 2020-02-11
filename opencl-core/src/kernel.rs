@@ -4,8 +4,7 @@ use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::ll::*;
 
-use crate::Context;
-use crate::Program;
+use crate::{Context, Program, Buffer};
 
 pub struct Kernel {
     program: ManuallyDrop<Program>,
@@ -88,8 +87,122 @@ impl Kernel {
     pub fn write_lock(&self) -> RwLockWriteGuard<ClKernel> {
         self.inner.write().unwrap()
     }
+}
 
-    // pub fn low_level_kernel(&self) -> &ClKernel {
-    //     &self.inner
-    // }
+pub enum KernelOpArg<T: ClNumber> {
+    Num(T),
+    Buffer(Buffer<T>),
+}
+
+impl<T: ClNumber> From<T> for KernelOpArg<T> {
+    fn from(num: T) -> KernelOpArg<T> {
+        KernelOpArg::Num(num)
+    }
+}
+
+impl<T: ClNumber> From<Buffer<T>> for KernelOpArg<T> {
+    fn from(buffer: Buffer<T>) -> KernelOpArg<T> {
+        KernelOpArg::Buffer(buffer)
+    }
+}
+
+impl<T: ClNumber> KernelOpArg<T> {
+    pub fn into_buffer(self) -> Output<Buffer<T>> {
+        if let KernelOpArg::Buffer(buffer) = self {
+            Ok(buffer)
+        } else {
+            Err(KernelError::KernelOpArgWasNotMem.into())
+        }
+    }
+
+    pub fn into_num(self) -> Output<T> {
+        if let KernelOpArg::Num(num) = self {
+            Ok(num)
+        } else {
+            Err(KernelError::KernelOpArgWasNotMem.into())
+        }
+    }
+}
+
+
+pub struct KernelOperation<T: ClNumber + KernelArg> {
+    _name: String,
+    _args: Vec<KernelOpArg<T>>,
+    _work: Option<Work>,
+    _returning: Option<usize>,
+    pub command_queue_opts: Option<CommandQueueOptions>,
+}
+
+impl<T: ClNumber + KernelArg> KernelOperation<T> {
+    pub fn new(name: &str) -> KernelOperation<T> {
+        KernelOperation {
+            _name: name.to_owned(),
+            _args: vec![],
+            _work: None,
+            _returning: None,
+            command_queue_opts: None,
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        &self._name[..]
+    }
+
+    pub fn command_queue_opts(&self) -> Option<CommandQueueOptions> {
+        self.command_queue_opts.clone()
+    }
+
+    pub fn args(&self) -> &[KernelOpArg<T>] {
+        &self._args[..]
+    }
+
+    pub fn mut_args(&mut self) -> &mut [KernelOpArg<T>] {
+        &mut self._args[..]
+    }
+
+    pub fn with_dims<D: Into<Dims>>(mut self, dims: D) -> KernelOperation<T> {
+        self._work = Some(Work::new(dims.into()));
+        self
+    }
+
+    pub fn with_work<W: Into<Work>>(mut self, work: W) -> KernelOperation<T> {
+        self._work = Some(work.into());
+        self
+    }
+
+    pub fn add_arg<A: Into<KernelOpArg<T>>>(mut self, arg: A) -> KernelOperation<T> {
+        self._args.push(arg.into());
+        self
+    }
+
+    pub fn with_command_queue_options(mut self, opts: CommandQueueOptions) -> KernelOperation<T> {
+        self.command_queue_opts = Some(opts);
+        self
+    }
+
+    pub fn returning_arg(mut self, arg_index: usize) -> KernelOperation<T> {
+        self._returning = Some(arg_index);
+        self
+    }
+
+    pub fn argc(&self) -> usize {
+        self._args.len()
+    }
+
+    #[inline]
+    pub fn return_value(&mut self) -> Output<Option<KernelOpArg<T>>> {
+        match (self._returning, self.argc()) {
+            (Some(argi), argc) if argi < argc => Ok(Some(self._args.remove(argi))),
+            (Some(argi), argc) => {
+                let oor_error = KernelError::ReturningArgIndexOutOfRange(argi, argc);
+                Err(oor_error.into())
+            }
+            (None, _) => Ok(None),
+        }
+    }
+
+    #[inline]
+    pub fn work(&self) -> Output<Work> {
+        self._work.clone().ok_or(KernelError::WorkIsRequired.into())
+    }
 }

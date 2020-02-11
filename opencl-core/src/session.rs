@@ -3,13 +3,13 @@ use std::sync::{RwLock, RwLockReadGuard};
 
 use crate::{
     Buffer, BufferCreator, CommandQueueOptions, Context, Device, DeviceType, Kernel, MemConfig,
-    MutVecOrSlice, Output, Program, VecOrSlice, Waitlist, Work
+    MutVecOrSlice, Output, Program, VecOrSlice, Waitlist, Work, KernelOpArg, KernelOperation,
 };
 
 use crate::ll::Session as ClSession;
 use crate::ll::{
     list_devices_by_type, list_platforms, BufferReadEvent, ClCommandQueue, ClContext, ClDeviceID,
-    ClEvent, ClKernel, ClNumber, ClProgram, DevicePtr, KernelArg, KernelOpArg, KernelOperation,
+    ClEvent, ClKernel, ClNumber, ClProgram, DevicePtr, KernelArg, 
     SessionError,
 };
 
@@ -285,7 +285,10 @@ impl Session {
             for (arg_index, arg) in kernel_op.mut_args().iter_mut().enumerate() {
                 match arg {
                     KernelOpArg::Num(ref mut num) => kernel.set_arg(arg_index, num)?,
-                    KernelOpArg::Mem(ref mut mem) => kernel.set_arg(arg_index, mem)?,
+                    KernelOpArg::Buffer(ref buffer) => {
+                        let mut mem = buffer.write_lock();
+                        kernel.set_arg(arg_index, &mut *mem)
+                    }?,
                 }
             }
             let work = kernel_op.work()?;
