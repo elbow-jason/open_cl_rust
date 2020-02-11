@@ -29,6 +29,18 @@ impl<T: ClNumber> Debug for Buffer<T> {
     }
 }
 
+
+
+impl<T: ClNumber> PartialEq for Buffer<T> {
+    fn eq(&self, other: &Self) -> bool {
+        unsafe {
+            let left = self.inner.read().unwrap().mem_ptr();
+            let right = other.inner.read().unwrap().mem_ptr();
+            std::ptr::eq(left, right)
+        }
+    }
+}
+
 impl<T: ClNumber> Buffer<T> {
     pub fn new(ll_mem: ClMem<T>, context: Context) -> Buffer<T> {
         Buffer {

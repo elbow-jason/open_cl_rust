@@ -4,13 +4,13 @@ use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use crate::{
     Buffer, BufferCreator, CommandQueueOptions, Context, Device, DeviceType, Kernel, MemConfig,
     MutVecOrSlice, Output, Program, VecOrSlice, Waitlist, Work, KernelOpArg, KernelOperation,
+    ReturnArg,
 };
 
 use crate::ll::Session as ClSession;
 use crate::ll::{
     list_devices_by_type, list_platforms, BufferReadEvent, ClCommandQueue, ClContext, ClDeviceID,
-    ClEvent, ClKernel, ClNumber, ClProgram, DevicePtr, KernelArg, ClMem,
-    SessionError,
+    ClEvent, ClKernel, ClNumber, ClProgram, DevicePtr, KernelArg, ClMem, SessionError,
 };
 
 #[derive(Debug)]
@@ -271,11 +271,11 @@ impl Session {
         }
     }
 
-    pub fn execute_sync_kernel_operation<T>(
+    pub fn execute_sync_kernel_operation<'a, T>(
         &self,
         queue_index: usize,
-        mut kernel_op: KernelOperation<T>,
-    ) -> Output<Option<KernelOpArg<T>>>
+        mut kernel_op: KernelOperation<'a, T>,
+    ) -> Output<Option<ReturnArg<T>>>
     where
         T: ClNumber + KernelArg,
     {

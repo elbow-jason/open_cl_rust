@@ -89,25 +89,30 @@ impl Kernel {
     }
 }
 
-pub enum KernelOpArg<T: ClNumber> {
+pub enum KernelOpArg<'a, T: ClNumber> {
+    Num(T),
+    Buffer(&'a Buffer<T>),
+}
+
+pub enum ReturnArg<T: ClNumber> {
     Num(T),
     Buffer(Buffer<T>),
 }
 
-impl<T: ClNumber> From<T> for KernelOpArg<T> {
-    fn from(num: T) -> KernelOpArg<T> {
+impl<'a, T: ClNumber> From<T> for KernelOpArg<'a, T> {
+    fn from(num: T) -> KernelOpArg<'a, T> {
         KernelOpArg::Num(num)
     }
 }
 
-impl<T: ClNumber> From<Buffer<T>> for KernelOpArg<T> {
-    fn from(buffer: Buffer<T>) -> KernelOpArg<T> {
+impl<'a, T: ClNumber> From<&'a Buffer<T>> for KernelOpArg<'a, T> {
+    fn from(buffer: &'a Buffer<T>) -> KernelOpArg<'a, T> {
         KernelOpArg::Buffer(buffer)
     }
 }
 
-impl<T: ClNumber> KernelOpArg<T> {
-    pub fn into_buffer(self) -> Output<Buffer<T>> {
+impl<'a, T: ClNumber> KernelOpArg<'a, T> {
+    pub fn into_buffer(self) -> Output<&'a Buffer<T>> {
         if let KernelOpArg::Buffer(buffer) = self {
             Ok(buffer)
         } else {
@@ -125,15 +130,15 @@ impl<T: ClNumber> KernelOpArg<T> {
 }
 
 
-pub struct KernelOperation<T: ClNumber + KernelArg> {
+pub struct KernelOperation<'a, T: ClNumber + KernelArg> {
     _name: String,
-    _args: Vec<KernelOpArg<T>>,
+    _args: Vec<KernelOpArg<'a, T>>,
     _work: Option<Work>,
     _returning: Option<usize>,
     pub command_queue_opts: Option<CommandQueueOptions>,
 }
 
-impl<T: ClNumber + KernelArg> KernelOperation<T> {
+impl<'a, T: ClNumber + KernelArg> KernelOperation<'a, T> {
     pub fn new(name: &str) -> KernelOperation<T> {
         KernelOperation {
             _name: name.to_owned(),
@@ -156,31 +161,31 @@ impl<T: ClNumber + KernelArg> KernelOperation<T> {
         &self._args[..]
     }
 
-    pub fn mut_args(&mut self) -> &mut [KernelOpArg<T>] {
+    pub fn mut_args(&mut self) -> &mut [KernelOpArg<'a, T>] {
         &mut self._args[..]
     }
 
-    pub fn with_dims<D: Into<Dims>>(mut self, dims: D) -> KernelOperation<T> {
+    pub fn with_dims<D: Into<Dims>>(mut self, dims: D) -> KernelOperation<'a, T> {
         self._work = Some(Work::new(dims.into()));
         self
     }
 
-    pub fn with_work<W: Into<Work>>(mut self, work: W) -> KernelOperation<T> {
+    pub fn with_work<W: Into<Work>>(mut self, work: W) -> KernelOperation<'a, T> {
         self._work = Some(work.into());
         self
     }
 
-    pub fn add_arg<A: Into<KernelOpArg<T>>>(mut self, arg: A) -> KernelOperation<T> {
+    pub fn add_arg<A: Into<KernelOpArg<'a, T>>>(mut self, arg: A) -> KernelOperation<'a, T> {
         self._args.push(arg.into());
         self
     }
 
-    pub fn with_command_queue_options(mut self, opts: CommandQueueOptions) -> KernelOperation<T> {
+    pub fn with_command_queue_options(mut self, opts: CommandQueueOptions) -> KernelOperation<'a, T> {
         self.command_queue_opts = Some(opts);
         self
     }
 
-    pub fn returning_arg(mut self, arg_index: usize) -> KernelOperation<T> {
+    pub fn with_returning_arg(mut self, arg_index: usize) -> KernelOperation<'a, T> {
         self._returning = Some(arg_index);
         self
     }
@@ -190,9 +195,15 @@ impl<T: ClNumber + KernelArg> KernelOperation<T> {
     }
 
     #[inline]
-    pub fn return_value(&mut self) -> Output<Option<KernelOpArg<T>>> {
+    pub fn return_value(&mut self) -> Output<Option<ReturnArg<T>>> {
         match (self._returning, self.argc()) {
-            (Some(argi), argc) if argi < argc => Ok(Some(self._args.remove(argi))),
+            (Some(argi), argc) if argi < argc => {
+                let ret = match self._args.remove(argi) {
+                    KernelOpArg::Buffer(buf) => ReturnArg::Buffer(buf.clone()),
+                    KernelOpArg::Num(num) => ReturnArg::Num(num),
+                };
+                Ok(Some(ret))
+            },
             (Some(argi), argc) => {
                 let oor_error = KernelError::ReturningArgIndexOutOfRange(argi, argc);
                 Err(oor_error.into())
