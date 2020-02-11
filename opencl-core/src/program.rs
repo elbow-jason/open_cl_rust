@@ -146,6 +146,14 @@ impl Program {
         }
     }
 
+    pub unsafe fn from_low_level_program(program: &ClProgram) -> Output<Program> {
+        let ll_devices = program.devices()?;
+        let ll_context = program.context()?;
+        let hl_devices = ll_devices.into_iter().map(|d| Device::new(d)).collect();
+        let hl_context = Context::from_low_level_context(&ll_context)?;
+        Ok(Program::new(program.clone(), hl_context, hl_devices))
+    }
+
     pub fn devices(&self) -> &[Device] {
         &self._devices[..]
     }
