@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 use std::mem::ManuallyDrop;
-use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard, Arc};
 
 use crate::ll::*;
 
@@ -8,7 +8,7 @@ use crate::{Context, Program, Buffer};
 
 pub struct Kernel {
     program: ManuallyDrop<Program>,
-    inner: ManuallyDrop<RwLock<ClKernel>>,
+    inner: ManuallyDrop<Arc<RwLock<ClKernel>>>,
     _unconstructable: (),
 }
 
@@ -28,7 +28,7 @@ impl Clone for Kernel {
     fn clone(&self) -> Kernel {
         let inner_clone = self.read_lock().clone();
         Kernel {
-            inner: ManuallyDrop::new(RwLock::new(inner_clone)),
+            inner: ManuallyDrop::new(Arc::new(RwLock::new(inner_clone))),
             program: ManuallyDrop::new(self.program().clone()),
             _unconstructable: (),
         }
@@ -39,7 +39,7 @@ impl Kernel {
     pub unsafe fn new(kernel: ClKernel, program: Program) -> Kernel {
         Kernel {
             program: ManuallyDrop::new(program),
-            inner: ManuallyDrop::new(RwLock::new(kernel)),
+            inner: ManuallyDrop::new(Arc::new(RwLock::new(kernel))),
             _unconstructable: (),
         }
     }
