@@ -390,10 +390,18 @@ mod tests {
 
     #[test]
     fn program_ptr_devices() {
-        let (prog, _devices, _context) = ll_testing::get_program(SRC);
-        let devices = prog.devices().unwrap();
+        let (prog, devices, _context) = ll_testing::get_program(SRC);
+        let prog_devices = prog.devices().unwrap();
         let num_devices = prog.num_devices().unwrap();
-        assert_eq!(num_devices, devices.len());
+        assert_eq!(num_devices, prog_devices.len());
+        assert_eq!(prog_devices.len(), devices.len());
+    }
+
+    #[test]
+    fn program_ptr_context() {
+        let (prog, _devices, context) = ll_testing::get_program(SRC);
+        let prog_context = prog.context().unwrap();
+        assert_eq!(prog_context, context);
     }
 
     #[test]
