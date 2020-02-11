@@ -9,7 +9,7 @@ pub fn src_buffer_plus_one() -> &'static str {
 pub fn get_session(src: &str) -> Session {
     Session::create(src).unwrap_or_else(|e| {
         panic!("Failed to create session: {:?}", e);
-    })
+    }).remove(0)
 }
 
 pub fn get_platforms() -> Vec<Platform> {
