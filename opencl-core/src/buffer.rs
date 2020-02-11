@@ -8,7 +8,6 @@ use crate::{BufferCreator, ClNumber, Context, HostAccess, KernelAccess, MemLocat
 
 pub struct Buffer<T: ClNumber> {
     _mem: Arc<RwLock<ClMem<T>>>,
-
     _context: Context,
 }
 
