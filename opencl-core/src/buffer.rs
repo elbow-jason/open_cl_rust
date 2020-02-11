@@ -7,7 +7,8 @@ use crate::ll::{ClContext, ClMem, MemFlags, MemPtr};
 use crate::{BufferCreator, ClNumber, Context, HostAccess, KernelAccess, MemLocation, Output};
 
 pub struct Buffer<T: ClNumber> {
-    inner: Arc<RwLock<ClMem<T>>>,
+    _mem: Arc<RwLock<ClMem<T>>>,
+
     _context: Context,
 }
 
@@ -17,7 +18,7 @@ unsafe impl<T: ClNumber> Sync for Buffer<T> {}
 impl<T: ClNumber> Clone for Buffer<T> {
     fn clone(&self) -> Buffer<T> {
         Buffer {
-            inner: self.inner.clone(),
+            _mem: self._mem.clone(),
             _context: self._context.clone(),
         }
     }
@@ -25,7 +26,7 @@ impl<T: ClNumber> Clone for Buffer<T> {
 
 impl<T: ClNumber> Debug for Buffer<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Buffer{{{:?}}}", self.inner)
+        write!(f, "Buffer{{{:?}}}", self._mem)
     }
 }
 
@@ -34,8 +35,8 @@ impl<T: ClNumber> Debug for Buffer<T> {
 impl<T: ClNumber> PartialEq for Buffer<T> {
     fn eq(&self, other: &Self) -> bool {
         unsafe {
-            let left = self.inner.read().unwrap().mem_ptr();
-            let right = other.inner.read().unwrap().mem_ptr();
+            let left = self._mem.read().unwrap().mem_ptr();
+            let right = other._mem.read().unwrap().mem_ptr();
             std::ptr::eq(left, right)
         }
     }
@@ -44,7 +45,7 @@ impl<T: ClNumber> PartialEq for Buffer<T> {
 impl<T: ClNumber> Buffer<T> {
     pub fn new(ll_mem: ClMem<T>, context: Context) -> Buffer<T> {
         Buffer {
-            inner: Arc::new(RwLock::new(ll_mem)),
+            _mem: Arc::new(RwLock::new(ll_mem)),
             _context: context,
         }
     }
@@ -85,11 +86,11 @@ impl<T: ClNumber> Buffer<T> {
     }
 
     pub fn read_lock(&self) -> RwLockReadGuard<ClMem<T>> {
-        self.inner.read().unwrap()
+        self._mem.read().unwrap()
     }
 
     pub fn write_lock(&self) -> RwLockWriteGuard<ClMem<T>> {
-        self.inner.write().unwrap()
+        self._mem.write().unwrap()
     }
 
     pub fn context(&self) -> &Context {
