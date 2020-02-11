@@ -10,37 +10,8 @@ use crate::{
 use crate::ll::Session as ClSession;
 use crate::ll::{
     list_devices_by_type, list_platforms, BufferReadEvent, ClCommandQueue, ClContext, ClDeviceID,
-    ClEvent, ClKernel, ClNumber, ClProgram, DevicePtr, KernelArg, ClMem, SessionError,
-    CommandQueuePtr,
+    ClEvent, ClKernel, ClNumber, ClProgram, DevicePtr, KernelArg, ClMem, CommandQueuePtr,
 };
-
-#[derive(Debug)]
-pub struct Queues {
-    inner: Vec<RwLock<ClCommandQueue>>,
-}
-
-unsafe impl Send for Queues {}
-
-impl Queues {
-    pub fn new(queues: Vec<RwLock<ClCommandQueue>>) -> Queues {
-        Queues { inner: queues }
-    }
-
-    pub fn get(&self, index: usize) -> Output<&RwLock<ClCommandQueue>> {
-        self.inner
-            .get(index)
-            .ok_or_else(|| SessionError::QueueIndexOutOfRange(index).into())
-    }
-
-    pub fn len(&self) -> usize {
-        self.inner.len()
-    }
-
-    pub fn as_slice(&self) -> &[RwLock<ClCommandQueue>] {
-        &self.inner[..]
-    }
-}
-
 
 #[derive(Debug)]
 pub struct Session {
