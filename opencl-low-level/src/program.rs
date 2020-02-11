@@ -335,6 +335,23 @@ pub unsafe trait ProgramPtr: Sized {
             kernels.split(';').map(|s| s.to_string()).collect()
         })
     }
+
+    fn devices(&self) -> Output<Vec<ClDeviceID>> {
+        get_info(self, ProgramInfo::Devices).map(|ret| {
+            unsafe { 
+            ret.into_vec()
+                .into_iter()
+                .map(|d| ClDeviceID::retain_new(d).unwrap())
+                .collect()
+            }
+        })
+    }
+
+    fn context(&self) -> Output<ClContext> {
+        get_info(self, ProgramInfo::Context).and_then(|ret| unsafe {
+            ClContext::retain_new(ret.into_one())
+        })
+    }
 }
 
 #[cfg(test)]
@@ -369,6 +386,14 @@ mod tests {
         let (prog, _devices, _context) = ll_testing::get_program(SRC);
         let num_devices = prog.num_devices().unwrap();
         assert!(num_devices > 0);
+    }
+
+    #[test]
+    fn program_ptr_devices() {
+        let (prog, _devices, _context) = ll_testing::get_program(SRC);
+        let devices = prog.devices().unwrap();
+        let num_devices = prog.num_devices().unwrap();
+        assert_eq!(num_devices, devices.len());
     }
 
     #[test]
