@@ -7,10 +7,10 @@ use crate::{
     ReturnArg,
 };
 
-use crate::ll::Session as ClSession;
 use crate::ll::{
     list_devices_by_type, list_platforms, BufferReadEvent, ClCommandQueue, ClContext, ClDeviceID,
     ClEvent, ClKernel, ClNumber, ClProgram, DevicePtr, KernelArg, ClMem, CommandQueuePtr,
+    CommandQueueProperties, 
 };
 
 #[derive(Debug)]
@@ -26,37 +26,39 @@ unsafe impl Send for Session {}
 unsafe impl Sync for Session {}
 
 impl Session {
-    pub fn create_with_devices<'a, D>(devices: D, src: &str) -> Output<Vec<Session>>
+    pub fn create_with_devices<'a, D>(devices: D, src: &str, cq_props: Option<CommandQueueProperties>) -> Output<Vec<Session>>
     where
         D: Into<VecOrSlice<'a, Device>>,
     {
-        let devices = devices.into();
-        let ll_devices: Vec<ClDeviceID> = devices
-            .iter()
-            .map(|d| unsafe { ClDeviceID::unchecked_new(d.device_ptr()) })
-            .collect();
+        
+        let devices: Vec<Device> = devices.into().to_vec();
+        unsafe {
+            let context = ClContext::create(devices.as_slice())?;
+            let mut sessions: Vec<Session> = Vec::with_capacity(devices.len());
+            for device in devices.iter() {
+                let device = ClDeviceID::unchecked_new(device.device_ptr());
+                let mut program = ClProgram::create_with_source(&context, src)?;
+                program.build(devices.as_slice())?;
 
-        let ll_session = ClSession::create_with_devices(ll_devices, src)?;
-
-        // (Vec<ClDeviceID>, ClContext, ClProgram, Vec<ClCommandQueue>)
-        let (devices, context, program, queues) = unsafe { ll_session.decompose() };
-        let sessions = devices
-            .into_iter()
-            .zip(queues.into_iter())
-            .map(|(device, queue)| {
-                Session {
+                let queue = ClCommandQueue::create(
+                    &context,
+                    &device,
+                    cq_props
+                )?;
+                let session = Session {
                     _device: ManuallyDrop::new(device),
                     _context: ManuallyDrop::new(context.clone()),
                     _program: ManuallyDrop::new(program.clone()),
                     _queue: ManuallyDrop::new(Arc::new(RwLock::new(queue))),
                     _unconstructable: (),
-                }
-            })
-            .collect();
-        Ok(sessions)
+                };
+                sessions.push(session);
+            }
+            Ok(sessions)
+        }
     }
 
-    pub fn create(src: &str) -> Output<Vec<Session>> {
+    pub fn create(src: &str, cq_props: Option<CommandQueueProperties>) -> Output<Vec<Session>> {
         let platforms = list_platforms()?;
         let mut devices: Vec<Device> = Vec::new();
         for platform in platforms.iter() {
@@ -64,7 +66,7 @@ impl Session {
                 .map(|ll_devices| ll_devices.into_iter().map(|d| Device::new(d)).collect())?;
             devices.extend(platform_devices);
         }
-        Session::create_with_devices(devices, src)
+        Session::create_with_devices(devices, src, cq_props)
     }
 
     pub fn context(&self) -> Context {
@@ -318,7 +320,7 @@ mod tests {
 
     #[test]
     fn session_can_be_created_with_src() {
-        let _session = Session::create(SRC).unwrap_or_else(|e| {
+        let _session = Session::create(SRC, None).unwrap_or_else(|e| {
             panic!("Failed to create session: {:?}", e);
         });
     }
@@ -327,7 +329,7 @@ mod tests {
     fn session_can_be_created_with_src_and_slice_of_devices() {
         let devices = testing::get_all_devices();
         assert_ne!(devices.len(), 0);
-        let _session = Session::create_with_devices(&devices[..], SRC).unwrap_or_else(|e| {
+        let _session = Session::create_with_devices(&devices[..], SRC, None).unwrap_or_else(|e| {
             panic!("Failed to create session with slice of devices: {:?}", e);
         });
     }
@@ -336,7 +338,7 @@ mod tests {
     fn session_can_be_created_with_src_and_vec_of_devices() {
         let devices = testing::get_all_devices();
         assert_ne!(devices.len(), 0);
-        let _session = Session::create_with_devices(devices, SRC).unwrap_or_else(|e| {
+        let _session = Session::create_with_devices(devices, SRC, None).unwrap_or_else(|e| {
             panic!("Failed to create session with vec of devices: {:?}", e);
         });
     }

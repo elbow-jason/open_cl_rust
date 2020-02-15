@@ -11,7 +11,7 @@ pub fn get_session(src: &str) -> Session {
 }
 
 pub fn get_sessions(src: &str) -> Vec<Session> {
-    Session::create(src).unwrap_or_else(|e| {
+    Session::create(src, None).unwrap_or_else(|e| {
         panic!("Failed to create session: {:?}", e);
     })
 }
