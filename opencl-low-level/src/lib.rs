@@ -62,7 +62,6 @@ pub mod mem;
 pub mod platform;
 pub mod program;
 pub mod session;
-pub mod volume;
 pub mod waitlist;
 pub mod work;
 
@@ -89,7 +88,5 @@ pub use kernel::*;
 pub use mem::*;
 pub use program::*;
 pub use session::*;
-pub use volume::*;
 pub use waitlist::*;
 pub use work::*;
-// pub use device_ptr::DevicePtr;
