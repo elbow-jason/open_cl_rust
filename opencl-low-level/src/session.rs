@@ -201,7 +201,7 @@ impl Session {
     pub unsafe fn enqueue_kernel(
         &mut self,
         queue_index: usize,
-        kernel: &ClKernel,
+        kernel: &mut ClKernel,
         work: &Work,
         opts: Option<CommandQueueOptions>,
     ) -> Output<ClEvent> {

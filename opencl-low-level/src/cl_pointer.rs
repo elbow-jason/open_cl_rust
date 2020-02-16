@@ -29,23 +29,6 @@ impl From<ClPointer<u8>> for String {
     }
 }
 
-/// Special case for cl_platform_id and Platform.
-// impl ClPointer<cl_platform_id> {
-//     /// cl_platform_id is the only cl_wrapper that does not have a cl* function
-//     /// for retaining or releaseing. cl_platform_id is part of the host memory not
-//     /// the device memory and is therefore not managed by OpenCL.
-//     pub unsafe fn into_many_wrappers(self) -> Output<Vec<Platform>> {
-//         let mut output: Vec<Platform> = Vec::with_capacity(self.count);
-//         for cl_obj in self.into_many().into_iter() {
-//             match Platform::new(cl_obj) {
-//                 Ok(wrapper) => output.push(wrapper),
-//                 Err(e) => return Err(e),
-//             }
-//         }
-//         Ok(output)
-//     }
-// }
-
 impl From<ClPointer<cl_bool>> for bool {
     fn from(p: ClPointer<cl_bool>) -> bool {
         match unsafe { p.into_one() } {
@@ -104,21 +87,6 @@ impl<T: Copy> ClPointer<T> {
         std::mem::forget(self);
         many
     }
-
-    // #[inline]
-    // pub unsafe fn into_many_retained_wrappers<W>(self) -> Output<Vec<W>>
-    // where
-    //     W: ClObject<T>,
-    // {
-    //     let mut output: Vec<W> = Vec::with_capacity(self.count);
-    //     for cl_obj in self.into_many().into_iter() {
-    //         match W::new_retained(cl_obj) {
-    //             Ok(wrapper) => output.push(wrapper),
-    //             Err(e) => return Err(e),
-    //         }
-    //     }
-    //     Ok(output)
-    // }
 
     #[inline]
     fn ptr_cannot_be_null(&self) {

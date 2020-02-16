@@ -80,23 +80,6 @@ pub unsafe fn retain_command_queue(cq: cl_command_queue) {
     })
 }
 
-// unsafe fn async_enqueue_kernel_with_opts(
-//         cq: cl_command_queue,
-//         kernel: cl_kernel,
-//         work: &Work,
-//         command_queue_opts: CommandQueueOptions,
-// ) -> Output<cl_event> {
-//     cl_enqueue_nd_range_kernel(
-//         cq,
-//         kernel,
-//         work.work_dim(),
-//         work.global_work_offset(),
-//         work.global_work_size(),
-//         work.local_work_size(),
-//         &command_queue_opts.waitlist[..],
-//     )
-// }
-
 pub unsafe fn cl_create_command_queue(
     context: cl_context,
     device: cl_device_id,
@@ -147,11 +130,6 @@ pub unsafe fn cl_enqueue_nd_range_kernel<W: Waitlist>(
 fn new_tracking_event() -> cl_event {
     std::ptr::null_mut() as cl_event
 }
-
-// #[inline]
-// fn into_event(err_code: cl_int, tracking_event: cl_event) -> Output<cl_event> {
-//     build_output(tracking_event, err_code)?;
-// }
 
 pub unsafe fn cl_enqueue_read_buffer<T>(
     queue: cl_command_queue,

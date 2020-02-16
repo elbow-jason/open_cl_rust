@@ -118,9 +118,3 @@ impl From<WorkError> for Error {
         Error::WorkError(err)
     }
 }
-
-// impl From<EventError> for Error {
-//     fn from(ee: EventError) -> Error {
-//         Error::EventError(ee)
-//     }
-// }

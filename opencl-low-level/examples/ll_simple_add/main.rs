@@ -145,7 +145,7 @@ fn run_with_session() {
 
         let mut vec_c = vec_a.clone();
 
-        let enqueue_event = session.enqueue_kernel(0, &simple_add, &work, None).unwrap();
+        let enqueue_event = session.enqueue_kernel(0, &mut simple_add, &work, None).unwrap();
         let () = enqueue_event.wait().unwrap();
         let mut read_event = session
             .read_buffer(0, &mut mem_c, &mut vec_c[..], None)

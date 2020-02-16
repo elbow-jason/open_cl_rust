@@ -11,14 +11,11 @@ use crate::{
     ClPointer,
     ContextInfo,
     ContextProperties,
-    // ClPlatformID, DeviceType, Error,
-    // list_platforms, list_devices_by_type,
     DevicePtr,
     Output,
 };
 
 use crate::cl_helpers::cl_get_info5;
-// use super::{ContextObject, ContextInfo, ContextRefCount};
 
 #[allow(clippy::transmuting_null)]
 pub unsafe fn cl_create_context(device_ids: &[cl_device_id]) -> Output<cl_context> {
