@@ -1,14 +1,16 @@
 [package]
-name = "opencl-runtime"
+name = "open-cl-runtime"
 version = "0.1.0"
 authors = ["Jason Goldberger <jlgoldb2@asu.edu>"]
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
+license = "MIT"
+description = "OpenCL async scheduler runtime"
+keywords = ["opencl", "gpu", "computation" ]
+homepage = "https://github.com/elbow-jason/open_cl_rust/tree/master/open-cl-runtime"
+repository =  "https://github.com/elbow-jason/open_cl_rust/tree/master/open-cl-runtime"
 
 [lib]
-name = "opencl_runtime"
+name = "open_cl_runtime"
 
 [dependencies]
 open-cl-low-level = { version = "0.1.0", path = "../open-cl-low-level" }
