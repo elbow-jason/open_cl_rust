@@ -3,6 +3,11 @@ name = "opencl-core"
 version = "0.1.0"
 authors = ["Jason Goldberger <jasongoldberger@gmail.com>"]
 edition = "2018"
+license = "MIT"
+description = "OpenCL thread-safe, memory-safe Rust bindings"
+keywords = ["opencl", "gpu", "computation"]
+homepage = "https://github.com/elbow-jason/open_cl_rust/tree/master/opencl-core"
+repository =  "https://github.com/elbow-jason/open_cl_rust/tree/master/opencl-core"
 
 [lib]
 name = "opencl_core"
