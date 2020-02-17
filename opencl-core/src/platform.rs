@@ -91,17 +91,6 @@ impl Platform {
     // }
 }
 
-// impl Default for Platform {
-//     fn default() -> Platform {
-//         let mut platforms =
-//             Platform::all().expect("Failed to list platforms for Platform::default()");
-//         if platforms.is_empty() {
-//             panic!("No platforms during Platform::default()");
-//         }
-//         platforms.remove(0)
-//     }
-// }
-
 impl fmt::Debug for Platform {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Platform{{{:?}}}", self.platform_ptr())

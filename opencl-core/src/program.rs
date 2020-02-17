@@ -6,21 +6,6 @@ use crate::ffi::cl_program;
 use crate::ll::{ClContext, ClProgram, ContextPtr, ProgramPtr};
 use crate::{Context, Device, Output};
 
-// pub const DEVICE_LIST_CANNOT_BE_EMPTY: Error = Error::ProgramError(ProgramError::CannotBuildProgramWithEmptyDevicesList);
-
-// /// An error related to Program.
-// #[derive(Debug, Fail, PartialEq, Eq, Clone)]
-// pub enum ProgramError {
-//     #[fail(display = "The given source code was not a valid CString")]
-//     CStringInvalidSourceCode,
-
-//     #[fail(display = "The given program binary was not a valid CString")]
-//     CStringInvalidProgramBinary,
-
-//     #[fail(display = "Cannot build a program with an empty list of devices")]
-//     CannotBuildProgramWithEmptyDevicesList,
-// }
-
 pub struct UnbuiltProgram {
     context: ManuallyDrop<ClContext>,
     inner: ManuallyDrop<ClProgram>,
@@ -233,10 +218,6 @@ mod tests {
         *i += 1;
     }
     ";
-
-    // fn get_session() -> Session {
-    //     Session::create_sessions(&[Device::default()], TEST_SRC).expect("Failed to create Session").remove(0)
-    // }
 
     #[test]
     fn program_method_reference_count_works() {

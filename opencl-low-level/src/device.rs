@@ -111,7 +111,6 @@ unsafe fn retain_device(device_id: cl_device_id) {
     });
 }
 
-#[derive(Hash)]
 pub struct ClDeviceID {
     object: cl_device_id,
     _unconstructable: (),

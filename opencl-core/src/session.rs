@@ -160,24 +160,6 @@ impl Session {
         )
     }
 
-    // #[inline]
-    // fn get_queue_by_index(&self, index: usize) -> Output<(RwLockReadGuard<ClCommandQueue>> {
-        
-    //         .map(|rw_lock| rw_lock.read().unwrap())
-    //         .ok_or_else(|| SessionError::QueueIndexOutOfRange(index).into())
-            
-    // }
-
-    //  #[inline]
-    // fn get_queue_by_index_mut(&self, index: usize) -> Output<RwLockWriteGuard<ClCommandQueue>> {
-    //     self._queues
-    //         .read()
-    //         .unwrap()
-    //         .get(index)
-    //         .ok_or_else(|| SessionError::QueueIndexOutOfRange(index).into())
-    //         .map(|rw_lock| rw_lock.write().unwrap())
-    // }
-
     /// This function copies data from the host buffer into the device mem buffer. The host
     /// buffer must be a mutable slice or a vector to ensure the safety of the read_Buffer
     /// operation.
@@ -262,8 +244,9 @@ impl Session {
             let mut ll_kernel = kernel.write_lock();
             let event =
                 queue.enqueue_kernel(&mut ll_kernel, &work, command_queue_opts)?;
+            // Wait until queued mems finish being accessed.
             event.wait()?;
-            // Wait until queue drops
+            // then drop locks.
             std::mem::drop(mem_locks);
             kernel_op.return_value()
         }

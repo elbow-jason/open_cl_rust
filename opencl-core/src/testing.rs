@@ -82,23 +82,6 @@ where
 }
 
 
-// pub fn get_session(src: &str) -> Session {
-//     Session::create_sessions(&[Device::default()], src)
-//         .unwrap_or_else(|e| panic!("Failed to create Session: {:?}", e))
-//         .remove(0)
-// }
-
-// pub fn all_sessions(src: &str) -> Vec<Session> {
-//     let mut sessions = Vec::new();
-//     let platforms = Platform::all().unwrap();
-//     for p in platforms.iter() {
-//         let devices: Vec<Device> = p.all_devices().unwrap();
-//         let more_sessions: Vec<Session> = Session::create_sessions(&devices[..], src)
-//             .unwrap_or_else(|e| panic!("Failed to create Session: {:?}", e));
-//         sessions.extend(more_sessions);
-//     }
-//     sessions
-// }
 
 pub fn get_device() -> Device {
     let platform = Platform::default();
@@ -107,42 +90,3 @@ pub fn get_device() -> Device {
     assert!(devices.len() > 0);
     devices.remove(0)
 }
-
-// lazy_static! {
-//     static ref LOG_INITED: RwLock<bool> = RwLock::new(false);
-// }
-
-// pub fn init_logger() {
-//     use std::io::Write;
-//     use chrono::Local;
-//     let _ = env_logger::builder()
-//         .is_test(true)
-//         .format(|buf, record| {
-//             writeln!(buf,
-//                 "{} [{}] - {}",
-//                 Local::now().format("%Y-%m-%dT%H:%M:%S%.6f"),
-//                 record.level(),
-//                 record.args()
-//             )
-//         })
-//         .init();
-//     let read_lock = LOG_INITED.read().unwrap();
-//     if *read_lock == true {
-//         return;
-//     } else {
-//         std::mem::drop(read_lock);
-//         let mut write_lock = LOG_INITED.write().unwrap();
-//         if *write_lock == false {
-//             *write_lock = true;
-//         }
-//     }
-// }
-
-// #[test]
-// fn logger_init_actually_lets_us_log() {
-//     println!("println in in logger_init_actually_lets_us_log");
-//     debug!("debug in logger_init_actually_lets_us_log");
-//     info!("info in logger_init_actually_lets_us_log");
-//     warn!("info in logger_init_actually_lets_us_log");
-//     error!("info in logger_init_actually_lets_us_log");
-// }

@@ -136,26 +136,6 @@ impl<T: ClNumber> Buffer<T> {
     }
 }
 
-// unsafe impl<T: ClNumber> MemPtr<T> for Buffer<T> {
-//     unsafe fn mem_ptr(&self) -> cl_mem {
-//         self.inner.mem_ptr()
-//     }
-// }
-
-// macro_rules! __impl_mem_info {
-//     ($name:ident, $flag:ident, $output_t:ty) => {
-//         impl<T> DeviceMem<T> where T: Debug + Sync + Send {
-//             pub fn $name(&self) -> Output<$output_t> {
-//                 self.get_info(MemInfo::$flag)
-//                     .map(|ret| unsafe { ret.into_one() })
-//             }
-//         }
-//     };
-// }
-
-// __impl_mem_info!(mem_type, Type, MemObjectType);
-// __impl_mem_info!(flags, Flags, MemFlags);
-
 #[cfg(test)]
 mod tests {
     use crate::ll::*;
@@ -207,9 +187,8 @@ mod tests {
 
     // #[test]
     // fn device_mem_method_mem_type_works() {
-    //     let (_sess, device_mem) = get_device_mem();
-    //     let _out: MemObjectType = device_mem
-    //         .mem_type()
+    //     let buffer = testing::get_buffer::<u32>(10);
+    //     let _out: MemObjectType = buffer.mem_type()
     //         .expect("Failed to call device_mem.mem_type()");
     // }
 

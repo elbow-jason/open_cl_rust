@@ -110,12 +110,28 @@ pub enum KernelError {
     KernelOpArgWasNotNum,
 }
 
+/// Decrements a cl_kernel's reference count in OpenCL.
+/// 
+/// # Safety
+/// Calling this function with a null-pointer cl_kernel or a cl_kernel that
+/// has already reached a 0 reference count is undefined behavior.
+/// 
+/// Ensuring that reference count for cl_kernel is balanced is the
+/// responsiblity of the caller.
 unsafe fn release_kernel(kernel: cl_kernel) {
     cl_release_kernel(kernel).unwrap_or_else(|e| {
         panic!("Failed to release cl_kernel {:?} due to {:?} ", kernel, e);
     });
 }
 
+/// Increments a cl_kernel's reference count in OpenCL.
+/// 
+/// # Safety
+/// Calling this function with a null-pointer cl_kernel or a cl_kernel that
+/// has already reached a 0 reference count is undefined behavior.
+/// 
+/// Ensuring that reference count for cl_kernel is balanced is the
+/// responsiblity of the caller.
 unsafe fn retain_kernel(kernel: cl_kernel) {
     cl_retain_kernel(kernel).unwrap_or_else(|e| {
         panic!("Failed to retain cl_kernel {:?} due to {:?}", kernel, e);
@@ -134,10 +150,13 @@ pub unsafe trait KernelPtr: Sized {
             .map(|ret| ret.into_string())
     }
 
+    /// Returns the number of args for a kernel.
     unsafe fn num_args(&self) -> Output<u32> {
-        self.info(KernelInfo::NumArgs).map(|ret| ret.into_one())
+        self.info(KernelInfo::NumArgs)
+            .map(|ret| ret.into_one())
     }
 
+    /// Returns the OpenCL reference count of the kernel.
     unsafe fn reference_count(&self) -> Output<u32> {
         self.info(KernelInfo::ReferenceCount)
             .map(|ret| ret.into_one())
@@ -167,16 +186,35 @@ pub unsafe trait KernelPtr: Sized {
     // }
 }
 
+/// ClKernel is a low-level object wrapper for cl_kernel. ClKernel implements Drop that
+/// utilizes clRetainKernel and Clone that utilizes clReleaseKernel.
+/// 
+/// # Safety
+/// Using ClKernel in an invalid state is undefined behavior.
+/// 
+/// # Lifetime Dependencies
+/// ClKernel depends on cl_program and, by proxy, cl_context.
 pub struct ClKernel {
     object: cl_kernel,
     _unconstructable: (),
 }
 
 impl ClKernel {
+
+    /// Creates a ClKernel after checking that the cl_kernel is a non-null pointer.
+    /// 
+    /// # Safety
+    /// Providing a non-null pointer will return an Err Result, but providing an invalid
+    /// cl_kernel is not safe.
     pub unsafe fn new(object: cl_kernel) -> Output<ClKernel> {
         utils::null_check(object)?;
         Ok(ClKernel::unchecked_new(object))
     }
+
+    /// Creates a ClKernel without checking that the cl_kernel is a null pointer.
+    /// 
+    /// # Safety
+    /// Providing a null pointer or an otherwise invalid cl_kernel is not safe.
     pub unsafe fn unchecked_new(object: cl_kernel) -> ClKernel {
         ClKernel {
             object,
@@ -184,6 +222,10 @@ impl ClKernel {
         }
     }
 
+    /// Creates a wrapped cl_kernel object.
+    /// 
+    /// # Safety
+    /// Calling this function with an invalid ClProgram is undefined behavior.
     pub unsafe fn create(program: &ClProgram, name: &str) -> Output<ClKernel> {
         cl_create_kernel(program.program_ptr(), name).and_then(|object| ClKernel::new(object))
     }
@@ -334,7 +376,7 @@ impl<T: ClNumber + KernelArg> KernelOperation<T> {
 
     #[inline]
     pub fn work(&self) -> Output<Work> {
-        self._work.clone().ok_or(KernelError::WorkIsRequired.into())
+        self._work.clone().ok_or_else(|| KernelError::WorkIsRequired.into())
     }
 }
 

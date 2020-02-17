@@ -12,7 +12,6 @@ fn from_low_level_vec(devices: Vec<ClDeviceID>) -> Vec<Device> {
     devices.into_iter().map(|d| Device::new(d)).collect()
 }
 
-#[derive(Hash)]
 pub struct Device {
     inner: ManuallyDrop<ClDeviceID>,
     _unconstructable: (),

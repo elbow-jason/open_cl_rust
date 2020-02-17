@@ -77,6 +77,10 @@ unsafe impl Send for CommandQueue {}
 unsafe impl Sync for CommandQueue {}
 
 impl CommandQueue {
+    /// Builds a CommandQueue from a low-level ClCommandQueue, a Context and a Device.
+    /// 
+    /// # Safety
+    /// Building a CommandQueue with any invalid ClObject, or mismatched ClObjects is undefined behavior.
     unsafe fn new(queue: ClCommandQueue, context: &Context, device: &Device) -> CommandQueue {
         CommandQueue::new_from_low_level(
             queue,
@@ -85,6 +89,10 @@ impl CommandQueue {
         )
     }
 
+    /// Builds a CommandQueue from a low-level ClObjects
+    /// 
+    /// # Safety
+    /// Building a CommandQueue with any invalid ClObject, or mismatched ClObjects is undefined behavior.
     unsafe fn new_from_low_level(
         queue: ClCommandQueue,
         context: &ClContext,
@@ -98,6 +106,7 @@ impl CommandQueue {
         }
     }
 
+    /// Creates a new CommandQueue with the given Context on the given Device.
     pub fn create(
         context: &Context,
         device: &Device,
@@ -113,6 +122,10 @@ impl CommandQueue {
         }
     }
 
+    /// Creates a new copy of a CommandQueue with CommandQueue's Context on the CommandQueue's Device.
+    /// 
+    /// This function is useful for executing concurrent operations on a device within the same
+    /// Context.
     pub fn create_copy(&self) -> Output<CommandQueue> {
         unsafe {
             let props = self.properties()?;
@@ -129,12 +142,13 @@ impl CommandQueue {
         }
     }
 
-    pub fn low_level_context(&self) -> &ClContext {
-        &*self._context
+    /// The low-level context of the CommandQueue 
+    pub fn low_level_context(&self) -> ClContext {
+        (*self._context).clone()
     }
 
-    pub fn low_level_device(&self) -> &ClDeviceID {
-        &*self._device
+    pub fn low_level_device(&self) -> ClDeviceID {
+        (*self._device).clone()
     }
 
     /// write_buffer is used to move data from the host buffer (buffer: &[T]) to
@@ -193,47 +207,6 @@ impl CommandQueue {
         }
     }
 
-    // pub fn sync_enqueue_kernel(&self, kernel: &Kernel, work: &Work) -> Output<Event> {
-    //     self.sync_enqueue_kernel_with_opts(kernel, work, CommandQueueOptions::default())
-    // }
-
-    // pub fn async_enqueue_kernel(&self, kernel: &Kernel, work: &Work) -> Output<Event> {
-    //     self.async_enqueue_kernel_with_opts(kernel, work, CommandQueueOptions::default())
-    // }
-
-    // pub fn async_enqueue_kernel_with_opts(
-    //     &self,
-    //     kernel: &Kernel,
-    //     work: &Work,
-    //     command_queue_opts: CommandQueueOptions,
-    // ) -> Output<Event> {
-    //     unsafe {
-    //         let kernel_lock = kernel.write_lock();
-    //         let cq_lock = self.write_lock();
-    //         async_enqueue_kernel_with_opts(
-    //             cq_lock.command_queue_ptr(),
-    //             kernel_lock.kernel_ptr(),
-    //             work,
-    //             command_queue_opts
-    //         )
-    //     }
-    // }
-
-    // pub fn info<T: Copy>(self, flag: CQInfo) -> Output<ClPointer<T>> {
-    //     unsafe {
-    //         let cq_lock = self.read_lock().info();
-    //         info::fetch::<T>(cq_lock.command_queue_ptr(), flag)
-    //     }
-    // }
-
-    // pub fn load_context(&self) -> Output<Context> {
-    //     unsafe { info::load_context(self.read_lock().command_queue_ptr()) }
-    // }
-
-    // pub fn load_device(&self) -> Output<Device> {
-    //     unsafe { info::load_device(self.read_lock().command_queue_ptr()) }
-    // }
-
     pub fn reference_count(&self) -> Output<u32> {
         unsafe { self.read_lock().reference_count() }
     }
@@ -256,96 +229,72 @@ impl PartialEq for CommandQueue {
 
 impl Eq for CommandQueue {}
 
-// #[cfg(test)]
-// mod tests {
-//     use super::flags::CommandQueueProperties;
-//     use crate::{Context, Output, Device, testing};
-//     const SRC: &'static str = "
-//     __kernel void test(__global int *i) {
-//         *i += 1;
-//     }";
+#[cfg(test)]
+mod tests {
+    use crate::testing;
+    use crate::ll::{CommandQueuePtr, ClContext, ClDeviceID, CommandQueueProperties};
 
-//     #[test]
-//     pub fn command_queue_method_context_works() {
-//         testing::init_logger();
-//         let session = testing::get_session(SRC);
-//         let _context: &Context = session.command_queue().context();
-//     }
+    const SRC: &'static str = "
+    __kernel void test(__global int *i) {
+        *i += 1;
+    }";
 
-//     #[test]
-//     pub fn command_queue_method_load_context_works() {
-//         let session = testing::get_session(SRC);
-//         let result: Output<Context> = session.command_queue().load_context();
-//         result.unwrap_or_else(|e| panic!("Failed to load_context: {:?}", e));
-//     }
+    #[test]
+    pub fn command_queue_method_context_works() {
+        // testing::init_logger();
+        let session = testing::get_session(SRC);
+        let _context: ClContext = unsafe { session.read_queue().context().unwrap() };
+    }
 
-//     #[test]
-//     pub fn command_queue_load_context_matches_kept_context() {
-//         let session = testing::get_session(SRC);
-//         let kept_context: &Context = session
-//             .command_queue()
-//             .context();
-//         let loaded_context: Context = session.command_queue().load_context().unwrap();
-//         assert_eq!(kept_context, &loaded_context);
-//     }
+    #[test]
+    pub fn command_queue_method_device_works() {
+        let session = testing::get_session(SRC);
+        let _device: ClDeviceID = unsafe { session.read_queue().device().unwrap() };
+    }
 
-//     #[test]
-//     pub fn command_queue_method_device_works() {
-//         let session = testing::get_session(SRC);
-//         let _device: &Device = session.command_queue().device();
-//     }
+    #[test]
+    pub fn command_queue_method_reference_count_works() {
+        let session = testing::get_session(SRC);
+        let ref_count: u32 = unsafe {
+                session
+                .read_queue()
+                .reference_count()
+            }
+            .expect("CommandQueue method reference_count() failed");
+        assert_eq!(ref_count, 1);
+    }
 
-//     #[test]
-//     pub fn command_queue_method_load_device_works() {
-//         let session = testing::get_session(SRC);
-//         let result: Output<Device> = session.command_queue().load_device();
-//         result.unwrap_or_else(|e| panic!("Failed to load_device: {:?}", e));
-//     }
+    #[test]
+    pub fn command_queue_method_properties_works() {
+        let session = testing::get_session(SRC);
+        let props: CommandQueueProperties = unsafe {
+                session
+                .read_queue()
+                .properties()
+            }
+            .expect("CommandQueue method properties() failed");
+        let bits = props.bits();
+        let maybe_same_prop = CommandQueueProperties::from_bits(bits);
+        if !maybe_same_prop.is_some() {
+            panic!(
+                "
+                CommandQueue method properties returned \
+                an invalid CommandQueueProperties bitflag {:?}\
+                ",
+                bits
+            );
+        }
+    }
 
-//     #[test]
-//     pub fn command_queue_load_device_matches_kept_device() {
-//         let session = testing::get_session(SRC);
-//         let kept_device = session
-//             .command_queue()
-//             .device();
-//         let loaded_device = session.command_queue().load_device().unwrap();
-//         assert_eq!(kept_device, &loaded_device);
-//     }
-
-//     #[test]
-//     pub fn command_queue_method_reference_count_works() {
-//         let session = testing::get_session(SRC);
-//         let ref_count: u32 = session
-//             .command_queue()
-//             .reference_count()
-//             .expect("CommandQueue method reference_count() failed");
-//         assert_eq!(ref_count, 1);
-//     }
-
-//     #[test]
-//     pub fn command_queue_method_properties_works() {
-//         let session = testing::get_session(SRC);
-//         let props: CommandQueueProperties = session
-//             .command_queue()
-//             .properties()
-//             .expect("CommandQueue method properties() failed");
-//         let bits = props.bits();
-//         let maybe_same_prop = CommandQueueProperties::from_bits(bits);
-//         if !maybe_same_prop.is_some() {
-//             panic!(
-//                 "
-//                 CommandQueue method properties returned \
-//                 an invalid CommandQueueProperties bitflag {:?}\
-//                 ",
-//                 bits
-//             );
-//         }
-//     }
-
-//     #[test]
-//     pub fn command_queue_copy_new_works() {
-//         let session = testing::get_session(SRC);
-//         let cq2 = session.command_queue().new_copy().unwrap();
-//         assert!(&cq2 != session.command_queue());
-//     }
-// }
+    #[test]
+    pub fn command_queue_copy_new_works() {
+        let session = testing::get_session(SRC);
+        unsafe {
+            let cq2 = session
+                .read_queue()
+                .create_copy()
+                .unwrap();
+            assert!(cq2.command_queue_ptr() != session.read_queue().command_queue_ptr());
+        }
+    }
+}
