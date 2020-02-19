@@ -1,4 +1,3 @@
-
 #[macro_export]
 macro_rules! panic_once {
     ($fmt:expr, $($arg:tt)+) => {

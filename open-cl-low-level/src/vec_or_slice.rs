@@ -16,7 +16,7 @@ impl<'a, T: Clone> VecOrSlice<'a, T> {
             VecOrSlice::Vec(items) => items.len(),
             VecOrSlice::Slice(items) => items.len(),
         }
-    } 
+    }
 
     pub fn as_slice(&self) -> &[T] {
         match self {

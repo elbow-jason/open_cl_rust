@@ -4,34 +4,43 @@ use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::ll::{ClContext, ClMem, MemFlags, MemPtr};
 
-use crate::{BufferCreator, ClNumber, Context, HostAccess, KernelAccess, MemLocation, Output, MemConfig};
+use crate::{
+    BufferCreator, ClNumber, Context, HostAccess, KernelAccess, MemConfig, MemLocation, Output,
+    NumberType, NumberTyped
+};
 
-pub struct Buffer<T: ClNumber> {
-    _mem: Arc<RwLock<ClMem<T>>>,
+pub struct Buffer {
+    _t: NumberType,
+    _mem: Arc<RwLock<ClMem>>,
     _context: Context,
 }
 
-unsafe impl<T: ClNumber> Send for Buffer<T> {}
-unsafe impl<T: ClNumber> Sync for Buffer<T> {}
+impl NumberTyped for Buffer {
+    fn number_type(&self) -> NumberType {
+        self._t
+    }
+}
 
-impl<T: ClNumber> Clone for Buffer<T> {
-    fn clone(&self) -> Buffer<T> {
+unsafe impl Send for Buffer {}
+unsafe impl Sync for Buffer {}
+
+impl Clone for Buffer {
+    fn clone(&self) -> Buffer {
         Buffer {
+            _t: self._t,
             _mem: self._mem.clone(),
             _context: self._context.clone(),
         }
     }
 }
 
-impl<T: ClNumber> Debug for Buffer<T> {
+impl Debug for Buffer {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Buffer{{{:?}}}", self._mem)
     }
 }
 
-
-
-impl<T: ClNumber> PartialEq for Buffer<T> {
+impl PartialEq for Buffer {
     fn eq(&self, other: &Self) -> bool {
         unsafe {
             let left = self._mem.read().unwrap().mem_ptr();
@@ -41,21 +50,22 @@ impl<T: ClNumber> PartialEq for Buffer<T> {
     }
 }
 
-impl<T: ClNumber> Buffer<T> {
-    pub fn new(ll_mem: ClMem<T>, context: Context) -> Buffer<T> {
+impl Buffer {
+    pub fn new(ll_mem: ClMem, context: Context) -> Buffer {
         Buffer {
+            _t: ll_mem.number_type(),
             _mem: Arc::new(RwLock::new(ll_mem)),
             _context: context,
         }
     }
 
-    pub fn create<B: BufferCreator<T>>(
+    pub fn create<T: ClNumber, B: BufferCreator<T>>(
         context: &Context,
         creator: B,
         host_access: HostAccess,
         kernel_access: KernelAccess,
         mem_location: MemLocation,
-    ) -> Output<Buffer<T>> {
+    ) -> Output<Buffer> {
         let ll_mem = ClMem::create(
             context.low_level_context(),
             creator,
@@ -66,24 +76,43 @@ impl<T: ClNumber> Buffer<T> {
         Ok(Buffer::new(ll_mem, context.clone()))
     }
 
-    pub fn create_with_creator<B: BufferCreator<T>>(context: &Context, creator: B) -> Output<Buffer<T>> {
-        let mem_config = {
-             creator.mem_config()
-        };
+    pub fn create_with_len<T: ClNumber>(context: &Context, len: usize) -> Output<Buffer> {
+        Buffer::create_from::<T, usize>(context, len)
+    }
+
+    pub fn create_from_slice<T: ClNumber>(context: &Context, data: &[T]) -> Output<Buffer> {
+        Buffer::create_from(context, data)
+    }
+
+    pub fn create_from<T: ClNumber, B: BufferCreator<T>>(
+        context: &Context,
+        creator: B,
+    ) -> Output<Buffer> {
+        let mem_config = { creator.mem_config() };
         Buffer::create_with_config(context, creator, mem_config)
     }
 
-    pub fn create_with_config<B: BufferCreator<T>>(context: &Context, creator: B, mem_config: MemConfig) -> Output<Buffer<T>> {
-        Buffer::create(context, creator, mem_config.host_access, mem_config.kernel_access, mem_config.mem_location)
+    pub fn create_with_config<T: ClNumber, B: BufferCreator<T>>(
+        context: &Context,
+        creator: B,
+        mem_config: MemConfig,
+    ) -> Output<Buffer> {
+        Buffer::create(
+            context,
+            creator,
+            mem_config.host_access,
+            mem_config.kernel_access,
+            mem_config.mem_location,
+        )
     }
 
-    pub fn create_from_low_level_context<B: BufferCreator<T>>(
+    pub fn create_from_low_level_context<T: ClNumber, B: BufferCreator<T>>(
         ll_context: &ClContext,
         creator: B,
         host_access: HostAccess,
         kernel_access: KernelAccess,
         mem_location: MemLocation,
-    ) -> Output<Buffer<T>> {
+    ) -> Output<Buffer> {
         let ll_mem = ClMem::create(
             ll_context,
             creator,
@@ -95,11 +124,11 @@ impl<T: ClNumber> Buffer<T> {
         Ok(Buffer::new(ll_mem, context))
     }
 
-    pub fn read_lock(&self) -> RwLockReadGuard<ClMem<T>> {
+    pub fn read_lock(&self) -> RwLockReadGuard<ClMem> {
         self._mem.read().unwrap()
     }
 
-    pub fn write_lock(&self) -> RwLockWriteGuard<ClMem<T>> {
+    pub fn write_lock(&self) -> RwLockWriteGuard<ClMem> {
         self._mem.write().unwrap()
     }
 
@@ -117,8 +146,8 @@ impl<T: ClNumber> Buffer<T> {
 
     /// A non-panicking version of len.
     pub fn length(&self) -> Output<usize> {
-        let size = unsafe { self.read_lock().size() }?;
-        Ok(size / std::mem::size_of::<T>())
+        unsafe { self.read_lock().len() }
+        // Ok(size / std::mem::size_of::<T>())
     }
 
     /// A method for getting the len of the device memory buffer.
@@ -144,14 +173,7 @@ mod tests {
     #[test]
     fn buffer_can_be_created_with_a_length() {
         let context = testing::get_context();
-        let _buffer = Buffer::<u32>::create(
-            &context,
-            10,
-            HostAccess::ReadWrite,
-            KernelAccess::ReadWrite,
-            MemLocation::AllocOnDevice,
-        )
-        .unwrap();
+        let _buffer = Buffer::create_with_len::<u32>(&context, 10).unwrap();
     }
 
     #[test]

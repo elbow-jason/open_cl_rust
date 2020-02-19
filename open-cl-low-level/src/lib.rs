@@ -37,6 +37,8 @@ pub extern crate open_cl_sys as ffi;
 pub mod ll_testing;
 #[macro_use]
 pub mod macros;
+#[macro_use]
+pub mod cl_number_type;
 pub mod cl_bitflags;
 pub mod cl_enums;
 pub mod cl_helpers;
@@ -65,6 +67,7 @@ pub mod session;
 pub mod waitlist;
 pub mod work;
 
+pub use cl_number_type::*;
 pub use cl_pointer::ClPointer;
 pub use error::Error;
 pub use output::{build_output, Output};

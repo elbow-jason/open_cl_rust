@@ -1,16 +1,16 @@
 use std::mem::ManuallyDrop;
-use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard, Arc};
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::{
-    Buffer, BufferCreator, CommandQueueOptions, Context, Device, DeviceType, Kernel, MemConfig,
-    MutVecOrSlice, Output, Program, VecOrSlice, Waitlist, Work, KernelOpArg, KernelOperation,
-    ReturnArg,
+    Buffer, BufferCreator, CommandQueueOptions, Context, Device, DeviceType, Kernel, KernelOpArg,
+    KernelOperation, MemConfig, MutVecOrSlice, Output, Program, VecOrSlice, Waitlist,
+    Work, NumberTyped,
 };
 
 use crate::ll::{
     list_devices_by_type, list_platforms, BufferReadEvent, ClCommandQueue, ClContext, ClDeviceID,
-    ClEvent, ClKernel, ClNumber, ClProgram, DevicePtr, KernelArg, ClMem, CommandQueuePtr,
-    CommandQueueProperties, 
+    ClEvent, ClKernel, ClMem, ClNumber, ClProgram, CommandQueueProperties, CommandQueuePtr,
+    DevicePtr, KernelArg,
 };
 
 #[derive(Debug)]
@@ -26,11 +26,14 @@ unsafe impl Send for Session {}
 unsafe impl Sync for Session {}
 
 impl Session {
-    pub fn create_with_devices<'a, D>(devices: D, src: &str, cq_props: Option<CommandQueueProperties>) -> Output<Vec<Session>>
+    pub fn create_with_devices<'a, D>(
+        devices: D,
+        src: &str,
+        cq_props: Option<CommandQueueProperties>,
+    ) -> Output<Vec<Session>>
     where
         D: Into<VecOrSlice<'a, Device>>,
     {
-        
         let devices: Vec<Device> = devices.into().to_vec();
         unsafe {
             let context = ClContext::create(devices.as_slice())?;
@@ -40,11 +43,7 @@ impl Session {
                 let mut program = ClProgram::create_with_source(&context, src)?;
                 program.build(devices.as_slice())?;
 
-                let queue = ClCommandQueue::create(
-                    &context,
-                    &device,
-                    cq_props
-                )?;
+                let queue = ClCommandQueue::create(&context, &device, cq_props)?;
                 let session = Session {
                     _device: ManuallyDrop::new(device),
                     _context: ManuallyDrop::new(context.clone()),
@@ -78,9 +77,7 @@ impl Session {
     }
 
     pub fn program(&self) -> Program {
-        unsafe {
-            Program::from_low_level_program(self.low_level_program()).unwrap()
-        }
+        unsafe { Program::from_low_level_program(self.low_level_program()).unwrap() }
     }
 
     pub fn read_queue(&self) -> RwLockReadGuard<ClCommandQueue> {
@@ -109,7 +106,7 @@ impl Session {
         let cloned_program = self._program.clone();
         let ll_queue = self._queue.read().unwrap();
         let copied_queue = unsafe { ll_queue.create_copy()? };
-        
+
         Ok(Session {
             _device: cloned_device,
             _context: cloned_context,
@@ -133,7 +130,7 @@ impl Session {
     pub fn create_buffer<T: ClNumber, B: BufferCreator<T>>(
         &self,
         buffer_creator: B,
-    ) -> Output<Buffer<T>> {
+    ) -> Output<Buffer> {
         let cfg = buffer_creator.mem_config();
         Buffer::create_from_low_level_context(
             self.low_level_context(),
@@ -150,7 +147,7 @@ impl Session {
         &self,
         buffer_creator: B,
         mem_config: MemConfig,
-    ) -> Output<Buffer<T>> {
+    ) -> Output<Buffer> {
         Buffer::create_from_low_level_context(
             self.low_level_context(),
             buffer_creator,
@@ -165,11 +162,11 @@ impl Session {
     /// operation.
     pub fn sync_write_buffer<'a, T: ClNumber, H: Into<VecOrSlice<'a, T>>>(
         &self,
-        buffer: &Buffer<T>,
+        buffer: &Buffer,
         host_buffer: H,
         opts: Option<CommandQueueOptions>,
     ) -> Output<()> {
-        
+        buffer.number_type().type_check(T::number_type())?;
         let mut queue = self.write_queue();
         let mut buffer_lock = buffer.write_lock();
         unsafe {
@@ -183,12 +180,13 @@ impl Session {
     /// be passed as mutable; I don't trust OpenCL.
     pub fn sync_read_buffer<'a, T: ClNumber, H: Into<MutVecOrSlice<'a, T>>>(
         &self,
-        buffer: &Buffer<T>,
+        buffer: &Buffer,
         host_buffer: H,
         opts: Option<CommandQueueOptions>,
     ) -> Output<Option<Vec<T>>> {
+        buffer.number_type().type_check(T::number_type())?;
         let mut queue = self.write_queue();
-        
+
         let buffer_lock = buffer.read_lock();
         unsafe {
             let mut event: BufferReadEvent<T> =
@@ -220,7 +218,7 @@ impl Session {
     pub fn execute_sync_kernel_operation<'a, T>(
         &self,
         mut kernel_op: KernelOperation<'a, T>,
-    ) -> Output<Option<ReturnArg<T>>>
+    ) -> Output<()>
     where
         T: ClNumber + KernelArg,
     {
@@ -228,7 +226,7 @@ impl Session {
             let kernel = self.create_kernel(kernel_op.name())?;
             let work = kernel_op.work()?;
             let command_queue_opts = kernel_op.command_queue_opts();
-            let mut mem_locks: Vec<RwLockWriteGuard<ClMem<T>>> = Vec::new();
+            let mut mem_locks: Vec<RwLockWriteGuard<ClMem>> = Vec::new();
             for (arg_index, arg) in kernel_op.mut_args().iter_mut().enumerate() {
                 match arg {
                     KernelOpArg::Num(ref mut num) => kernel.set_arg(arg_index, num)?,
@@ -236,19 +234,18 @@ impl Session {
                         let mut mem = buffer.write_lock();
                         kernel.set_arg(arg_index, &mut *mem)?;
                         mem_locks.push(mem);
-                    },
+                    }
                 }
             }
 
             let mut queue = self.write_queue();
             let mut ll_kernel = kernel.write_lock();
-            let event =
-                queue.enqueue_kernel(&mut ll_kernel, &work, command_queue_opts)?;
+            let event = queue.enqueue_kernel(&mut ll_kernel, &work, command_queue_opts)?;
             // Wait until queued mems finish being accessed.
             event.wait()?;
             // then drop locks.
             std::mem::drop(mem_locks);
-            kernel_op.return_value()
+            Ok(())
         }
     }
 }
@@ -272,7 +269,6 @@ impl PartialEq for Session {
             let other_queue_ptr = other.read_queue().command_queue_ptr();
             std::ptr::eq(self_queue_ptr, other_queue_ptr)
         }
-        
     }
 }
 
@@ -376,7 +372,7 @@ mod tests {
     fn session_can_create_buffer_from_data() {
         let data: Vec<i32> = vec![0, 1, 2, 3, 4, 5, 6, 7];
         let session = new_session();
-        let _buffer: Buffer<i32> = session
+        let _buffer: Buffer = session
             .create_buffer(&data[..])
             .unwrap_or_else(|e| panic!("Session failed to create buffer: {:?}", e));
     }
@@ -384,8 +380,8 @@ mod tests {
     #[test]
     fn session_can_create_buffer_of_a_given_length() {
         let session = new_session();
-        let buffer: Buffer<i32> = session
-            .create_buffer(100)
+        let buffer: Buffer = session
+            .create_buffer::<i32, usize>(100)
             .unwrap_or_else(|e| panic!("Session failed to create buffer: {:?}", e));
         assert_eq!(buffer.len(), 100);
     }
@@ -394,7 +390,7 @@ mod tests {
     fn session_can_write_and_read_buffer() {
         let data: Vec<i32> = vec![0, 1, 2, 3, 4, 5, 6, 7];
         let session = new_session();
-        let buffer: Buffer<i32> = session
+        let buffer: Buffer = session
             .create_buffer(&data[..])
             .unwrap_or_else(|e| panic!("Session failed to create buffer: {:?}", e));
         assert_eq!(buffer.len(), 8);
@@ -419,7 +415,7 @@ mod tests {
     fn session_sync_enqueue_kernel_and_read_buffer() {
         let data: Vec<i32> = vec![0, 1, 2, 3, 4, 5, 6, 7];
         let session = new_session();
-        let buffer: Buffer<i32> = session
+        let buffer: Buffer = session
             .create_buffer(&data[..])
             .unwrap_or_else(|e| panic!("Session failed to create buffer: {:?}", e));
         assert_eq!(buffer.len(), 8);
@@ -432,9 +428,7 @@ mod tests {
         let mut buffer_lock = buffer.write_lock();
         unsafe { kernel.set_arg(0, &mut (*buffer_lock)).unwrap() };
         let work = Work::new(data.len());
-        session
-            .sync_enqueue_kernel(&kernel, &work, None)
-            .unwrap();
+        session.sync_enqueue_kernel(&kernel, &work, None).unwrap();
         std::mem::drop(buffer_lock);
 
         let data2 = vec![0i32; 8];

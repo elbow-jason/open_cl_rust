@@ -1,5 +1,4 @@
 use std::fmt;
-use std::marker::PhantomData;
 
 use libc::c_void;
 
@@ -10,7 +9,8 @@ use crate::ffi::{
 use crate::cl_helpers::cl_get_info5;
 use crate::{
     build_output, ClContext, ClNumber, ClPointer, ContextPtr, Error, HostAccessMemFlags,
-    KernelAccessMemFlags, MemFlags, MemInfo, MemLocationMemFlags, Output, SizeAndPtr,
+    KernelAccessMemFlags, MemFlags, MemInfo, MemLocationMemFlags, Output, NumberType,
+    NumberTyped 
 };
 
 __release_retain!(mem, MemObject);
@@ -40,17 +40,17 @@ pub const NO_ASSOCIATED_MEM_OBJECT: Error = Error::MemError(MemError::NoAssociat
 ///
 /// # Safety
 /// Use of a invalid cl_context in this function call is undefined behavior.
-pub unsafe fn cl_create_buffer_with_creator<B, T>(
+pub unsafe fn cl_create_buffer_with_creator<T: ClNumber, B: BufferCreator<T>>(
     context: cl_context,
     mem_flags: cl_mem_flags,
-    mut buffer_creator: B,
-) -> Output<cl_mem>
-where
-    T: ClNumber,
-    B: BufferCreator<T>,
-{
-    let SizeAndPtr(buf_size, buf_ptr) = buffer_creator.buffer_size_and_ptr();
-    cl_create_buffer(context, mem_flags, buf_size, buf_ptr)
+    buffer_creator: B,
+) -> Output<cl_mem> {
+    cl_create_buffer(
+        context,
+        mem_flags,
+        buffer_creator.buffer_byte_size(),
+        buffer_creator.buffer_ptr()
+    )
 }
 
 /// Low level helper functin for creating cl_mem buffer.
@@ -82,16 +82,19 @@ pub trait BufferCreator<T: ClNumber>: Sized {
     ///
     /// Currently the only 2 types that implement BufferCreator are
     /// `usize` representiing length/size and &[T] for ClNumber T representing data.
-    fn buffer_size_and_ptr(&mut self) -> SizeAndPtr<*mut c_void>;
+    fn buffer_byte_size(&self) -> usize;
+    fn buffer_ptr(&self) -> *mut c_void;
     fn mem_config(&self) -> MemConfig;
 }
 
 impl<T: ClNumber> BufferCreator<T> for &[T] {
-    fn buffer_size_and_ptr(&mut self) -> SizeAndPtr<*mut c_void> {
-        SizeAndPtr(
-            std::mem::size_of::<T>() * self.len(),
-            self.as_ptr() as *mut c_void,
-        )
+    fn buffer_byte_size(&self) -> usize {
+        std::mem::size_of::<T>() * self.len()
+    }
+
+    fn buffer_ptr(&self) -> *mut c_void {
+        self.as_ptr() as *const _ as *mut c_void
+
     }
 
     fn mem_config(&self) -> MemConfig {
@@ -99,12 +102,29 @@ impl<T: ClNumber> BufferCreator<T> for &[T] {
     }
 }
 
+impl<T: ClNumber> BufferCreator<T> for &mut [T] {
+    fn buffer_byte_size(&self) -> usize {
+        std::mem::size_of::<T>() * self.len()
+    }
+
+    fn buffer_ptr(&self) -> *mut c_void {
+        self.as_ptr() as *const _ as *mut c_void
+
+    }
+
+    fn mem_config(&self) -> MemConfig {
+        MemConfig::for_data()
+    }
+}
+
+
 impl<T: ClNumber> BufferCreator<T> for usize {
-    fn buffer_size_and_ptr(&mut self) -> SizeAndPtr<*mut c_void> {
-        SizeAndPtr(
-            (std::mem::size_of::<T>() * *self) as usize,
-            std::ptr::null_mut(),
-        )
+    fn buffer_byte_size(&self) -> usize {
+        std::mem::size_of::<T>() * *self
+    }
+
+    fn buffer_ptr(&self) -> *mut c_void {
+        std::ptr::null_mut()
     }
 
     fn mem_config(&self) -> MemConfig {
@@ -117,7 +137,7 @@ impl<T: ClNumber> BufferCreator<T> for usize {
 ///
 /// # Safety
 /// This trait is unsafe because it allows access to an un-reference-counted raw pointer.
-pub unsafe trait MemPtr<T: ClNumber> {
+pub unsafe trait MemPtr: NumberTyped {
     /// Returns a copy to the cl_mem of the implementor.
     ///
     /// # Safety
@@ -147,7 +167,7 @@ pub unsafe trait MemPtr<T: ClNumber> {
     /// Calling this function with an invalid ClMem is invalid behavior.
     unsafe fn len(&self) -> Output<usize> {
         let mem_size_in_bytes = self.size()?;
-        Ok(mem_size_in_bytes / std::mem::size_of::<T>())
+        Ok(mem_size_in_bytes / self.number_type().size_of_t())
     }
 
     /// Determines if ClMem is empty or not.
@@ -180,25 +200,25 @@ pub unsafe trait MemPtr<T: ClNumber> {
     //     }
     // }
 
-    /// Returns the associated_memobject of the ClMem.
-    ///
-    /// # Safety
-    /// associated_memobject is unsafe because this method grants access to a
-    /// cl_mem object that already exists as an owned cl_mem object. Without
-    /// synchronized access, the use of these objects can lead to undefined
-    /// behavior.
-    unsafe fn associated_memobject(&self) -> Output<ClMem<T>> {
-        self.get_info::<cl_mem>(MemInfo::AssociatedMemobject)
-            .map(|ret| {
-                let mem_obj: cl_mem = ret.into_one();
-                retain_mem(mem_obj);
-                ClMem::new(mem_obj)
-            })
-            .map_err(|e| match e {
-                Error::ClObjectCannotBeNull => NO_ASSOCIATED_MEM_OBJECT,
-                other => other,
-            })
-    }
+    // /// Returns the associated_memobject of the ClMem.
+    // ///
+    // /// # Safety
+    // /// associated_memobject is unsafe because this method grants access to a
+    // /// cl_mem object that already exists as an owned cl_mem object. Without
+    // /// synchronized access, the use of these objects can lead to undefined
+    // /// behavior.
+    // unsafe fn associated_memobject(&self) -> Output<ClMem<T>> {
+    //     self.get_info::<cl_mem>(MemInfo::AssociatedMemobject)
+    //         .map(|ret| {
+    //             let mem_obj: cl_mem = ret.into_one();
+    //             retain_mem(mem_obj);
+    //             ClMem::new(mem_obj)
+    //         })
+    //         .map_err(|e| match e {
+    //             Error::ClObjectCannotBeNull => NO_ASSOCIATED_MEM_OBJECT,
+    //             other => other,
+    //         })
+    // }
 
     /// Returns the ClContext of the ClMem.
     ///
@@ -249,35 +269,38 @@ pub unsafe trait MemPtr<T: ClNumber> {
 }
 
 #[derive(Eq, PartialEq, Hash)]
-pub struct ClMem<T: ClNumber> {
+pub struct ClMem {
     object: cl_mem,
-    _phantom: PhantomData<T>,
+    t: NumberType,
 }
 
-impl<T: ClNumber> ClMem<T> {
+impl NumberTyped for ClMem {
+    fn number_type(&self) -> NumberType {
+        self.t
+    }
+}
+
+impl ClMem {
     /// Instantiates a new ClMem of type T.
     ///
     /// # Safety
     /// This function does not retain its cl_mem, but will release its cl_mem
     /// when it is dropped. Mismanagement of a cl_mem's lifetime.  Therefore,
     /// this function is unsafe.
-    pub unsafe fn new(object: cl_mem) -> ClMem<T> {
+    pub unsafe fn new<T: ClNumber>(object: cl_mem) -> ClMem {
         ClMem {
             object,
-            _phantom: PhantomData,
+            t: T::number_type()
         }
     }
 
-    pub fn create<B>(
+    pub fn create<T: ClNumber, B: BufferCreator<T>>(
         context: &ClContext,
         buffer_creator: B,
         host_access: HostAccess,
         kernel_access: KernelAccess,
         mem_location: MemLocation,
-    ) -> Output<ClMem<T>>
-    where
-        B: BufferCreator<T>,
-    {
+    ) -> Output<ClMem> {
         unsafe {
             let mem_object = cl_create_buffer_with_creator(
                 context.context_ptr(),
@@ -286,7 +309,7 @@ impl<T: ClNumber> ClMem<T> {
                     | cl_mem_flags::from(mem_location),
                 buffer_creator,
             )?;
-            Ok(ClMem::new(mem_object))
+            Ok(ClMem::new::<T>(mem_object))
         }
     }
 
@@ -297,24 +320,21 @@ impl<T: ClNumber> ClMem<T> {
     ///
     /// # Safety
     /// Using an invalid context in this function call is undefined behavior.
-    pub unsafe fn create_with_config<B>(
+    pub unsafe fn create_with_config<T: ClNumber, B: BufferCreator<T>>(
         context: &ClContext,
         buffer_creator: B,
         mem_config: MemConfig,
-    ) -> Output<ClMem<T>>
-    where
-        B: BufferCreator<T>,
-    {
+    ) -> Output<ClMem> {
         let mem_object = cl_create_buffer_with_creator(
             context.context_ptr(),
             mem_config.into(),
             buffer_creator,
         )?;
-        Ok(ClMem::new(mem_object))
+        Ok(ClMem::new::<T>(mem_object))
     }
 }
 
-unsafe impl<T: ClNumber> MemPtr<T> for ClMem<T> {
+unsafe impl MemPtr for ClMem {
     unsafe fn mem_ptr(&self) -> cl_mem {
         self.object
     }
@@ -324,10 +344,7 @@ unsafe impl<T: ClNumber> MemPtr<T> for ClMem<T> {
     }
 }
 
-impl<T: ClNumber> Drop for ClMem<T>
-where
-    T: ClNumber,
-{
+impl Drop for ClMem {
     fn drop(&mut self) {
         unsafe {
             release_mem(self.object);
@@ -335,18 +352,22 @@ where
     }
 }
 
-impl<T: ClNumber> Clone for ClMem<T> {
-    fn clone(&self) -> ClMem<T> {
+impl Clone for ClMem {
+    fn clone(&self) -> ClMem {
         unsafe {
-            retain_mem(self.object);
-            ClMem::new(self.object)
+            let object = self.object;
+            retain_mem(object);
+            ClMem{
+                object,
+                t: self.t,
+            }
         }
     }
 }
 
-unsafe impl<T: ClNumber> Send for ClMem<T> {}
+unsafe impl Send for ClMem {}
 
-impl<T: ClNumber> fmt::Debug for ClMem<T> {
+impl fmt::Debug for ClMem {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "ClMem{{{:?}}}", self.object)
     }
@@ -360,8 +381,8 @@ mod tests {
     fn mem_can_be_created_with_len() {
         let (context, _devices) = ll_testing::get_context();
         let mem_config = MemConfig::default();
-        let _mem: ClMem<u32> =
-            unsafe { ClMem::create_with_config(&context, 10, mem_config).unwrap() };
+        let _mem: ClMem =
+            unsafe { ClMem::create_with_config::<u32, usize>(&context, 10, mem_config).unwrap() };
     }
 
     #[test]
@@ -369,7 +390,7 @@ mod tests {
         let (context, _devices) = ll_testing::get_context();
         let data: Vec<u32> = vec![0, 1, 2, 3, 4];
         let mem_config = MemConfig::for_data();
-        let _mem: ClMem<u32> =
+        let _mem: ClMem =
             unsafe { ClMem::create_with_config(&context, &data[..], mem_config).unwrap() };
     }
 

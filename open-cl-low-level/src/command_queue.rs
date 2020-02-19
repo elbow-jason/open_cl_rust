@@ -1,20 +1,18 @@
 use std::fmt;
 
-use libc::c_void;
-
 use crate::ffi::{
     clCreateCommandQueue, clEnqueueNDRangeKernel, clEnqueueReadBuffer, clEnqueueWriteBuffer,
     clFinish, clGetCommandQueueInfo, cl_bool, cl_command_queue, cl_command_queue_info,
-    cl_command_queue_properties, cl_context, cl_device_id, cl_event, cl_kernel, cl_mem,
+    cl_command_queue_properties, cl_context, cl_device_id, cl_event, cl_kernel, cl_mem
 };
 
 use crate::cl_helpers::cl_get_info5;
 use crate::CommandQueueInfo as CQInfo;
 use crate::{
-    build_output, utils, BufferReadEvent, ClContext, ClDeviceID, ClEvent, ClInput, ClKernel, ClMem,
-    ClNumber, ClPointer, CommandQueueInfo, CommandQueueProperties, ContextPtr, DevicePtr, EventPtr,
-    GlobalWorkSize, KernelPtr, LocalWorkSize, MemPtr, MutVecOrSlice, Output, SizeAndPtr,
-    VecOrSlice, Waitlist, WaitlistSizeAndPtr, Work,
+    build_output, utils, BufferReadEvent, ClContext, ClDeviceID, ClEvent, ClKernel, ClMem,
+    ClNumber, ClPointer, CommandQueueInfo, CommandQueueProperties, ContextPtr, DevicePtr,
+    EventPtr, GlobalWorkSize, KernelPtr, LocalWorkSize, MemPtr, MutVecOrSlice, Output,
+    VecOrSlice, Waitlist, WaitlistSizeAndPtr, Work, BufferCreator,
 };
 
 #[derive(Debug, Clone)]
@@ -25,7 +23,6 @@ pub struct CommandQueueOptions {
 }
 
 impl Default for CommandQueueOptions {
-
     /// Default constructor for CommandQueueOptions.
     fn default() -> CommandQueueOptions {
         CommandQueueOptions {
@@ -43,7 +40,6 @@ impl From<Option<CommandQueueOptions>> for CommandQueueOptions {
 }
 
 unsafe impl Waitlist for CommandQueueOptions {
-
     /// Fill waitlist extends the waitlist from the CommandQueueOptions' waitlist.
     unsafe fn fill_waitlist(&self, waitlist: &mut Vec<cl_event>) {
         waitlist.extend(self.new_waitlist());
@@ -55,41 +51,39 @@ unsafe impl Waitlist for CommandQueueOptions {
     }
 }
 
-unsafe impl<T> ClInput<*const c_void> for &[T] {
-    /// The size and pointer for a slice of T
-    /// 
-    /// # Safety
-    /// For use in OpenCL FFI calls. Use of invalid pointers or ClObjects is undefined behavior.
-    unsafe fn size_and_ptr(&self) -> SizeAndPtr<*const c_void> {
-        let size = std::mem::size_of::<T>() * self.len();
-        let ptr = self.as_ptr() as *const c_void;
-        SizeAndPtr(size, ptr)
-    }
-}
+// unsafe impl<T> ClInput<c_void> for &[T] {
+//     /// The size and pointer for a slice of T
+//     ///
+//     /// # Safety
+//     /// For use in OpenCL FFI calls. Use of invalid pointers or ClObjects is undefined behavior.
+//     unsafe fn size_and_ptr(&self) -> SizeAndPtr<c_void> {
+//         let size = std::mem::size_of::<T>() * self.len();
+//         let ptr = self.as_ptr() as *const c_void;
+//         SizeAndPtr::Const(size, ptr)
+//     }
+// }
 
-unsafe impl<T> ClInput<*mut c_void> for &mut [T] {
-
-    /// The size and pointer for a mutable slice of T
-    /// 
-    /// # Safety
-    /// For use in OpenCL FFI calls. Use of invalid pointers or ClObjects is undefined behavior.
-    unsafe fn size_and_ptr(&self) -> SizeAndPtr<*mut c_void> {
-        let size = std::mem::size_of::<T>() * self.len();
-        let ptr = self.as_ptr() as *mut c_void;
-        SizeAndPtr(size, ptr)
-    }
-}
+// unsafe impl<T> ClInput<c_void> for &mut [T] {
+//     /// The size and pointer for a mutable slice of T
+//     ///
+//     /// # Safety
+//     /// For use in OpenCL FFI calls. Use of invalid pointers or ClObjects is undefined behavior.
+//     unsafe fn size_and_ptr(&self) -> SizeAndPtr<c_void> {
+//         let size = std::mem::size_of::<T>() * self.len();
+//         let ptr = self.as_ptr() as *const _ as *mut c_void;
+//         SizeAndPtr::Mut(size, ptr)
+//     }
+// }
 
 __release_retain!(command_queue, CommandQueue);
 
-
 /// Releases (decrements reference count of) the cl_command_queue.
-/// 
+///
 /// # Safety
 /// Balancing the release and retain reference count of a cl_command_queue
 /// (or any ClObject) must be done with care. Improper usage of release and
 /// retain can lead to undefined behavior.
-/// 
+///
 /// Usage of an invalid ClObject is undefined behavior.
 pub unsafe fn release_command_queue(cq: cl_command_queue) {
     cl_release_command_queue(cq).unwrap_or_else(|e| {
@@ -98,14 +92,14 @@ pub unsafe fn release_command_queue(cq: cl_command_queue) {
 }
 
 /// Releases (decrements reference count of) the cl_command_queue.
-/// 
+///
 /// # Safety
 /// Balancing the release and retain reference count of a cl_command_queue
 /// (or any ClObject) must be done with care. Improper usage of release and
 /// retain can lead to undefined behavior.
-/// 
+///
 /// Usage of an invalid ClObject is undefined behavior.
-/// 
+///
 /// This function should be use with extreme care. Any copy of a
 /// cl_command_queue could be used concurrently with the other. Writing to the
 /// same queue concurrently is undefined behavior.
@@ -116,7 +110,7 @@ pub unsafe fn retain_command_queue(cq: cl_command_queue) {
 }
 
 /// Creates a new cl_command_queue.
-/// 
+///
 /// # Safety
 /// Usage of an invalid ClObject is undefined behavior.
 pub unsafe fn cl_create_command_queue(
@@ -131,18 +125,17 @@ pub unsafe fn cl_create_command_queue(
 }
 
 /// Blocks until all previously queued tasks are finished.
-/// 
+///
 /// # Safety
 /// Usage of an invalid ClObject is undefined behavior.
 pub unsafe fn cl_finish(command_queue: cl_command_queue) -> Output<()> {
     build_output((), clFinish(command_queue))
 }
 
-
 /// Queues an n-dimensionally ranged kernel to be executed.
-/// 
+///
 /// Blocks until the kernel is finished.
-/// 
+///
 /// # Safety
 /// Usage of an invalid ClObject is undefined behavior.
 pub unsafe fn cl_enqueue_nd_range_kernel<W: Waitlist>(
@@ -152,8 +145,8 @@ pub unsafe fn cl_enqueue_nd_range_kernel<W: Waitlist>(
     waitlist: W,
 ) -> Output<cl_event> {
     let mut tracking_event: cl_event = new_tracking_event();
-    let waiting_events = waitlist.new_waitlist();
-    let SizeAndPtr(wl_len, wl_ptr) = waiting_events.as_slice().waitlist_size_and_ptr();
+    let event_waitlist = waitlist.new_waitlist();
+    let wl = event_waitlist.as_slice();
 
     let gws: GlobalWorkSize = work.global_work_size()?;
     let lws: LocalWorkSize = work.local_work_size()?;
@@ -164,8 +157,8 @@ pub unsafe fn cl_enqueue_nd_range_kernel<W: Waitlist>(
         work.global_work_offset().as_ptr(),
         gws.as_ptr(),
         lws.as_ptr(),
-        wl_len as u32,
-        wl_ptr,
+        wl.waitlist_len(),
+        wl.waitlist_ptr(),
         &mut tracking_event,
     );
 
@@ -192,9 +185,7 @@ where
 {
     let mut tracking_event = new_tracking_event();
     let waitlist = command_queue_opts.new_waitlist();
-    let SizeAndPtr(wl_len, wl_ptr) = waitlist.as_slice().waitlist_size_and_ptr();
-
-    let SizeAndPtr(buffer_size, buffer_ptr) = buffer.size_and_ptr();
+    let wl = waitlist.as_slice();
 
     // TODO: Make this a Error returning check
     // debug_assert!(buffer.len() == device_mem.len());
@@ -204,10 +195,10 @@ where
         mem,
         command_queue_opts.is_blocking as cl_bool,
         command_queue_opts.offset,
-        buffer_size,
-        buffer_ptr,
-        wl_len as u32,
-        wl_ptr,
+        buffer.buffer_byte_size(),
+        buffer.buffer_ptr(),
+        wl.waitlist_len(),
+        wl.waitlist_ptr(),
         &mut tracking_event,
     );
     build_output(tracking_event, err_code)
@@ -222,19 +213,17 @@ pub unsafe fn cl_enqueue_write_buffer<T: ClNumber>(
     let mut tracking_event = new_tracking_event();
 
     let waitlist = command_queue_opts.new_waitlist();
-    let SizeAndPtr(wl_len, wl_ptr) = waitlist.as_slice().waitlist_size_and_ptr();
-
-    let SizeAndPtr(buffer_size, buffer_ptr) = buffer.size_and_ptr();
-
+    let wl = waitlist.as_slice();
+    
     let err_code = clEnqueueWriteBuffer(
         queue,
         mem,
         command_queue_opts.is_blocking as cl_bool,
         command_queue_opts.offset,
-        buffer_size,
-        buffer_ptr,
-        wl_len as u32,
-        wl_ptr,
+        buffer.buffer_byte_size(),
+        buffer.buffer_ptr(),
+        wl.waitlist_len(),
+        wl.waitlist_ptr(),
         &mut tracking_event,
     );
 
@@ -304,14 +293,13 @@ pub struct ClCommandQueue {
 }
 
 impl ClCommandQueue {
-    /// Builds a ClCommandQueue after checking for null-pointer. 
+    /// Builds a ClCommandQueue after checking for null-pointer.
     pub unsafe fn new(cq: cl_command_queue) -> Output<ClCommandQueue> {
         utils::null_check(cq)?;
         Ok(ClCommandQueue::unchecked_new(cq))
     }
 
-
-    /// Builds a ClCommandQueue without checking for null-pointer. 
+    /// Builds a ClCommandQueue without checking for null-pointer.
     pub unsafe fn unchecked_new(object: cl_command_queue) -> ClCommandQueue {
         ClCommandQueue {
             object,
@@ -320,7 +308,7 @@ impl ClCommandQueue {
     }
 
     /// After checking for null-pointer and retaining the cl_command_queue builds a ClCommandQueue.
-    /// 
+    ///
     /// # Safety
     /// Calling this function with a cl_command_queue in an invalid state is undefined behavior.
     pub unsafe fn retain_new(cq: cl_command_queue) -> Output<ClCommandQueue> {
@@ -329,11 +317,9 @@ impl ClCommandQueue {
         Ok(ClCommandQueue::unchecked_new(cq))
     }
 
-
-    
     /// Create a new ClCommandQueue in the given ClContext on the given
     /// ClDeviceID with the given CommandQueueProperties (optional).
-    /// 
+    ///
     /// # Safety
     /// Calling this function with an invalid ClContext or ClDeviceID
     /// is undefined behavior.
@@ -354,7 +340,7 @@ impl ClCommandQueue {
     }
 
     /// Creates a ClCommandQueue from raw ClObject pointers.
-    /// 
+    ///
     /// # Safety
     /// Passing an invalid ClObject is undefined behavior.
     pub unsafe fn create_from_raw_pointers(
@@ -368,7 +354,7 @@ impl ClCommandQueue {
 
     /// Creates a copy of a ClCommandQueue. The copy is, in fact, a completely differnt
     /// ClCommandQueue that has the same cl_context and cl_device_id as the original.
-    /// 
+    ///
     /// # Safety
     /// Calling this function on an invalid ClCommandQueue is undefined behavior.
     pub unsafe fn create_copy(&self) -> Output<ClCommandQueue> {
@@ -382,7 +368,7 @@ impl ClCommandQueue {
     /// the mutable OpenCL cl_mem pointer.
     pub unsafe fn write_buffer<'a, T: ClNumber, H: Into<VecOrSlice<'a, T>>>(
         &mut self,
-        mem: &mut ClMem<T>,
+        mem: &mut ClMem,
         host_buffer: H,
         opts: Option<CommandQueueOptions>,
     ) -> Output<ClEvent> {
@@ -392,10 +378,10 @@ impl ClCommandQueue {
         }
     }
 
-    /// Copies data to a ClMem buffer from a host slice of T. 
+    /// Copies data to a ClMem buffer from a host slice of T.
     unsafe fn write_buffer_from_slice<'a, T: ClNumber>(
         &mut self,
-        mem: &mut ClMem<T>,
+        mem: &mut ClMem,
         host_buffer: &[T],
         opts: Option<CommandQueueOptions>,
     ) -> Output<ClEvent> {
@@ -408,10 +394,10 @@ impl ClCommandQueue {
         ClEvent::new(event)
     }
 
-    /// Copies data from a ClMem<T> buffer to a &mut [T] or mut Vec<T>. 
+    /// Copies data from a ClMem<T> buffer to a &mut [T] or mut Vec<T>.
     pub unsafe fn read_buffer<'a, T: ClNumber, H: Into<MutVecOrSlice<'a, T>>>(
         &mut self,
-        mem: &ClMem<T>,
+        mem: &ClMem,
         host_buffer: H,
         opts: Option<CommandQueueOptions>,
     ) -> Output<BufferReadEvent<T>> {
@@ -427,10 +413,10 @@ impl ClCommandQueue {
         }
     }
 
-    /// Copies data from a ClMem<T> buffer to a &mut [T]. 
+    /// Copies data from a ClMem<T> buffer to a &mut [T].
     unsafe fn read_buffer_into_slice<T: ClNumber>(
         &mut self,
-        mem: &ClMem<T>,
+        mem: &ClMem,
         host_buffer: &mut [T],
         opts: Option<CommandQueueOptions>,
     ) -> Output<ClEvent> {
@@ -445,7 +431,7 @@ impl ClCommandQueue {
     }
 
     /// Enqueues a ClKernel onto a the ClCommandQueue.
-    /// 
+    ///
     /// # Safety
     /// Usage of invalid ClObjects is undefined behavior.
     pub unsafe fn enqueue_kernel(
@@ -470,9 +456,8 @@ impl ClCommandQueue {
 }
 
 unsafe impl CommandQueuePtr for ClCommandQueue {
-
     /// The ffi-usable cl_command_queue pointer.
-    /// 
+    ///
     /// # Safety
     /// Usage of invalid ClObjects is undefined behavior.
     unsafe fn command_queue_ptr(&self) -> cl_command_queue {
@@ -496,7 +481,7 @@ impl Drop for ClCommandQueue {
 //     /// Clones the ClCommandQueue by retaining and thereby incrementing the
 //     /// reference count of the cl_command_queue and returning a different
 //     /// ClCommandQueue wrapper around the cl_command_queue.
-//     /// 
+//     ///
 
 //     fn clone(&self) -> ClCommandQueue {
 //         unsafe { ClCommandQueue::retain_new(self.object).unwrap() }
@@ -595,7 +580,7 @@ mod tests {
     fn buffer_can_be_written_and_waited() {
         let (mut cqs, context, _devices) = ll_testing::get_command_queues();
         let mut data = vec![0u8, 1, 2, 3, 4, 5, 6, 7];
-        let mut buffer = ll_testing::mem_from_data_and_context(&mut data, &context);
+        let mut buffer = ll_testing::mem_from_data_and_context::<u8>(&mut data, &context);
         for cq in cqs.iter_mut() {
             unsafe {
                 let event = cq.write_buffer(&mut buffer, &data[..], None).unwrap();

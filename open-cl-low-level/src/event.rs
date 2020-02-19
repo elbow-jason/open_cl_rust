@@ -134,11 +134,11 @@ impl ClEvent {
     }
 
     pub fn profiling(&self) -> Profiling {
-        Profiling{
+        Profiling {
             submit_time: self.submit_time().ok(),
             queue_time: self.queue_time().ok(),
             start_time: self.start_time().ok(),
-            end_time: self.end_time().ok()
+            end_time: self.end_time().ok(),
         }
     }
 
@@ -197,7 +197,6 @@ impl Drop for ClEvent {
         }
     }
 }
-
 
 pub struct Profiling {
     pub queue_time: Option<u64>,
@@ -304,11 +303,11 @@ impl Eq for ClEvent {}
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
     use crate::{
-        Session, SessionBuilder, ClEvent, ClKernel, Work, ClMem, CommandExecutionStatus,
-        BufferCreator, ClCommandQueue, ClContext
+        BufferCreator, ClCommandQueue, ClContext, ClEvent, ClKernel, ClMem, CommandExecutionStatus,
+        Session, SessionBuilder, Work,
     };
+    use std::time::Duration;
 
     const SRC: &'static str = "
     __kernel void add_one(__global uint *data) {
@@ -318,17 +317,18 @@ mod tests {
 
     fn get_event() -> (Session, ClEvent) {
         unsafe {
-            let mut session: Session = SessionBuilder::new()
-                .with_program_src(SRC)
-                .build()
-                .unwrap();
-            let mut kernel = ClKernel::create(session.program(), "add_one").expect("Failed to Kernel::create/2");
+            let mut session: Session = SessionBuilder::new().with_program_src(SRC).build().unwrap();
+            let mut kernel =
+                ClKernel::create(session.program(), "add_one").expect("Failed to Kernel::create/2");
             let input_data: Vec<u64> = vec![1, 2, 3];
             let data = &input_data[..];
             let mem_cfg = data.mem_config();
-            let mut mem_buffer: ClMem<u64> = ClMem::create_with_config(session.context(), data, mem_cfg)
-                .unwrap_or_else(|e| panic!("Failed to ClMem::create_with_config() {:?}", e));
-            let () = kernel.set_arg(0, &mut mem_buffer).expect("Failed to set_arg(0, &mem_buffer)");
+            let mut mem_buffer: ClMem =
+                ClMem::create_with_config(session.context(), data, mem_cfg)
+                    .unwrap_or_else(|e| panic!("Failed to ClMem::create_with_config() {:?}", e));
+            let () = kernel
+                .set_arg(0, &mut mem_buffer)
+                .expect("Failed to set_arg(0, &mem_buffer)");
             let work = Work::new(input_data.len());
             let event = session
                 .enqueue_kernel(0, &mut kernel, &work, None)
@@ -340,21 +340,27 @@ mod tests {
     #[test]
     fn event_method_queue_time_works() {
         let (_sess, event) = get_event();
-        let output = event.queue_time().expect("Failed to call event.queue_time()");
+        let output = event
+            .queue_time()
+            .expect("Failed to call event.queue_time()");
         assert!(output > 0);
     }
 
     #[test]
     fn event_method_submit_time_works() {
         let (_sess, event) = get_event();
-        let output = event.submit_time().expect("Failed to call event.submit_time()");
+        let output = event
+            .submit_time()
+            .expect("Failed to call event.submit_time()");
         assert!(output > 0);
     }
 
     #[test]
     fn event_method_start_time_works() {
         let (_sess, event) = get_event();
-        let output = event.start_time().expect("Failed to call event.start_time()");
+        let output = event
+            .start_time()
+            .expect("Failed to call event.start_time()");
         assert!(output > 0);
     }
 
@@ -368,32 +374,40 @@ mod tests {
     #[test]
     fn event_method_reference_count_works() {
         let (_sess, event) = get_event();
-        let output = event.reference_count().expect("Failed to call event.reference_count()");
+        let output = event
+            .reference_count()
+            .expect("Failed to call event.reference_count()");
         assert_eq!(output, 1);
     }
 
     #[test]
     fn event_method_command_queue_works() {
         let (_sess, event) = get_event();
-        let _output: ClCommandQueue = unsafe { event.command_queue() }.expect("Failed to call event.command_queue()");
+        let _output: ClCommandQueue =
+            unsafe { event.command_queue() }.expect("Failed to call event.command_queue()");
     }
 
     #[test]
     fn event_method_context_works() {
         let (_sess, event) = get_event();
-        let _output: ClContext = unsafe { event.context() }.expect("Failed to call event.context()");
+        let _output: ClContext =
+            unsafe { event.context() }.expect("Failed to call event.context()");
     }
 
     #[test]
     fn event_method_command_execution_status_works() {
         let (_sess, event) = get_event();
-        let _output: CommandExecutionStatus = event.command_execution_status().expect("Failed to call event.command_exection_status()");
+        let _output: CommandExecutionStatus = event
+            .command_execution_status()
+            .expect("Failed to call event.command_exection_status()");
     }
 
     #[test]
     fn event_profiling_works() {
         let (_sess, event) = get_event();
-        let exec_status: CommandExecutionStatus = event.command_execution_status().expect("Failed to call event.command_exection_status()");
+        let exec_status: CommandExecutionStatus = event
+            .command_execution_status()
+            .expect("Failed to call event.command_exection_status()");
         assert_eq!(exec_status, CommandExecutionStatus::Complete);
         let prof = event.profiling();
         let submitted_at = prof.submit_time.unwrap();
@@ -406,18 +420,38 @@ mod tests {
 
         let total = prof.total_duration().unwrap();
         let max_duration = Duration::from_millis(10);
-        assert!(total < max_duration, "total {:?} was greater than max duration {:?}", total, max_duration);
-        
+        assert!(
+            total < max_duration,
+            "total {:?} was greater than max duration {:?}",
+            total,
+            max_duration
+        );
+
         let duration_waiting_in_queue = prof.duration_waiting_in_queue().unwrap();
         let max_duration_waiting_in_queue = Duration::from_millis(5);
-        assert!(duration_waiting_in_queue < max_duration_waiting_in_queue, "duration_waiting_in_queue {:?} was greater than max duration {:?}", duration_waiting_in_queue, max_duration_waiting_in_queue);
-        
+        assert!(
+            duration_waiting_in_queue < max_duration_waiting_in_queue,
+            "duration_waiting_in_queue {:?} was greater than max duration {:?}",
+            duration_waiting_in_queue,
+            max_duration_waiting_in_queue
+        );
+
         let duration_waiting_for_init = prof.duration_between_submit_and_start().unwrap();
         let max_duration_waiting_for_init = Duration::from_millis(5);
-        assert!(duration_waiting_for_init < max_duration_waiting_for_init, "duration_waiting_for_init {:?} was greater than max duration {:?}", duration_waiting_for_init, max_duration_waiting_in_queue);
-        
+        assert!(
+            duration_waiting_for_init < max_duration_waiting_for_init,
+            "duration_waiting_for_init {:?} was greater than max duration {:?}",
+            duration_waiting_for_init,
+            max_duration_waiting_in_queue
+        );
+
         let duration_of_execution = prof.duration_of_execution().unwrap();
         let max_duration_of_execution = Duration::from_millis(5);
-        assert!(duration_of_execution < max_duration_of_execution, "time_waiting_for_init {:?} was greater than max duration {:?}", duration_of_execution, max_duration_of_execution);
+        assert!(
+            duration_of_execution < max_duration_of_execution,
+            "time_waiting_for_init {:?} was greater than max duration {:?}",
+            duration_of_execution,
+            max_duration_of_execution
+        );
     }
 }

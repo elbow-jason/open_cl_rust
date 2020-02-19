@@ -51,6 +51,9 @@ env_logger = "0.7"
 # used for time formatting microsec in logs
 chrono = "0.4.10"
 
+# implements IEEE 754-2008 standard f16 for using OpenCL's cl_half in Rust
+half = "1.4.1"
+
 [features]
 # v1.0.0 will not be supported. It's not thread-safe and I dont' want to even
 # see the can opener for that can of worms.

@@ -48,9 +48,9 @@ pub fn get_program(src: &str) -> Program {
     unbuilt_program.build(&devices[..]).unwrap()
 }
 
-pub fn get_buffer<T: ClNumber>(size: usize) -> Buffer<T> {
+pub fn get_buffer<T: ClNumber>(size: usize) -> Buffer {
     let context = testing::get_context();
-    Buffer::<T>::create(
+    Buffer::create::<T, usize>(
         &context,
         size,
         HostAccess::ReadWrite,
@@ -68,20 +68,19 @@ where
 
     assert!(devices.len() > 0, "No usable devices found");
 
-    let context = Context::create(&devices[..])
-            .unwrap_or_else(|e| {
-                panic!("Failed to Context::create with devices {:?} due to {:?}", devices, e);
-            });
+    let context = Context::create(&devices[..]).unwrap_or_else(|e| {
+        panic!(
+            "Failed to Context::create with devices {:?} due to {:?}",
+            devices, e
+        );
+    });
     for device in devices {
-        let queue = CommandQueue::create(&context, &device, None)
-            .unwrap_or_else(|e| {
-                panic!("Failed to CommandQueue::create due to {:?}", e);
-            });
+        let queue = CommandQueue::create(&context, &device, None).unwrap_or_else(|e| {
+            panic!("Failed to CommandQueue::create due to {:?}", e);
+        });
         callback(&device, &context, &queue);
     }
 }
-
-
 
 pub fn get_device() -> Device {
     let platform = Platform::default();

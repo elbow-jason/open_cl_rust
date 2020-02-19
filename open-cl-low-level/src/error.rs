@@ -13,6 +13,7 @@ use crate::program::ProgramError;
 use crate::session::{SessionBuilderError, SessionError};
 use crate::status_code::StatusCodeError;
 use crate::work::WorkError;
+use crate::cl_number_type::TypeError;
 
 #[derive(Debug, Fail, PartialEq, Clone, Eq)]
 pub enum Error {
@@ -48,6 +49,9 @@ pub enum Error {
 
     #[fail(display = "{:?}", _0)]
     WorkError(WorkError),
+
+    #[fail(display = "{:?}", _0)]
+    TypeError(TypeError),
 
     #[fail(display = "OpenCL returned a null pointer")]
     ClObjectCannotBeNull,
@@ -118,3 +122,10 @@ impl From<WorkError> for Error {
         Error::WorkError(err)
     }
 }
+
+impl From<TypeError> for Error {
+    fn from(err: TypeError) -> Error {
+        Error::TypeError(err)
+    }
+}
+

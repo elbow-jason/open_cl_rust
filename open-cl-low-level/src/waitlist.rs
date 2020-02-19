@@ -1,10 +1,11 @@
+use std::convert::TryInto;
+
 use crate::ffi::{clWaitForEvents, cl_event};
 use crate::{
     build_output,
     ClEvent,
     EventPtr, // Error, EventPtr, cl_release_event,
     Output,
-    SizeAndPtr,
 };
 
 /// The low-level function for synchronously waiting events (blocks the calling thread).
@@ -14,9 +15,8 @@ use crate::{
 /// undefined behavior if any of the events is not in correct state, if the context of the events
 /// has been freed, if any of the events is a null pointer, if the queue the event was created with
 /// is freed, and a plethora of other conditions.
-pub unsafe fn cl_wait_for_events(wl: &[cl_event]) -> Output<()> {
-    let SizeAndPtr(len, ptr) = wl.waitlist_size_and_ptr();
-    build_output((), clWaitForEvents(len as u32, ptr))
+pub unsafe fn cl_wait_for_events<'a>(wl: &'a [cl_event]) -> Output<()> {
+    build_output((), clWaitForEvents(wl.waitlist_len(), wl.waitlist_ptr()))
 }
 
 /// The low level trait for synchronously waiting for events.
@@ -68,23 +68,26 @@ pub unsafe trait Waitlist: Sized {
 /// # Safety
 /// Due to this trait and it's only function involving the use of raw pointers this trait is unsafe.
 /// Passing an event that has already been waited to OpenC is undefined behavior.
-pub unsafe trait WaitlistSizeAndPtr: Sized {
+pub unsafe trait WaitlistSizeAndPtr<'a>: Sized {
     /// This function returns a const pointer to a cl_event.
     ///
     /// # Safety
     /// Due to thisfunction involving the use of raw pointers this trait is unsafe.
     /// Passing an event that has already been waited to OpenC is undefined behavior.
-    unsafe fn waitlist_size_and_ptr(&self) -> SizeAndPtr<*const cl_event>;
+    unsafe fn waitlist_len(&self) -> u32;
+    unsafe fn waitlist_ptr(&self) -> *const cl_event;
+
 }
 
-unsafe impl WaitlistSizeAndPtr for &[cl_event] {
-    unsafe fn waitlist_size_and_ptr(&self) -> SizeAndPtr<*const cl_event> {
-        let len = self.len();
-        if len == 0 {
-            SizeAndPtr(0, std::ptr::null() as *const cl_event)
-        } else {
-            // self is &&[cl_event] so we use *self
-            SizeAndPtr(len, *self as *const _ as *const cl_event)
+unsafe impl<'a> WaitlistSizeAndPtr<'a> for &'a [cl_event] {
+    unsafe fn waitlist_len(&self) -> u32 {
+        self.len().try_into().unwrap()
+    }
+
+    unsafe fn waitlist_ptr(&self) -> *const cl_event {
+        match self.len() {
+            0 => std::ptr::null() as *const cl_event,
+            _ => *self as *const _ as *const cl_event,
         }
     }
 }

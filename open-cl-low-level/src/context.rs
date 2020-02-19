@@ -5,14 +5,7 @@ use crate::ffi::{
     cl_device_id,
 };
 use crate::{
-    build_output,
-    utils,
-    ClDeviceID,
-    ClPointer,
-    ContextInfo,
-    ContextProperties,
-    DevicePtr,
-    Output,
+    build_output, utils, ClDeviceID, ClPointer, ContextInfo, ContextProperties, DevicePtr, Output,
 };
 
 use crate::cl_helpers::cl_get_info5;

@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
+use std::convert::TryInto;
 
 use crate::vec_or_slice::VecOrSlice;
 use crate::*;
@@ -126,7 +127,7 @@ impl Session {
     pub unsafe fn create_mem<T: ClNumber, B: BufferCreator<T>>(
         &self,
         buffer_creator: B,
-    ) -> Output<ClMem<T>> {
+    ) -> Output<ClMem> {
         let cfg = buffer_creator.mem_config();
         ClMem::create_with_config(self.context(), buffer_creator, cfg)
     }
@@ -141,7 +142,7 @@ impl Session {
         &self,
         buffer_creator: B,
         mem_config: MemConfig,
-    ) -> Output<ClMem<T>> {
+    ) -> Output<ClMem> {
         ClMem::create_with_config(self.context(), buffer_creator, mem_config)
     }
 
@@ -164,10 +165,11 @@ impl Session {
     pub unsafe fn write_buffer<'a, T: ClNumber, H: Into<VecOrSlice<'a, T>>>(
         &mut self,
         queue_index: usize,
-        mem: &mut ClMem<T>,
+        mem: &mut ClMem,
         host_buffer: H,
         opts: Option<CommandQueueOptions>,
     ) -> Output<ClEvent> {
+        mem.number_type().match_or_panic(T::number_type());
         let queue: &mut ClCommandQueue = self.get_queue_by_index(queue_index)?;
         queue.write_buffer(mem, host_buffer, opts)
     }
@@ -184,7 +186,7 @@ impl Session {
     pub unsafe fn read_buffer<'a, T: ClNumber, H: Into<MutVecOrSlice<'a, T>>>(
         &mut self,
         queue_index: usize,
-        mem: &mut ClMem<T>,
+        mem: &mut ClMem,
         host_buffer: H,
         opts: Option<CommandQueueOptions>,
     ) -> Output<BufferReadEvent<T>> {
@@ -216,27 +218,25 @@ impl Session {
         ClEvent::new(event)
     }
 
-    pub fn execute_sync_kernel_operation<T>(
+    pub fn execute_sync_kernel_operation(
         &mut self,
         queue_index: usize,
-        mut kernel_op: KernelOperation<T>,
-    ) -> Output<Option<KernelOpArg<T>>>
-    where
-        T: ClNumber + KernelArg,
-    {
+        mut kernel_op: KernelOperation,
+    ) -> Output<()> {
         unsafe {
             let mut kernel = self.create_kernel(kernel_op.name())?;
             let queue: &mut ClCommandQueue = self.get_queue_by_index(queue_index)?;
-            for (arg_index, arg) in kernel_op.mut_args().iter_mut().enumerate() {
-                match arg {
-                    KernelOpArg::Num(ref mut num) => kernel.set_arg(arg_index, num)?,
-                    KernelOpArg::Mem(ref mut mem) => kernel.set_arg(arg_index, mem)?,
-                }
+            for (arg_index, (arg_size, arg_ptr)) in kernel_op.mut_args().iter_mut().enumerate() {
+                kernel.set_arg_raw(
+                    arg_index.try_into().unwrap(),
+                    *arg_size,
+                    *arg_ptr
+                )?;
             }
             let work = kernel_op.work()?;
             let event = queue.enqueue_kernel(&mut kernel, &work, kernel_op.command_queue_opts())?;
             event.wait()?;
-            kernel_op.return_value()
+            Ok(())
         }
     }
 }
@@ -469,7 +469,7 @@ impl<'a> SessionBuilder<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{BufferReadEvent, KernelOpArg, KernelOperation, Session};
+    use crate::{BufferReadEvent, KernelOperation, Session};
 
     const SRC: &'static str = "__kernel void test(__global int *data) {
         data[get_global_id(0)] += 1;
@@ -484,21 +484,19 @@ mod tests {
         let mut session = get_session(SRC);
         let data: Vec<i32> = vec![1, 2, 3, 4, 5];
         let dims = data.len();
-        let buff = unsafe { session.create_mem(&data[..]) }.unwrap();
+        let mut buff = unsafe { session.create_mem(&data[..]) }.unwrap();
         let kernel_op = KernelOperation::new("test")
             .with_dims(dims)
-            .add_arg(buff)
-            .returning_arg(0);
-        let data2: Option<KernelOpArg<i32>> = session
+            .add_arg(&mut buff);
+        session
             .execute_sync_kernel_operation(0, kernel_op)
             .unwrap_or_else(|e| {
                 panic!("Failed to execute sync kernel operation: {:?}", e);
             });
-        let mut mem = data2.unwrap().into_mem().unwrap();
         let data3 = vec![0i32; 5];
         unsafe {
             let mut read_event: BufferReadEvent<i32> = session
-                .read_buffer(0, &mut mem, data3, None)
+                .read_buffer(0, &mut buff, data3, None)
                 .unwrap_or_else(|e| {
                     panic!("Failed to read buffer: {:?}", e);
                 });

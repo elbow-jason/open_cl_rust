@@ -1,10 +1,9 @@
-use std::fmt::Debug;
 use std::mem::ManuallyDrop;
-use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard, Arc};
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::ll::*;
 
-use crate::{Context, Program, Buffer};
+use crate::{Buffer, Context, Program};
 
 pub struct Kernel {
     program: ManuallyDrop<Program>,
@@ -51,7 +50,7 @@ impl Kernel {
 
     pub unsafe fn set_arg<T>(&self, arg_index: usize, arg: &mut T) -> Output<()>
     where
-        T: KernelArg + Debug,
+        T: KernelArg,
     {
         self.write_lock().set_arg(arg_index, arg)
     }
@@ -91,28 +90,33 @@ impl Kernel {
 
 pub enum KernelOpArg<'a, T: ClNumber> {
     Num(T),
-    Buffer(&'a Buffer<T>),
+    Buffer(&'a Buffer),
 }
 
-pub enum ReturnArg<T: ClNumber> {
-    Num(T),
-    Buffer(Buffer<T>),
+// pub enum ReturnArg<T: ClNumber> {
+//     Num(T),
+//     Buffer(Buffer<T>),
+// }
+
+pub trait ToKernelOpArg<'a, T: ClNumber> {
+    fn to_kernel_op_arg(&self) -> Output<KernelOpArg<'a, T>>;
 }
 
-impl<'a, T: ClNumber> From<T> for KernelOpArg<'a, T> {
-    fn from(num: T) -> KernelOpArg<'a, T> {
-        KernelOpArg::Num(num)
+impl<'a, T: ClNumber> ToKernelOpArg<'a, T> for T {
+    fn to_kernel_op_arg(&self) -> Output<KernelOpArg<'a, T>> {
+        Ok(KernelOpArg::Num(*self))
     }
 }
 
-impl<'a, T: ClNumber> From<&'a Buffer<T>> for KernelOpArg<'a, T> {
-    fn from(buffer: &'a Buffer<T>) -> KernelOpArg<'a, T> {
-        KernelOpArg::Buffer(buffer)
+impl<'a, T: ClNumber> ToKernelOpArg<'a, T> for &'a Buffer {
+    fn to_kernel_op_arg(&self) -> Output<KernelOpArg<'a, T>> {
+        self.number_type().type_check(T::number_type())?;
+        Ok(KernelOpArg::Buffer(self))
     }
 }
 
 impl<'a, T: ClNumber> KernelOpArg<'a, T> {
-    pub fn into_buffer(self) -> Output<&'a Buffer<T>> {
+    pub fn into_buffer(self) -> Output<&'a Buffer> {
         if let KernelOpArg::Buffer(buffer) = self {
             Ok(buffer)
         } else {
@@ -128,7 +132,6 @@ impl<'a, T: ClNumber> KernelOpArg<'a, T> {
         }
     }
 }
-
 
 pub struct KernelOperation<'a, T: ClNumber + KernelArg> {
     _name: String,
@@ -180,7 +183,10 @@ impl<'a, T: ClNumber + KernelArg> KernelOperation<'a, T> {
         self
     }
 
-    pub fn with_command_queue_options(mut self, opts: CommandQueueOptions) -> KernelOperation<'a, T> {
+    pub fn with_command_queue_options(
+        mut self,
+        opts: CommandQueueOptions,
+    ) -> KernelOperation<'a, T> {
         self.command_queue_opts = Some(opts);
         self
     }
@@ -192,24 +198,6 @@ impl<'a, T: ClNumber + KernelArg> KernelOperation<'a, T> {
 
     pub fn argc(&self) -> usize {
         self._args.len()
-    }
-
-    #[inline]
-    pub fn return_value(&mut self) -> Output<Option<ReturnArg<T>>> {
-        match (self._returning, self.argc()) {
-            (Some(argi), argc) if argi < argc => {
-                let ret = match self._args.remove(argi) {
-                    KernelOpArg::Buffer(buf) => ReturnArg::Buffer(buf.clone()),
-                    KernelOpArg::Num(num) => ReturnArg::Num(num),
-                };
-                Ok(Some(ret))
-            },
-            (Some(argi), argc) => {
-                let oor_error = KernelError::ReturningArgIndexOutOfRange(argi, argc);
-                Err(oor_error.into())
-            }
-            (None, _) => Ok(None),
-        }
     }
 
     #[inline]

@@ -48,8 +48,8 @@ fn run_procedural() {
             let mut command_queue: ClCommandQueue =
                 ClCommandQueue::create(&context, device, None).unwrap();
 
-            let vec_a = vec![1isize, 2, 3];
-            let vec_b = vec![0isize, -1, -2];
+            let vec_a = vec![1i64, 2, 3];
+            let vec_b = vec![0i64, -1, -2];
 
             let len = vec_a.len();
 
@@ -57,7 +57,7 @@ fn run_procedural() {
             let name = device.name().unwrap();
             println!("{}", name);
 
-            let mut mem_a = ClMem::create(
+            let mut mem_a = ClMem::create::<i64, usize>(
                 &context,
                 len,
                 HostAccess::WriteOnly,
@@ -65,7 +65,7 @@ fn run_procedural() {
                 MemLocation::AllocOnDevice,
             )
             .unwrap();
-            let mut mem_b = ClMem::create(
+            let mut mem_b = ClMem::create::<i64, usize>(
                 &context,
                 len,
                 HostAccess::WriteOnly,
@@ -73,7 +73,7 @@ fn run_procedural() {
                 MemLocation::AllocOnDevice,
             )
             .unwrap();
-            let mut mem_c = ClMem::create(
+            let mut mem_c = ClMem::create::<i64, usize>(
                 &context,
                 len,
                 HostAccess::ReadOnly,
@@ -111,7 +111,7 @@ fn run_procedural() {
                 .unwrap();
             let () = event.wait().unwrap();
             println!("done putting event into WaitList...");
-            let mut vec_c: Vec<isize> = vec![0; len];
+            let mut vec_c = vec![0i64; len];
 
             let _read_event = command_queue
                 .read_buffer(&mem_c, &mut vec_c[..], None)
@@ -129,12 +129,12 @@ fn run_with_session() {
     unsafe {
         let mut session = SessionBuilder::new().with_program_src(src).build().unwrap();
 
-        let vec_a = vec![1isize, 2, 3];
-        let vec_b = vec![0isize, -1, -2];
+        let vec_a = vec![1i64, 2, 3];
+        let vec_b = vec![0i64, -1, -2];
 
         let mut mem_a = session.create_mem(&vec_a[..]).unwrap();
         let mut mem_b = session.create_mem(&vec_b[..]).unwrap();
-        let mut mem_c: ClMem<isize> = session.create_mem(vec_a.len()).unwrap();
+        let mut mem_c: ClMem = session.create_mem::<i64, usize>(vec_a.len()).unwrap();
 
         let mut simple_add = session.create_kernel("simple_add").unwrap();
 
@@ -145,7 +145,9 @@ fn run_with_session() {
 
         let mut vec_c = vec_a.clone();
 
-        let enqueue_event = session.enqueue_kernel(0, &mut simple_add, &work, None).unwrap();
+        let enqueue_event = session
+            .enqueue_kernel(0, &mut simple_add, &work, None)
+            .unwrap();
         let () = enqueue_event.wait().unwrap();
         let mut read_event = session
             .read_buffer(0, &mut mem_c, &mut vec_c[..], None)

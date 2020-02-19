@@ -337,20 +337,17 @@ pub unsafe trait ProgramPtr: Sized {
     }
 
     fn devices(&self) -> Output<Vec<ClDeviceID>> {
-        get_info(self, ProgramInfo::Devices).map(|ret| {
-            unsafe { 
+        get_info(self, ProgramInfo::Devices).map(|ret| unsafe {
             ret.into_vec()
                 .into_iter()
                 .map(|d| ClDeviceID::retain_new(d).unwrap())
                 .collect()
-            }
         })
     }
 
     fn context(&self) -> Output<ClContext> {
-        get_info(self, ProgramInfo::Context).and_then(|ret| unsafe {
-            ClContext::retain_new(ret.into_one())
-        })
+        get_info(self, ProgramInfo::Context)
+            .and_then(|ret| unsafe { ClContext::retain_new(ret.into_one()) })
     }
 }
 

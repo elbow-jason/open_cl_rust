@@ -4,7 +4,7 @@ use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::{
     Buffer, ClNumber, CommandQueueOptions, CommandQueueProperties, Context, Device, Kernel, Output,
-    Waitlist, Work,
+    Waitlist, Work, NumberTyped,
 };
 
 use crate::ll::{ClCommandQueue, ClContext, ClDeviceID, CommandQueuePtr, ContextPtr, DevicePtr};
@@ -78,7 +78,7 @@ unsafe impl Sync for CommandQueue {}
 
 impl CommandQueue {
     /// Builds a CommandQueue from a low-level ClCommandQueue, a Context and a Device.
-    /// 
+    ///
     /// # Safety
     /// Building a CommandQueue with any invalid ClObject, or mismatched ClObjects is undefined behavior.
     unsafe fn new(queue: ClCommandQueue, context: &Context, device: &Device) -> CommandQueue {
@@ -90,7 +90,7 @@ impl CommandQueue {
     }
 
     /// Builds a CommandQueue from a low-level ClObjects
-    /// 
+    ///
     /// # Safety
     /// Building a CommandQueue with any invalid ClObject, or mismatched ClObjects is undefined behavior.
     unsafe fn new_from_low_level(
@@ -123,7 +123,7 @@ impl CommandQueue {
     }
 
     /// Creates a new copy of a CommandQueue with CommandQueue's Context on the CommandQueue's Device.
-    /// 
+    ///
     /// This function is useful for executing concurrent operations on a device within the same
     /// Context.
     pub fn create_copy(&self) -> Output<CommandQueue> {
@@ -142,7 +142,7 @@ impl CommandQueue {
         }
     }
 
-    /// The low-level context of the CommandQueue 
+    /// The low-level context of the CommandQueue
     pub fn low_level_context(&self) -> ClContext {
         (*self._context).clone()
     }
@@ -153,15 +153,14 @@ impl CommandQueue {
 
     /// write_buffer is used to move data from the host buffer (buffer: &[T]) to
     /// the OpenCL cl_mem pointer inside `d_mem: &Buffer<T>`.
-    pub fn write_buffer<T>(
+    pub fn write_buffer<T: ClNumber>(
         &self,
-        device_buffer: &Buffer<T>,
+        device_buffer: &Buffer,
         host_buffer: &[T],
         opts: Option<CommandQueueOptions>,
     ) -> Output<()>
-    where
-        T: ClNumber,
-    {
+    {   
+
         unsafe {
             let mut qlock = self.write_lock();
             let mut buf_lock = device_buffer.write_lock();
@@ -174,11 +173,12 @@ impl CommandQueue {
     /// inside `&DeviceMem<T>`) into a `host_buffer` (`&mut [T]`).
     pub fn read_buffer<T: ClNumber>(
         &self,
-        device_buffer: &Buffer<T>,
+        device_buffer: &Buffer,
         host_buffer: &mut [T],
         opts: Option<CommandQueueOptions>,
     ) -> Output<Option<Vec<T>>> {
         unsafe {
+            device_buffer.number_type().type_check(T::number_type())?;
             let mut qlock = self.write_lock();
             let buf_lock = device_buffer.read_lock();
             let mut event = qlock.read_buffer(&*buf_lock, host_buffer, opts)?;
@@ -231,8 +231,8 @@ impl Eq for CommandQueue {}
 
 #[cfg(test)]
 mod tests {
+    use crate::ll::{ClContext, ClDeviceID, CommandQueueProperties, CommandQueuePtr};
     use crate::testing;
-    use crate::ll::{CommandQueuePtr, ClContext, ClDeviceID, CommandQueueProperties};
 
     const SRC: &'static str = "
     __kernel void test(__global int *i) {
@@ -255,11 +255,7 @@ mod tests {
     #[test]
     pub fn command_queue_method_reference_count_works() {
         let session = testing::get_session(SRC);
-        let ref_count: u32 = unsafe {
-                session
-                .read_queue()
-                .reference_count()
-            }
+        let ref_count: u32 = unsafe { session.read_queue().reference_count() }
             .expect("CommandQueue method reference_count() failed");
         assert_eq!(ref_count, 1);
     }
@@ -267,11 +263,7 @@ mod tests {
     #[test]
     pub fn command_queue_method_properties_works() {
         let session = testing::get_session(SRC);
-        let props: CommandQueueProperties = unsafe {
-                session
-                .read_queue()
-                .properties()
-            }
+        let props: CommandQueueProperties = unsafe { session.read_queue().properties() }
             .expect("CommandQueue method properties() failed");
         let bits = props.bits();
         let maybe_same_prop = CommandQueueProperties::from_bits(bits);
@@ -290,10 +282,7 @@ mod tests {
     pub fn command_queue_copy_new_works() {
         let session = testing::get_session(SRC);
         unsafe {
-            let cq2 = session
-                .read_queue()
-                .create_copy()
-                .unwrap();
+            let cq2 = session.read_queue().create_copy().unwrap();
             assert!(cq2.command_queue_ptr() != session.read_queue().command_queue_ptr());
         }
     }

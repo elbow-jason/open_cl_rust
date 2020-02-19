@@ -4,8 +4,7 @@ use std::fmt;
 
 use opencl_core::ll::{DevicePtr, ProgramPtr};
 use opencl_core::{
-    Buffer, CommandQueue, Context, Device, HostAccess, Kernel, KernelAccess, MemLocation, Platform,
-    Program, UnbuiltProgram, Work,
+    Buffer, CommandQueue, Context, Device, Kernel, Platform, Program, UnbuiltProgram, Work,
 };
 
 fn main() {
@@ -50,8 +49,8 @@ fn run_procedural() {
 
         let command_queue: CommandQueue = CommandQueue::create(&context, device, None).unwrap();
 
-        let vec_a = vec![1isize, 2, 3];
-        let vec_b = vec![0isize, -1, -2];
+        let vec_a = vec![1i64, 2, 3];
+        let vec_b = vec![0i64, -1, -2];
 
         let len = vec_a.len();
 
@@ -59,30 +58,10 @@ fn run_procedural() {
         let name = device.name().unwrap();
         println!("{}", name);
 
-        let mem_a = Buffer::create(
-            &context,
-            len,
-            HostAccess::WriteOnly,
-            KernelAccess::ReadOnly,
-            MemLocation::AllocOnDevice,
-        )
-        .unwrap();
-        let mem_b = Buffer::create(
-            &context,
-            len,
-            HostAccess::WriteOnly,
-            KernelAccess::ReadOnly,
-            MemLocation::AllocOnDevice,
-        )
-        .unwrap();
-        let mem_c = Buffer::create(
-            &context,
-            len,
-            HostAccess::ReadOnly,
-            KernelAccess::WriteOnly,
-            MemLocation::AllocOnDevice,
-        )
-        .unwrap();
+        let mem_a = Buffer::create_with_len::<i64>(&context, len).unwrap();
+        let mem_b = Buffer::create_with_len::<i64>(&context, len).unwrap();
+        let mem_c = Buffer::create_with_len::<i64>(&context, len).unwrap();
+    
         println!("Creating kernel simple_add");
         let simple_add = Kernel::create(&program2, "simple_add").unwrap();
 
@@ -117,7 +96,7 @@ fn run_procedural() {
         std::mem::drop(lock_c);
 
         println!("done putting event into WaitList...");
-        let mut vec_c: Vec<isize> = vec![0; len];
+        let mut vec_c: Vec<i64> = vec![0; len];
 
         let _read_event = command_queue.read_buffer(&mem_c, &mut vec_c, None).unwrap();
 

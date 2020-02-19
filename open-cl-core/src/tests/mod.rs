@@ -1,14 +1,15 @@
-use crate::*;
 use crate::open_cl_low_level::*;
+use crate::*;
 
 #[test]
 fn core_program_unbuilt_to_built() {
     let src = "__kernel void test(__global int *i) { \
-                *i += 1; \
-                }";
+               *i += 1; \
+               }";
     testing::test_all_devices(&mut |device, context, _| {
         let devices = vec![device.clone()];
-        let unbuilt_prog: UnbuiltProgram = UnbuiltProgram::create_with_source(context, src).unwrap();
+        let unbuilt_prog: UnbuiltProgram =
+            UnbuiltProgram::create_with_source(context, src).unwrap();
         let _build: Program = unbuilt_prog.build(&devices[..]).unwrap();
     })
 }
@@ -25,9 +26,16 @@ fn simple_kernel_test() {
         let devices = vec![device.clone()];
         let program = unbuilt_program.build(&devices[..]).unwrap();
         let k = Kernel::create(&program, "test").unwrap();
-        let mut v1: Vec<isize> = vec![1];
+        let mut v1: Vec<i64> = vec![1];
         let mem_config = MemConfig::for_size();
-        let buffer = Buffer::create(context, v1.len(), mem_config.host_access, mem_config.kernel_access, mem_config.mem_location).unwrap();
+        let buffer = Buffer::create::<i64, usize>(
+            context,
+            v1.len(),
+            mem_config.host_access,
+            mem_config.kernel_access,
+            mem_config.mem_location,
+        )
+        .unwrap();
         let work_size = v1.len();
         let work: Work = Work::new(work_size);
         queue.write_buffer(&buffer, &v1, None).unwrap();
@@ -35,10 +43,11 @@ fn simple_kernel_test() {
         // assert!(write_event.command_execution_status() == Ok(CommandExecutionStatus::Complete));
 
         let () = unsafe { k.set_arg(0, &mut *buffer_write).unwrap() };
-            queue.enqueue_kernel(k, &work, None)
-                .unwrap_or_else(|error| {
-                    panic!("Failed to unwrap sync_enqueue_kernel result: {:?}", error);
-                });
+        queue
+            .enqueue_kernel(k, &work, None)
+            .unwrap_or_else(|error| {
+                panic!("Failed to unwrap sync_enqueue_kernel result: {:?}", error);
+            });
         std::mem::drop(buffer_write);
         let _read_event = queue.read_buffer(&buffer, &mut v1[..], None).unwrap();
 
@@ -61,10 +70,12 @@ fn add_scalar_int_var_to_buffer_test() {
 
         let add_scalar_var: Kernel = Kernel::create(&program, "test").unwrap();
         let initial_values = vec![1i32];
-        let buffer = Buffer::create_with_creator(context, initial_values.len()).unwrap();
-        let _write_event = queue.write_buffer(&buffer, &initial_values[..], None).unwrap();
+        let buffer = Buffer::create_with_len::<i32>(context, initial_values.len()).unwrap();
 
-        
+        let _write_event = queue
+            .write_buffer(&buffer, &initial_values[..], None)
+            .unwrap();
+
         unsafe {
             let mut mem1 = buffer.write_lock();
             let mut arg = 42i32;
@@ -73,7 +84,8 @@ fn add_scalar_int_var_to_buffer_test() {
         }
         let work_size = initial_values.len();
         let work: Work = Work::new(work_size);
-        queue.enqueue_kernel(add_scalar_var, &work, None)
+        queue
+            .enqueue_kernel(add_scalar_var, &work, None)
             .unwrap_or_else(|error| {
                 panic!("Failed to unwrap sync_enqueue_kernel result: {:?}", error);
             });

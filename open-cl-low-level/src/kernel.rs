@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use libc::{c_void, size_t};
+use libc::{c_void};
 
 use crate::cl_helpers::cl_get_info5;
 use crate::ffi::{
@@ -8,31 +8,43 @@ use crate::ffi::{
     cl_program, cl_uint,
 };
 use crate::{
-    build_output, strings, utils, ClContext, ClMem, ClNumber, ClPointer, ClProgram,
-    CommandQueueOptions, Dims, KernelInfo, MemPtr, Output, ProgramPtr, SizeAndPtr, Work,
+    build_output, strings, utils, ClContext, ClMem, ClPointer, ClProgram,
+    CommandQueueOptions, Dims, KernelInfo, MemPtr, Output, ProgramPtr, Work,
 };
 
 pub unsafe trait KernelArg {
-    unsafe fn as_kernel_arg(&self) -> SizeAndPtr<*mut c_void>;
+    /// size_of<T> or size_of<T> * len
+    fn kernel_arg_size(&self) -> usize;
+    unsafe fn kernel_arg_ptr(&self) -> *const c_void;
+    unsafe fn kernel_arg_mut_ptr(&mut self) -> *mut c_void;
 }
 
-unsafe impl<T: ClNumber> KernelArg for ClMem<T> {
-    unsafe fn as_kernel_arg(&self) -> SizeAndPtr<*mut c_void> {
-        SizeAndPtr(
-            std::mem::size_of::<cl_mem>(),
-            self.mem_ptr_ref() as *const _ as *mut c_void,
-        )
+unsafe impl KernelArg for ClMem {
+    fn kernel_arg_size(&self) -> usize {
+        std::mem::size_of::<cl_mem>()
+    }
+    unsafe fn kernel_arg_ptr(&self) -> *const c_void {
+        self.mem_ptr_ref() as *const _ as *const c_void
+    }
+
+    unsafe fn kernel_arg_mut_ptr(&mut self) -> *mut c_void {
+        self.mem_ptr_ref() as *const _ as *mut c_void
     }
 }
 
 macro_rules! sized_scalar_kernel_arg {
     ($scalar:ty) => {
         unsafe impl KernelArg for $scalar {
-            unsafe fn as_kernel_arg(&self) -> SizeAndPtr<*mut c_void> {
-                SizeAndPtr(
-                    std::mem::size_of::<$scalar>() as size_t,
-                    (self as *const $scalar) as *mut c_void,
-                )
+            fn kernel_arg_size(&self) -> usize {
+                std::mem::size_of::<$scalar>()
+            }
+
+            unsafe fn kernel_arg_ptr(&self) -> *const c_void {
+                (self as *const $scalar) as *const c_void
+            }
+
+            unsafe fn kernel_arg_mut_ptr(&mut self) -> *mut c_void {
+                (self as *mut $scalar) as *mut c_void
             }
         }
     };
@@ -64,11 +76,30 @@ pub unsafe fn cl_set_kernel_arg<T: KernelArg>(
     arg_index: usize,
     arg: &T,
 ) -> Output<()> {
-    let SizeAndPtr(arg_size, arg_ptr) = arg.as_kernel_arg();
-    let err_code = clSetKernelArg(kernel, arg_index as cl_uint, arg_size, arg_ptr);
+    cl_set_kernel_arg_raw(
+        kernel,
+        arg_index as cl_uint,
+        arg.kernel_arg_size(),
+        arg.kernel_arg_ptr()
+    )
+}
+
+pub unsafe fn cl_set_kernel_arg_raw(
+    kernel: cl_kernel,
+    arg_index: cl_uint,
+    arg_size: usize,
+    arg_ptr: *const c_void,
+) -> Output<()> {
+    let err_code = clSetKernelArg(
+        kernel,
+        arg_index as cl_uint,
+        arg_size,
+        arg_ptr,
+    );
 
     build_output((), err_code)
 }
+
 
 pub unsafe fn cl_create_kernel(program: cl_program, name: &str) -> Output<cl_kernel> {
     let c_name = strings::to_c_string(name)
@@ -111,11 +142,11 @@ pub enum KernelError {
 }
 
 /// Decrements a cl_kernel's reference count in OpenCL.
-/// 
+///
 /// # Safety
 /// Calling this function with a null-pointer cl_kernel or a cl_kernel that
 /// has already reached a 0 reference count is undefined behavior.
-/// 
+///
 /// Ensuring that reference count for cl_kernel is balanced is the
 /// responsiblity of the caller.
 unsafe fn release_kernel(kernel: cl_kernel) {
@@ -125,11 +156,11 @@ unsafe fn release_kernel(kernel: cl_kernel) {
 }
 
 /// Increments a cl_kernel's reference count in OpenCL.
-/// 
+///
 /// # Safety
 /// Calling this function with a null-pointer cl_kernel or a cl_kernel that
 /// has already reached a 0 reference count is undefined behavior.
-/// 
+///
 /// Ensuring that reference count for cl_kernel is balanced is the
 /// responsiblity of the caller.
 unsafe fn retain_kernel(kernel: cl_kernel) {
@@ -152,8 +183,7 @@ pub unsafe trait KernelPtr: Sized {
 
     /// Returns the number of args for a kernel.
     unsafe fn num_args(&self) -> Output<u32> {
-        self.info(KernelInfo::NumArgs)
-            .map(|ret| ret.into_one())
+        self.info(KernelInfo::NumArgs).map(|ret| ret.into_one())
     }
 
     /// Returns the OpenCL reference count of the kernel.
@@ -188,10 +218,10 @@ pub unsafe trait KernelPtr: Sized {
 
 /// ClKernel is a low-level object wrapper for cl_kernel. ClKernel implements Drop that
 /// utilizes clRetainKernel and Clone that utilizes clReleaseKernel.
-/// 
+///
 /// # Safety
 /// Using ClKernel in an invalid state is undefined behavior.
-/// 
+///
 /// # Lifetime Dependencies
 /// ClKernel depends on cl_program and, by proxy, cl_context.
 pub struct ClKernel {
@@ -200,9 +230,8 @@ pub struct ClKernel {
 }
 
 impl ClKernel {
-
     /// Creates a ClKernel after checking that the cl_kernel is a non-null pointer.
-    /// 
+    ///
     /// # Safety
     /// Providing a non-null pointer will return an Err Result, but providing an invalid
     /// cl_kernel is not safe.
@@ -212,7 +241,7 @@ impl ClKernel {
     }
 
     /// Creates a ClKernel without checking that the cl_kernel is a null pointer.
-    /// 
+    ///
     /// # Safety
     /// Providing a null pointer or an otherwise invalid cl_kernel is not safe.
     pub unsafe fn unchecked_new(object: cl_kernel) -> ClKernel {
@@ -223,7 +252,7 @@ impl ClKernel {
     }
 
     /// Creates a wrapped cl_kernel object.
-    /// 
+    ///
     /// # Safety
     /// Calling this function with an invalid ClProgram is undefined behavior.
     pub unsafe fn create(program: &ClProgram, name: &str) -> Output<ClKernel> {
@@ -236,6 +265,10 @@ impl ClKernel {
     /// Calling this function on invalid kernel or with invalid `arg` is undefined behavior.
     pub unsafe fn set_arg<T: KernelArg>(&mut self, arg_index: usize, arg: &mut T) -> Output<()> {
         cl_set_kernel_arg(self.kernel_ptr(), arg_index, arg)
+    }
+
+    pub unsafe fn set_arg_raw(&mut self, arg_index: u32, arg_size: usize, arg_ptr: *const c_void) -> Output<()> {
+        cl_set_kernel_arg_raw(self.kernel_ptr(), arg_index, arg_size, arg_ptr)
     }
 }
 
@@ -263,56 +296,54 @@ impl Clone for ClKernel {
     }
 }
 
-pub enum KernelOpArg<T: ClNumber> {
-    Num(T),
-    Mem(ClMem<T>),
-}
+// pub enum KernelOpArg {
+//     Num(dyn KernelArg),
+//     Mem(ClMem),
+// }
 
-impl<T: ClNumber> From<T> for KernelOpArg<T> {
-    fn from(num: T) -> KernelOpArg<T> {
-        KernelOpArg::Num(num)
-    }
-}
+// impl<T: ClNumber> From<T> for KernelOpArg<T> {
+//     fn from(num: T) -> KernelOpArg<T> {
+//         KernelOpArg::Num(num)
+//     }
+// }
 
-impl<T: ClNumber> From<ClMem<T>> for KernelOpArg<T> {
-    fn from(mem: ClMem<T>) -> KernelOpArg<T> {
-        KernelOpArg::Mem(mem)
-    }
-}
+// impl<T: ClNumber> From<ClMem<T>> for KernelOpArg<T> {
+//     fn from(mem: ClMem<T>) -> KernelOpArg<T> {
+//         KernelOpArg::Mem(mem)
+//     }
+// }
 
-impl<T: ClNumber> KernelOpArg<T> {
-    pub fn into_mem(self) -> Output<ClMem<T>> {
-        if let KernelOpArg::Mem(mem) = self {
-            Ok(mem)
-        } else {
-            Err(KernelError::KernelOpArgWasNotMem.into())
-        }
-    }
+// impl KernelOpArg {
+//     pub fn into_mem(self) -> Output<ClMem> {
+//         if let KernelOpArg::Mem(mem) = self {
+//             Ok(mem)
+//         } else {
+//             Err(KernelError::KernelOpArgWasNotMem.into())
+//         }
+//     }
 
-    pub fn into_num(self) -> Output<T> {
-        if let KernelOpArg::Num(num) = self {
-            Ok(num)
-        } else {
-            Err(KernelError::KernelOpArgWasNotMem.into())
-        }
-    }
-}
+//     pub fn into_num(self) -> Output<T> {
+//         if let KernelOpArg::Num(num) = self {
+//             Ok(num)
+//         } else {
+//             Err(KernelError::KernelOpArgWasNotMem.into())
+//         }
+//     }
+// }
 
-pub struct KernelOperation<T: ClNumber + KernelArg> {
+pub struct KernelOperation {
     _name: String,
-    _args: Vec<KernelOpArg<T>>,
+    _args: Vec<(usize, *const c_void)>,
     _work: Option<Work>,
-    _returning: Option<usize>,
     pub command_queue_opts: Option<CommandQueueOptions>,
 }
 
-impl<T: ClNumber + KernelArg> KernelOperation<T> {
-    pub fn new(name: &str) -> KernelOperation<T> {
+impl KernelOperation{
+    pub fn new(name: &str) -> KernelOperation {
         KernelOperation {
             _name: name.to_owned(),
             _args: vec![],
             _work: None,
-            _returning: None,
             command_queue_opts: None,
         }
     }
@@ -325,36 +356,31 @@ impl<T: ClNumber + KernelArg> KernelOperation<T> {
         self.command_queue_opts.clone()
     }
 
-    pub fn args(&self) -> &[KernelOpArg<T>] {
+    pub fn args(&self) -> &[(usize, *const c_void)] {
         &self._args[..]
     }
 
-    pub fn mut_args(&mut self) -> &mut [KernelOpArg<T>] {
+    pub fn mut_args(&mut self) -> &mut [(usize, *const c_void)] {
         &mut self._args[..]
     }
 
-    pub fn with_dims<D: Into<Dims>>(mut self, dims: D) -> KernelOperation<T> {
+    pub fn with_dims<D: Into<Dims>>(mut self, dims: D) -> KernelOperation {
         self._work = Some(Work::new(dims.into()));
         self
     }
 
-    pub fn with_work<W: Into<Work>>(mut self, work: W) -> KernelOperation<T> {
+    pub fn with_work<W: Into<Work>>(mut self, work: W) -> KernelOperation {
         self._work = Some(work.into());
         self
     }
 
-    pub fn add_arg<A: Into<KernelOpArg<T>>>(mut self, arg: A) -> KernelOperation<T> {
-        self._args.push(arg.into());
+    pub fn add_arg<A>(mut self, arg: &mut A) -> KernelOperation where A: KernelArg {
+        self._args.push((arg.kernel_arg_size(), unsafe { arg.kernel_arg_ptr() }));
         self
     }
 
-    pub fn with_command_queue_options(mut self, opts: CommandQueueOptions) -> KernelOperation<T> {
+    pub fn with_command_queue_options(mut self, opts: CommandQueueOptions) -> KernelOperation {
         self.command_queue_opts = Some(opts);
-        self
-    }
-
-    pub fn returning_arg(mut self, arg_index: usize) -> KernelOperation<T> {
-        self._returning = Some(arg_index);
         self
     }
 
@@ -363,20 +389,10 @@ impl<T: ClNumber + KernelArg> KernelOperation<T> {
     }
 
     #[inline]
-    pub fn return_value(&mut self) -> Output<Option<KernelOpArg<T>>> {
-        match (self._returning, self.argc()) {
-            (Some(argi), argc) if argi < argc => Ok(Some(self._args.remove(argi))),
-            (Some(argi), argc) => {
-                let oor_error = KernelError::ReturningArgIndexOutOfRange(argi, argc);
-                Err(oor_error.into())
-            }
-            (None, _) => Ok(None),
-        }
-    }
-
-    #[inline]
     pub fn work(&self) -> Output<Work> {
-        self._work.clone().ok_or_else(|| KernelError::WorkIsRequired.into())
+        self._work
+            .clone()
+            .ok_or_else(|| KernelError::WorkIsRequired.into())
     }
 }
 
@@ -384,6 +400,7 @@ impl<T: ClNumber + KernelArg> KernelOperation<T> {
 mod tests {
     use crate::ffi::*;
     use crate::*;
+    use libc::c_void;
 
     const SRC: &'static str = "
     __kernel void test123(__global int *i) {
@@ -571,7 +588,7 @@ mod tests {
 
             let data = vec![0u8, 0u8];
             let mem1 = session.create_mem(&data[..]).unwrap();
-            let mem_ptr = &mem1.mem_ptr() as *const _ as *const libc::c_void;
+            let mem_ptr = &mem1.mem_ptr() as *const _ as *const c_void;
             let err = clSetKernelArg(
                 kernel.kernel_ptr(),
                 0,
