@@ -9,10 +9,11 @@ use crate::ffi::{
 use crate::cl_helpers::cl_get_info5;
 use crate::CommandQueueInfo as CQInfo;
 use crate::{
-    build_output, utils, BufferReadEvent, ClContext, ClDeviceID, ClEvent, ClKernel, ClMem,
+    build_output, BufferReadEvent, ClContext, ClDeviceID, ClEvent, ClKernel, ClMem,
     ClNumber, ClPointer, CommandQueueInfo, CommandQueueProperties, ContextPtr, DevicePtr,
     EventPtr, GlobalWorkSize, KernelPtr, LocalWorkSize, MemPtr, MutVecOrSlice, Output,
-    VecOrSlice, Waitlist, WaitlistSizeAndPtr, Work, BufferCreator,
+    VecOrSlice, Waitlist, WaitlistSizeAndPtr, Work, BufferCreator, RetainRelease,
+    CheckValidClObject
 };
 
 #[derive(Debug, Clone)]
@@ -75,39 +76,7 @@ unsafe impl Waitlist for CommandQueueOptions {
 //     }
 // }
 
-__release_retain!(command_queue, CommandQueue);
-
-/// Releases (decrements reference count of) the cl_command_queue.
-///
-/// # Safety
-/// Balancing the release and retain reference count of a cl_command_queue
-/// (or any ClObject) must be done with care. Improper usage of release and
-/// retain can lead to undefined behavior.
-///
-/// Usage of an invalid ClObject is undefined behavior.
-pub unsafe fn release_command_queue(cq: cl_command_queue) {
-    cl_release_command_queue(cq).unwrap_or_else(|e| {
-        panic!("Failed to release cl_command_queue {:?} due to {:?}", cq, e);
-    })
-}
-
-/// Releases (decrements reference count of) the cl_command_queue.
-///
-/// # Safety
-/// Balancing the release and retain reference count of a cl_command_queue
-/// (or any ClObject) must be done with care. Improper usage of release and
-/// retain can lead to undefined behavior.
-///
-/// Usage of an invalid ClObject is undefined behavior.
-///
-/// This function should be use with extreme care. Any copy of a
-/// cl_command_queue could be used concurrently with the other. Writing to the
-/// same queue concurrently is undefined behavior.
-pub unsafe fn retain_command_queue(cq: cl_command_queue) {
-    cl_retain_command_queue(cq).unwrap_or_else(|e| {
-        panic!("Failed to retain cl_command_queue {:?} due to {:?}", cq, e);
-    })
-}
+// __release_retain!(command_queue, CommandQueue);
 
 /// Creates a new cl_command_queue.
 ///
@@ -295,7 +264,7 @@ pub struct ClCommandQueue {
 impl ClCommandQueue {
     /// Builds a ClCommandQueue after checking for null-pointer.
     pub unsafe fn new(cq: cl_command_queue) -> Output<ClCommandQueue> {
-        utils::null_check(cq)?;
+        cq.check_valid_cl_object()?;
         Ok(ClCommandQueue::unchecked_new(cq))
     }
 
@@ -312,8 +281,8 @@ impl ClCommandQueue {
     /// # Safety
     /// Calling this function with a cl_command_queue in an invalid state is undefined behavior.
     pub unsafe fn retain_new(cq: cl_command_queue) -> Output<ClCommandQueue> {
-        utils::null_check(cq)?;
-        retain_command_queue(cq);
+        cq.check_valid_cl_object()?;
+        cq.retain();
         Ok(ClCommandQueue::unchecked_new(cq))
     }
 
@@ -471,7 +440,7 @@ impl Drop for ClCommandQueue {
     fn drop(&mut self) {
         unsafe {
             cl_finish(self.object).unwrap();
-            release_command_queue(self.object)
+            self.object.release()
         };
     }
 }

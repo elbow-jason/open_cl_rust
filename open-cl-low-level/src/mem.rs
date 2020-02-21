@@ -8,33 +8,11 @@ use crate::ffi::{
 
 use crate::cl_helpers::cl_get_info5;
 use crate::{
-    build_output, ClContext, ClNumber, ClPointer, ContextPtr, Error, HostAccessMemFlags,
+    build_output, ClContext, ClNumber, ClPointer, ContextPtr, HostAccessMemFlags,
     KernelAccessMemFlags, MemFlags, MemInfo, MemLocationMemFlags, Output, NumberType,
-    NumberTyped 
+    NumberTyped, CheckValidClObject, RetainRelease,
 };
 
-__release_retain!(mem, MemObject);
-
-unsafe fn release_mem(mem: cl_mem) {
-    cl_release_mem(mem).unwrap_or_else(|e| {
-        panic!("Failed to release cl_mem {:?} due to {:?}", mem, e);
-    })
-}
-
-unsafe fn retain_mem(mem: cl_mem) {
-    cl_retain_mem(mem).unwrap_or_else(|e| {
-        panic!("Failed to retain cl_mem {:?} due to {:?}", mem, e);
-    })
-}
-
-/// An error related to DeviceMems.
-#[derive(Debug, Fail, PartialEq, Eq, Clone)]
-pub enum MemError {
-    #[fail(display = "Given ClMem has no associated cl_mem object")]
-    NoAssociatedMemObject,
-}
-
-pub const NO_ASSOCIATED_MEM_OBJECT: Error = Error::MemError(MemError::NoAssociatedMemObject);
 
 /// Low-level helper for creating a cl_mem buffer from a context, mem flags, and a buffer creator.
 ///
@@ -287,11 +265,12 @@ impl ClMem {
     /// This function does not retain its cl_mem, but will release its cl_mem
     /// when it is dropped. Mismanagement of a cl_mem's lifetime.  Therefore,
     /// this function is unsafe.
-    pub unsafe fn new<T: ClNumber>(object: cl_mem) -> ClMem {
-        ClMem {
+    pub unsafe fn new<T: ClNumber>(object: cl_mem) -> Output<ClMem> {
+        object.check_valid_cl_object()?;
+        Ok(ClMem {
             object,
             t: T::number_type()
-        }
+        })
     }
 
     pub fn create<T: ClNumber, B: BufferCreator<T>>(
@@ -309,7 +288,7 @@ impl ClMem {
                     | cl_mem_flags::from(mem_location),
                 buffer_creator,
             )?;
-            Ok(ClMem::new::<T>(mem_object))
+            ClMem::new::<T>(mem_object)
         }
     }
 
@@ -330,7 +309,7 @@ impl ClMem {
             mem_config.into(),
             buffer_creator,
         )?;
-        Ok(ClMem::new::<T>(mem_object))
+        ClMem::new::<T>(mem_object)
     }
 }
 
@@ -347,7 +326,7 @@ unsafe impl MemPtr for ClMem {
 impl Drop for ClMem {
     fn drop(&mut self) {
         unsafe {
-            release_mem(self.object);
+            self.object.release();
         }
     }
 }
@@ -356,7 +335,7 @@ impl Clone for ClMem {
     fn clone(&self) -> ClMem {
         unsafe {
             let object = self.object;
-            retain_mem(object);
+            object.retain();
             ClMem{
                 object,
                 t: self.t,

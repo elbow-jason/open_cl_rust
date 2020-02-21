@@ -7,42 +7,12 @@ use crate::ffi::{
     clGetProgramInfo, cl_context, cl_device_id, cl_program, cl_program_build_info, cl_program_info,
 };
 use crate::{
-    build_output, strings, utils, ClContext, ClDeviceID, ClPointer, ContextPtr, DevicePtr, Error,
-    Output, ProgramBuildInfo, ProgramInfo,
+    build_output, strings, ClContext, ClDeviceID, ClPointer, ContextPtr, DevicePtr, Error,
+    Output, ProgramBuildInfo, ProgramInfo, CheckValidClObject, RetainRelease,
 };
 
 pub const DEVICE_LIST_CANNOT_BE_EMPTY: Error =
     Error::ProgramError(ProgramError::CannotBuildProgramWithEmptyDevicesList);
-
-__release_retain!(program, Program);
-
-/// Low level helper function that releases a cl_program or panics.
-///
-/// # Safety
-/// Calling this function with an invalid cl_program is undefined behavior.
-/// Calling this function decrements the OpenCL atomic reference count for
-/// a cl_program; Mismanagement of the atomic ref count can lead to undefined behavior.
-/// Additionally, this function deals directly with raw pointers and it therefore
-/// unsafe and must be used with care.
-pub unsafe fn release_program(program: cl_program) {
-    cl_release_program(program).unwrap_or_else(|e| {
-        panic!("Failed to release cl_program {:?} due to {:?}", program, e);
-    });
-}
-
-/// Low level helper function that retains a cl_program or panics.
-///
-/// # Safety
-/// Calling this function with an invalid cl_program is undefined behavior.
-/// Calling this function increments the OpenCL atomic reference count for
-/// a cl_program; Mismanagement of the atomic ref count can lead to undefined behavior.
-/// Additionally, this function deals directly with raw pointers and it therefore
-/// unsafe and must be used with care.
-pub unsafe fn retain_program(program: cl_program) {
-    cl_retain_program(program).unwrap_or_else(|e| {
-        panic!("Failed to retain cl_program {:?} due to {:?}", program, e);
-    });
-}
 
 /// An error related to Program.
 #[derive(Debug, Fail, PartialEq, Eq, Clone)]
@@ -203,7 +173,7 @@ impl ClProgram {
     /// (like from clCreateProgramWithSource). When a ClProgram drops "release" is called on
     /// the cl_program which decrements the cl_program's OpenCL atomic reference count.
     pub unsafe fn new(prog: cl_program) -> Output<ClProgram> {
-        utils::null_check(prog)?;
+        prog.check_valid_cl_object()?;
         Ok(ClProgram::unchecked_new(prog))
     }
 
@@ -215,8 +185,8 @@ impl ClProgram {
     /// OpenCL FFI that were not created, but retrieved through the info functions of other
     /// OpenCL objects.
     pub unsafe fn retain_new(prog: cl_program) -> Output<ClProgram> {
-        utils::null_check(prog)?;
-        retain_program(prog);
+        prog.check_valid_cl_object()?;
+        prog.retain();
         Ok(ClProgram::unchecked_new(prog))
     }
 
@@ -247,14 +217,14 @@ impl ClProgram {
 
 impl Drop for ClProgram {
     fn drop(&mut self) {
-        unsafe { release_program(self.object) };
+        unsafe { self.object.release() }
     }
 }
 
 impl Clone for ClProgram {
     fn clone(&self) -> ClProgram {
         unsafe {
-            retain_program(self.object);
+            self.object.retain();
             ClProgram::unchecked_new(self.object)
         }
     }

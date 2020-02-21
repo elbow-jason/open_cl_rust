@@ -7,7 +7,6 @@ use crate::context_builder::ContextBuilderError;
 use crate::device::DeviceError;
 use crate::event::EventError;
 use crate::kernel::KernelError;
-use crate::mem::MemError;
 use crate::platform::PlatformError;
 use crate::program::ProgramError;
 use crate::session::{SessionBuilderError, SessionError};
@@ -31,9 +30,6 @@ pub enum Error {
 
     #[fail(display = "{:?}", _0)]
     KernelError(KernelError),
-
-    #[fail(display = "{:?}", _0)]
-    MemError(MemError),
 
     #[fail(display = "{:?}", _0)]
     EventError(EventError),
@@ -90,12 +86,6 @@ impl From<ProgramError> for Error {
 impl From<KernelError> for Error {
     fn from(e: KernelError) -> Error {
         Error::KernelError(e)
-    }
-}
-
-impl From<MemError> for Error {
-    fn from(err: MemError) -> Error {
-        Error::MemError(err)
     }
 }
 

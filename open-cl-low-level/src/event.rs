@@ -3,8 +3,8 @@ use std::mem::ManuallyDrop;
 use std::time::Duration;
 
 use crate::{
-    build_output, utils, ClCommandQueue, ClContext, ClNumber, ClPointer, CommandExecutionStatus,
-    Error, EventInfo, Output, ProfilingInfo, Waitlist,
+    build_output, ClCommandQueue, ClContext, ClNumber, ClPointer, CommandExecutionStatus,
+    Error, EventInfo, Output, ProfilingInfo, Waitlist, CheckValidClObject, RetainRelease,
 };
 
 use crate::ffi::{
@@ -13,20 +13,6 @@ use crate::ffi::{
 };
 
 use crate::cl_helpers::cl_get_info5;
-
-__release_retain!(event, Event);
-
-unsafe fn release_event(evt: cl_event) {
-    cl_release_event(evt).unwrap_or_else(|e| {
-        panic!("Failed to release cl_event {:?} due to {:?}", evt, e);
-    })
-}
-
-unsafe fn retain_event(evt: cl_event) {
-    cl_retain_event(evt).unwrap_or_else(|e| {
-        panic!("Failed to retain cl_event {:?} due to {:?}", evt, e);
-    })
-}
 
 // NOTE: Fix cl_profiling_info arg // should be a bitflag or enum.
 pub unsafe fn cl_get_event_profiling_info(
@@ -101,7 +87,7 @@ impl ClEvent {
     }
 
     pub unsafe fn new(evt: cl_event) -> Output<ClEvent> {
-        utils::null_check(evt)?;
+        evt.check_valid_cl_object()?;
         Ok(ClEvent::unchecked_new(evt))
     }
 }
@@ -184,7 +170,7 @@ impl Clone for ClEvent {
     fn clone(&self) -> ClEvent {
         unsafe {
             let evt = self.object;
-            retain_event(evt);
+            evt.retain();
             ClEvent::unchecked_new(evt)
         }
     }
@@ -193,7 +179,7 @@ impl Clone for ClEvent {
 impl Drop for ClEvent {
     fn drop(&mut self) {
         unsafe {
-            release_event(self.object);
+            self.object.release();
         }
     }
 }

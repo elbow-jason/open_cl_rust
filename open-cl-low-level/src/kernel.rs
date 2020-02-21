@@ -8,8 +8,9 @@ use crate::ffi::{
     cl_program, cl_uint,
 };
 use crate::{
-    build_output, strings, utils, ClContext, ClMem, ClPointer, ClProgram,
+    build_output, strings, ClContext, ClMem, ClPointer, ClProgram,
     CommandQueueOptions, Dims, KernelInfo, MemPtr, Output, ProgramPtr, Work,
+    CheckValidClObject, RetainRelease,
 };
 
 pub unsafe trait KernelArg {
@@ -68,8 +69,6 @@ sized_scalar_kernel_arg!(f64);
 // pub use kernel_arg::{KernelArg, KernelArgSizeAndPointer};
 // use super::kernel_arg::{KernelArg, KernelArgSizeAndPointer};
 // use super::{Kernel, KernelError, KernelLock, KernelPtr, KernelRefCountWithProgram};
-
-__release_retain!(kernel, Kernel);
 
 pub unsafe fn cl_set_kernel_arg<T: KernelArg>(
     kernel: cl_kernel,
@@ -141,34 +140,6 @@ pub enum KernelError {
     KernelOpArgWasNotNum,
 }
 
-/// Decrements a cl_kernel's reference count in OpenCL.
-///
-/// # Safety
-/// Calling this function with a null-pointer cl_kernel or a cl_kernel that
-/// has already reached a 0 reference count is undefined behavior.
-///
-/// Ensuring that reference count for cl_kernel is balanced is the
-/// responsiblity of the caller.
-unsafe fn release_kernel(kernel: cl_kernel) {
-    cl_release_kernel(kernel).unwrap_or_else(|e| {
-        panic!("Failed to release cl_kernel {:?} due to {:?} ", kernel, e);
-    });
-}
-
-/// Increments a cl_kernel's reference count in OpenCL.
-///
-/// # Safety
-/// Calling this function with a null-pointer cl_kernel or a cl_kernel that
-/// has already reached a 0 reference count is undefined behavior.
-///
-/// Ensuring that reference count for cl_kernel is balanced is the
-/// responsiblity of the caller.
-unsafe fn retain_kernel(kernel: cl_kernel) {
-    cl_retain_kernel(kernel).unwrap_or_else(|e| {
-        panic!("Failed to retain cl_kernel {:?} due to {:?}", kernel, e);
-    });
-}
-
 pub unsafe trait KernelPtr: Sized {
     unsafe fn kernel_ptr(&self) -> cl_kernel;
 
@@ -236,7 +207,7 @@ impl ClKernel {
     /// Providing a non-null pointer will return an Err Result, but providing an invalid
     /// cl_kernel is not safe.
     pub unsafe fn new(object: cl_kernel) -> Output<ClKernel> {
-        utils::null_check(object)?;
+        object.check_valid_cl_object()?;
         Ok(ClKernel::unchecked_new(object))
     }
 
@@ -281,7 +252,7 @@ unsafe impl KernelPtr for ClKernel {
 impl Drop for ClKernel {
     fn drop(&mut self) {
         unsafe {
-            release_kernel(self.object);
+            self.object.release();
         }
     }
 }
@@ -290,7 +261,7 @@ impl Clone for ClKernel {
     fn clone(&self) -> ClKernel {
         unsafe {
             let kernel = self.object;
-            retain_kernel(kernel);
+            kernel.retain();
             ClKernel::unchecked_new(kernel)
         }
     }

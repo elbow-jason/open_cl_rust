@@ -14,7 +14,7 @@ use std::sync::Mutex;
 use crate::cl_enums::PlatformInfo;
 use crate::cl_helpers::cl_get_info5;
 use crate::ffi::{clGetPlatformIDs, clGetPlatformInfo, cl_platform_id, cl_platform_info, cl_uint};
-use crate::{build_output, utils, ClPointer, Error, Output};
+use crate::{build_output, utils, ClPointer, Error, Output, CheckValidClObject};
 
 lazy_static! {
     static ref PLATFORM_ACCESS: Mutex<()> = Mutex::new(());
@@ -90,7 +90,7 @@ impl PlatformPtr for &ClPlatformID {
 
 impl ClPlatformID {
     pub fn new(object: cl_platform_id) -> Output<ClPlatformID> {
-        utils::null_check(object)?;
+        object.check_valid_cl_object()?;
         Ok(ClPlatformID { object })
     }
 }

@@ -3,9 +3,9 @@ use std::fmt;
 use crate::ffi::*;
 
 use crate::{
-    utils, ClPlatformID, ClPointer, DeviceAffinityDomain, DeviceExecCapabilities, DeviceInfo,
+    ClPlatformID, ClPointer, DeviceAffinityDomain, DeviceExecCapabilities, DeviceInfo,
     DeviceLocalMemType, DeviceMemCacheType, DeviceType, Error, Output, PlatformPtr,
-    StatusCodeError,
+    StatusCodeError, CheckValidClObject, RetainRelease,
 };
 
 use crate::cl_helpers::{cl_get_info5, cl_get_object, cl_get_object_count};
@@ -30,9 +30,6 @@ pub fn device_usability_check(device_id: cl_device_id) -> Result<(), Error> {
         Ok(())
     }
 }
-
-#[cfg(feature = "opencl_version_1_2_0")]
-__release_retain!(device_id, Device);
 
 // NOTE: fix cl_device_type
 pub fn cl_get_device_count(platform: cl_platform_id, device_type: cl_device_type) -> Output<u32> {
@@ -93,24 +90,6 @@ pub trait DeviceRefCount: DevicePtr + fmt::Debug {
     unsafe fn from_unretained(device: cl_device_id) -> Output<Self>;
 }
 
-unsafe fn release_device(device_id: cl_device_id) {
-    cl_release_device_id(device_id).unwrap_or_else(|e| {
-        panic!(
-            "Failed to release cl_device_id {:?} due to {:?} ",
-            device_id, e
-        );
-    });
-}
-
-unsafe fn retain_device(device_id: cl_device_id) {
-    cl_retain_device_id(device_id).unwrap_or_else(|e| {
-        panic!(
-            "Failed to retain cl_device_id {:?} due to {:?}",
-            device_id, e
-        );
-    });
-}
-
 pub struct ClDeviceID {
     object: cl_device_id,
     _unconstructable: (),
@@ -118,6 +97,7 @@ pub struct ClDeviceID {
 
 impl ClDeviceID {
     pub unsafe fn unchecked_new(object: cl_device_id) -> ClDeviceID {
+        println!("unchecked new {:?}", object);
         ClDeviceID {
             object,
             _unconstructable: (),
@@ -125,15 +105,14 @@ impl ClDeviceID {
     }
 
     pub unsafe fn new(device: cl_device_id) -> Output<ClDeviceID> {
-        utils::null_check(device)?;
-        device_usability_check(device)?;
+        println!("LL device new {:?}", device);
+        device.check_valid_cl_object()?;
         Ok(ClDeviceID::unchecked_new(device))
     }
 
     pub unsafe fn retain_new(device: cl_device_id) -> Output<ClDeviceID> {
-        utils::null_check(device)?;
-        device_usability_check(device)?;
-        retain_device(device);
+        device.check_valid_cl_object()?;
+        device.retain();
         Ok(ClDeviceID::unchecked_new(device))
     }
 }
@@ -158,7 +137,7 @@ impl DevicePtr for cl_device_id {
 
 impl Drop for ClDeviceID {
     fn drop(&mut self) {
-        unsafe { release_device(self.device_ptr()) };
+        unsafe { self.device_ptr().release() };
     }
 }
 
@@ -166,7 +145,8 @@ impl Clone for ClDeviceID {
     fn clone(&self) -> ClDeviceID {
         unsafe {
             let device_id = self.device_ptr();
-            retain_device(device_id);
+            println!("cloning {:?}", device_id);
+            device_id.retain();
             ClDeviceID::unchecked_new(device_id)
         }
     }

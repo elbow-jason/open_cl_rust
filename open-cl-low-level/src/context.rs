@@ -5,7 +5,8 @@ use crate::ffi::{
     cl_device_id,
 };
 use crate::{
-    build_output, utils, ClDeviceID, ClPointer, ContextInfo, ContextProperties, DevicePtr, Output,
+    build_output, ClDeviceID, ClPointer, ContextInfo, ContextProperties, DevicePtr, Output,
+    CheckValidClObject, RetainRelease,
 };
 
 use crate::cl_helpers::cl_get_info5;
@@ -28,11 +29,8 @@ pub fn cl_get_context_info<T>(context: cl_context, flag: cl_context_info) -> Out
 where
     T: Copy,
 {
-    utils::null_check(context)?;
     unsafe { cl_get_info5(context, flag as cl_context_info, clGetContextInfo) }
 }
-
-__release_retain!(context, Context);
 
 pub unsafe trait ContextPtr: Sized {
     unsafe fn context_ptr(&self) -> cl_context;
@@ -72,18 +70,6 @@ pub unsafe trait ContextPtr: Sized {
     }
 }
 
-unsafe fn release_context(context: cl_context) {
-    cl_release_context(context).unwrap_or_else(|e| {
-        panic!("Failed to release cl_context {:?}", e);
-    });
-}
-
-unsafe fn retain_context(context: cl_context) {
-    cl_retain_context(context).unwrap_or_else(|e| {
-        panic!("Failed to retain cl_context {:?}", e);
-    });
-}
-
 pub struct ClContext {
     object: cl_context,
     _unconstructable: (),
@@ -97,13 +83,13 @@ impl ClContext {
         }
     }
     pub unsafe fn new(object: cl_context) -> Output<ClContext> {
-        utils::null_check(object)?;
+        object.check_valid_cl_object()?;
         Ok(ClContext::unchecked_new(object))
     }
 
     pub unsafe fn retain_new(object: cl_context) -> Output<ClContext> {
-        utils::null_check(object)?;
-        retain_context(object);
+        object.check_valid_cl_object()?;
+        object.retain();
         Ok(ClContext::unchecked_new(object))
     }
 
@@ -125,7 +111,7 @@ unsafe impl ContextPtr for ClContext {
 
 impl Drop for ClContext {
     fn drop(&mut self) {
-        unsafe { release_context(self.context_ptr()) }
+        unsafe { self.context_ptr().release() }
     }
 }
 
@@ -133,7 +119,7 @@ impl Clone for ClContext {
     fn clone(&self) -> ClContext {
         unsafe {
             let context = self.context_ptr();
-            retain_context(context);
+            context.retain();
             ClContext::unchecked_new(context)
         }
     }

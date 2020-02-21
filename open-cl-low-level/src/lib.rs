@@ -39,6 +39,8 @@ pub mod ll_testing;
 pub mod macros;
 #[macro_use]
 pub mod cl_number_type;
+pub mod cl_retain_release;
+pub mod cl_object;
 pub mod cl_bitflags;
 pub mod cl_enums;
 pub mod cl_helpers;
@@ -68,6 +70,8 @@ pub mod waitlist;
 pub mod work;
 
 pub use cl_number_type::*;
+pub use cl_retain_release::RetainRelease;
+pub use cl_object::{ClObject, CheckValidClObject};
 pub use cl_pointer::ClPointer;
 pub use error::Error;
 pub use output::{build_output, Output};
