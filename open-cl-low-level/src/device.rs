@@ -87,33 +87,6 @@ pub enum DeviceError {
 
 pub type ClDeviceID = ObjectWrapper<cl_device_id>;
 
-// pub struct ClDeviceID {
-//     object: cl_device_id,
-//     _unconstructable: (),
-// }
-
-// impl ClDeviceID {
-//     pub unsafe fn unchecked_new(object: cl_device_id) -> ClDeviceID {
-//         println!("unchecked new {:?}", object);
-//         ClDeviceID {
-//             object,
-//             _unconstructable: (),
-//         }
-//     }
-
-//     pub unsafe fn new(device: cl_device_id) -> Output<ClDeviceID> {
-//         println!("LL device new {:?}", device);
-//         device.check_valid_cl_object()?;
-//         Ok(ClDeviceID::unchecked_new(device))
-//     }
-
-//     pub unsafe fn retain_new(device: cl_device_id) -> Output<ClDeviceID> {
-//         device.check_valid_cl_object()?;
-//         device.retain();
-//         Ok(ClDeviceID::unchecked_new(device))
-//     }
-// }
-
 impl DevicePtr for ClDeviceID {
     unsafe fn device_ptr(&self) -> cl_device_id {
         self.cl_object()

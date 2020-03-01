@@ -187,19 +187,6 @@ pub unsafe trait KernelPtr: Sized {
     // }
 }
 
-// /// ClKernel is a low-level object wrapper for cl_kernel. ClKernel implements Drop that
-// /// utilizes clRetainKernel and Clone that utilizes clReleaseKernel.
-// ///
-// /// # Safety
-// /// Using ClKernel in an invalid state is undefined behavior.
-// ///
-// /// # Lifetime Dependencies
-// /// ClKernel depends on cl_program and, by proxy, cl_context.
-// pub struct ClKernel {
-//     object: cl_kernel,
-//     _unconstructable: (),
-// }
-
 pub type ClKernel = ObjectWrapper<cl_kernel>;
 
 impl ClKernel {
