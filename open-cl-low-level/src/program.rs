@@ -1,5 +1,4 @@
 use std::convert::TryInto;
-use std::fmt;
 
 use crate::cl_helpers::{cl_get_info5, cl_get_info6};
 use crate::ffi::{
@@ -8,7 +7,7 @@ use crate::ffi::{
 };
 use crate::{
     build_output, strings, ClContext, ClDeviceID, ClPointer, ContextPtr, DevicePtr, Error,
-    Output, ProgramBuildInfo, ProgramInfo, CheckValidClObject, RetainRelease,
+    Output, ProgramBuildInfo, ProgramInfo, ObjectWrapper
 };
 
 pub const DEVICE_LIST_CANNOT_BE_EMPTY: Error =
@@ -122,11 +121,7 @@ pub unsafe fn cl_get_program_info<T: Copy>(
     cl_get_info5(program, flag, clGetProgramInfo)
 }
 
-pub struct ClProgram {
-    object: cl_program,
-
-    _unconstructable: (),
-}
+pub type ClProgram = ObjectWrapper<cl_program>;
 
 impl ClProgram {
     /// Creates a new ClProgram on the context and device with the given OpenCL source code.
@@ -150,43 +145,6 @@ impl ClProgram {
         bin: &[u8],
     ) -> Output<ClProgram> {
         let prog = cl_create_program_with_binary(context.context_ptr(), device.device_ptr(), bin)?;
-        Ok(ClProgram::unchecked_new(prog))
-    }
-
-    /// Returns a new ClProgram, but does not check for null pointer.
-    ///
-    /// # Safety
-    /// Due to the lack of a null pointer check this function can lead to
-    /// undefined behavior; dropping the new ClProgram will attempt to release a null pointer
-    /// cl_program inside OpenCL. KABOOM.
-    pub unsafe fn unchecked_new(program: cl_program) -> ClProgram {
-        ClProgram {
-            object: program,
-            _unconstructable: (),
-        }
-    }
-
-    /// Wraps a raw cl_program pointer into a ClProgram.
-    ///
-    /// # Safety
-    /// This function should only be used for cl_program pointers that are already retained
-    /// (like from clCreateProgramWithSource). When a ClProgram drops "release" is called on
-    /// the cl_program which decrements the cl_program's OpenCL atomic reference count.
-    pub unsafe fn new(prog: cl_program) -> Output<ClProgram> {
-        prog.check_valid_cl_object()?;
-        Ok(ClProgram::unchecked_new(prog))
-    }
-
-    /// Retains and wraps a raw cl_program pointer into a ClProgram.
-    ///
-    /// # Safety
-    /// This function increments the OpenCL reference count of the given cl_program.
-    /// This function should only be used on cl_program objects that are obtained from the
-    /// OpenCL FFI that were not created, but retrieved through the info functions of other
-    /// OpenCL objects.
-    pub unsafe fn retain_new(prog: cl_program) -> Output<ClProgram> {
-        prog.check_valid_cl_object()?;
-        prog.retain();
         Ok(ClProgram::unchecked_new(prog))
     }
 
@@ -215,40 +173,11 @@ impl ClProgram {
     }
 }
 
-impl Drop for ClProgram {
-    fn drop(&mut self) {
-        unsafe { self.object.release() }
-    }
-}
-
-impl Clone for ClProgram {
-    fn clone(&self) -> ClProgram {
-        unsafe {
-            self.object.retain();
-            ClProgram::unchecked_new(self.object)
-        }
-    }
-}
-
 unsafe impl ProgramPtr for ClProgram {
     unsafe fn program_ptr(&self) -> cl_program {
-        self.object
+        self.cl_object()
     }
 }
-
-impl fmt::Debug for ClProgram {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "ClProgram{{{:?}}}", self.object)
-    }
-}
-
-impl PartialEq for ClProgram {
-    fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(self.object, other.object)
-    }
-}
-
-impl Eq for ClProgram {}
 
 fn get_info<T: Copy, P: ProgramPtr>(program: &P, flag: ProgramInfo) -> Output<ClPointer<T>> {
     unsafe { cl_get_program_info(program.program_ptr(), flag.into()) }

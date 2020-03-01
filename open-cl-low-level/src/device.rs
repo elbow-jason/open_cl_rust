@@ -5,7 +5,7 @@ use crate::ffi::*;
 use crate::{
     ClPlatformID, ClPointer, DeviceAffinityDomain, DeviceExecCapabilities, DeviceInfo,
     DeviceLocalMemType, DeviceMemCacheType, DeviceType, Error, Output, PlatformPtr,
-    StatusCodeError, CheckValidClObject, RetainRelease,
+    StatusCodeError, ObjectWrapper,
 };
 
 use crate::cl_helpers::{cl_get_info5, cl_get_object, cl_get_object_count};
@@ -85,70 +85,50 @@ pub enum DeviceError {
     NoParentDevice,
 }
 
-pub trait DeviceRefCount: DevicePtr + fmt::Debug {
-    unsafe fn from_retained(device: cl_device_id) -> Output<Self>;
-    unsafe fn from_unretained(device: cl_device_id) -> Output<Self>;
-}
+pub type ClDeviceID = ObjectWrapper<cl_device_id>;
 
-pub struct ClDeviceID {
-    object: cl_device_id,
-    _unconstructable: (),
-}
+// pub struct ClDeviceID {
+//     object: cl_device_id,
+//     _unconstructable: (),
+// }
 
-impl ClDeviceID {
-    pub unsafe fn unchecked_new(object: cl_device_id) -> ClDeviceID {
-        println!("unchecked new {:?}", object);
-        ClDeviceID {
-            object,
-            _unconstructable: (),
-        }
-    }
+// impl ClDeviceID {
+//     pub unsafe fn unchecked_new(object: cl_device_id) -> ClDeviceID {
+//         println!("unchecked new {:?}", object);
+//         ClDeviceID {
+//             object,
+//             _unconstructable: (),
+//         }
+//     }
 
-    pub unsafe fn new(device: cl_device_id) -> Output<ClDeviceID> {
-        println!("LL device new {:?}", device);
-        device.check_valid_cl_object()?;
-        Ok(ClDeviceID::unchecked_new(device))
-    }
+//     pub unsafe fn new(device: cl_device_id) -> Output<ClDeviceID> {
+//         println!("LL device new {:?}", device);
+//         device.check_valid_cl_object()?;
+//         Ok(ClDeviceID::unchecked_new(device))
+//     }
 
-    pub unsafe fn retain_new(device: cl_device_id) -> Output<ClDeviceID> {
-        device.check_valid_cl_object()?;
-        device.retain();
-        Ok(ClDeviceID::unchecked_new(device))
-    }
-}
+//     pub unsafe fn retain_new(device: cl_device_id) -> Output<ClDeviceID> {
+//         device.check_valid_cl_object()?;
+//         device.retain();
+//         Ok(ClDeviceID::unchecked_new(device))
+//     }
+// }
 
 impl DevicePtr for ClDeviceID {
     unsafe fn device_ptr(&self) -> cl_device_id {
-        self.object
+        self.cl_object()
     }
 }
 
 impl DevicePtr for &ClDeviceID {
     unsafe fn device_ptr(&self) -> cl_device_id {
-        self.object
+        self.cl_object()
     }
 }
 
 impl DevicePtr for cl_device_id {
     unsafe fn device_ptr(&self) -> cl_device_id {
         *self
-    }
-}
-
-impl Drop for ClDeviceID {
-    fn drop(&mut self) {
-        unsafe { self.device_ptr().release() };
-    }
-}
-
-impl Clone for ClDeviceID {
-    fn clone(&self) -> ClDeviceID {
-        unsafe {
-            let device_id = self.device_ptr();
-            println!("cloning {:?}", device_id);
-            device_id.retain();
-            ClDeviceID::unchecked_new(device_id)
-        }
     }
 }
 
@@ -413,22 +393,6 @@ where
 unsafe impl Send for ClDeviceID {}
 unsafe impl Sync for ClDeviceID {}
 
-impl PartialEq for ClDeviceID {
-    fn eq(&self, other: &Self) -> bool {
-        unsafe { std::ptr::eq(self.device_ptr(), other.device_ptr()) }
-    }
-}
-
-impl Eq for ClDeviceID {}
-
-impl fmt::Debug for ClDeviceID {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let name = self.name().unwrap();
-        let ptr = unsafe { self.device_ptr() };
-        write!(f, "ClDeviceID{{ptr: {:?}, name: {}}}", ptr, name)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::ffi::*;
@@ -470,8 +434,8 @@ mod tests {
     fn device_fmt_debug_works() {
         ll_testing::with_each_device(|device| {
             let formatted = format!("{:?}", device);
-            expect_method!(formatted, starts_with, "ClDeviceID{ptr: 0x");
-            expect_method!(formatted, contains, "ClDeviceID{ptr: 0x");
+            expect_method!(formatted, contains, device.address());
+            expect_method!(formatted, contains, "cl_device_id");
         })
     }
 }

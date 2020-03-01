@@ -10,7 +10,7 @@ use crate::ffi::{
 use crate::{
     build_output, strings, ClContext, ClMem, ClPointer, ClProgram,
     CommandQueueOptions, Dims, KernelInfo, MemPtr, Output, ProgramPtr, Work,
-    CheckValidClObject, RetainRelease,
+    ObjectWrapper
 };
 
 pub unsafe trait KernelArg {
@@ -187,41 +187,22 @@ pub unsafe trait KernelPtr: Sized {
     // }
 }
 
-/// ClKernel is a low-level object wrapper for cl_kernel. ClKernel implements Drop that
-/// utilizes clRetainKernel and Clone that utilizes clReleaseKernel.
-///
-/// # Safety
-/// Using ClKernel in an invalid state is undefined behavior.
-///
-/// # Lifetime Dependencies
-/// ClKernel depends on cl_program and, by proxy, cl_context.
-pub struct ClKernel {
-    object: cl_kernel,
-    _unconstructable: (),
-}
+// /// ClKernel is a low-level object wrapper for cl_kernel. ClKernel implements Drop that
+// /// utilizes clRetainKernel and Clone that utilizes clReleaseKernel.
+// ///
+// /// # Safety
+// /// Using ClKernel in an invalid state is undefined behavior.
+// ///
+// /// # Lifetime Dependencies
+// /// ClKernel depends on cl_program and, by proxy, cl_context.
+// pub struct ClKernel {
+//     object: cl_kernel,
+//     _unconstructable: (),
+// }
+
+pub type ClKernel = ObjectWrapper<cl_kernel>;
 
 impl ClKernel {
-    /// Creates a ClKernel after checking that the cl_kernel is a non-null pointer.
-    ///
-    /// # Safety
-    /// Providing a non-null pointer will return an Err Result, but providing an invalid
-    /// cl_kernel is not safe.
-    pub unsafe fn new(object: cl_kernel) -> Output<ClKernel> {
-        object.check_valid_cl_object()?;
-        Ok(ClKernel::unchecked_new(object))
-    }
-
-    /// Creates a ClKernel without checking that the cl_kernel is a null pointer.
-    ///
-    /// # Safety
-    /// Providing a null pointer or an otherwise invalid cl_kernel is not safe.
-    pub unsafe fn unchecked_new(object: cl_kernel) -> ClKernel {
-        ClKernel {
-            object,
-            _unconstructable: (),
-        }
-    }
-
     /// Creates a wrapped cl_kernel object.
     ///
     /// # Safety
@@ -245,62 +226,9 @@ impl ClKernel {
 
 unsafe impl KernelPtr for ClKernel {
     unsafe fn kernel_ptr(&self) -> cl_kernel {
-        self.object
+        self.cl_object()
     }
 }
-
-impl Drop for ClKernel {
-    fn drop(&mut self) {
-        unsafe {
-            self.object.release();
-        }
-    }
-}
-
-impl Clone for ClKernel {
-    fn clone(&self) -> ClKernel {
-        unsafe {
-            let kernel = self.object;
-            kernel.retain();
-            ClKernel::unchecked_new(kernel)
-        }
-    }
-}
-
-// pub enum KernelOpArg {
-//     Num(dyn KernelArg),
-//     Mem(ClMem),
-// }
-
-// impl<T: ClNumber> From<T> for KernelOpArg<T> {
-//     fn from(num: T) -> KernelOpArg<T> {
-//         KernelOpArg::Num(num)
-//     }
-// }
-
-// impl<T: ClNumber> From<ClMem<T>> for KernelOpArg<T> {
-//     fn from(mem: ClMem<T>) -> KernelOpArg<T> {
-//         KernelOpArg::Mem(mem)
-//     }
-// }
-
-// impl KernelOpArg {
-//     pub fn into_mem(self) -> Output<ClMem> {
-//         if let KernelOpArg::Mem(mem) = self {
-//             Ok(mem)
-//         } else {
-//             Err(KernelError::KernelOpArgWasNotMem.into())
-//         }
-//     }
-
-//     pub fn into_num(self) -> Output<T> {
-//         if let KernelOpArg::Num(num) = self {
-//             Ok(num)
-//         } else {
-//             Err(KernelError::KernelOpArgWasNotMem.into())
-//         }
-//     }
-// }
 
 pub struct KernelOperation {
     _name: String,

@@ -8,13 +8,12 @@
 ///
 /// NOTE: ClPlatformID is tested!
 use std::default::Default;
-use std::fmt;
 use std::sync::Mutex;
 
 use crate::cl_enums::PlatformInfo;
 use crate::cl_helpers::cl_get_info5;
 use crate::ffi::{clGetPlatformIDs, clGetPlatformInfo, cl_platform_id, cl_platform_info, cl_uint};
-use crate::{build_output, utils, ClPointer, Error, Output, CheckValidClObject};
+use crate::{build_output, utils, ClPointer, Error, Output, ObjectWrapper};
 
 lazy_static! {
     static ref PLATFORM_ACCESS: Mutex<()> = Mutex::new(());
@@ -62,13 +61,15 @@ pub enum PlatformError {
     NoDefaultDevice,
 }
 
+pub type ClPlatformID = ObjectWrapper<cl_platform_id>;
+
 pub trait PlatformPtr {
     fn platform_ptr(&self) -> cl_platform_id;
 }
 
-pub struct ClPlatformID {
-    object: cl_platform_id,
-}
+// pub struct ClPlatformID {
+//     object: cl_platform_id,
+// }
 
 impl PlatformPtr for cl_platform_id {
     fn platform_ptr(&self) -> cl_platform_id {
@@ -78,20 +79,13 @@ impl PlatformPtr for cl_platform_id {
 
 impl PlatformPtr for ClPlatformID {
     fn platform_ptr(&self) -> cl_platform_id {
-        self.object
+        unsafe { self.cl_object() }
     }
 }
 
 impl PlatformPtr for &ClPlatformID {
     fn platform_ptr(&self) -> cl_platform_id {
-        self.object
-    }
-}
-
-impl ClPlatformID {
-    pub fn new(object: cl_platform_id) -> Output<ClPlatformID> {
-        object.check_valid_cl_object()?;
-        Ok(ClPlatformID { object })
+        unsafe { self.cl_object() }
     }
 }
 
@@ -157,12 +151,6 @@ unsafe impl Sync for ClPlatformID {}
 impl Default for ClPlatformID {
     fn default() -> ClPlatformID {
         default_platform().unwrap()
-    }
-}
-
-impl fmt::Debug for ClPlatformID {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "ClPlatform{{{:?}}}", self.platform_ptr())
     }
 }
 

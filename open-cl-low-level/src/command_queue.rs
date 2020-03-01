@@ -1,5 +1,3 @@
-use std::fmt;
-
 use crate::ffi::{
     clCreateCommandQueue, clEnqueueNDRangeKernel, clEnqueueReadBuffer, clEnqueueWriteBuffer,
     clFinish, clGetCommandQueueInfo, cl_bool, cl_command_queue, cl_command_queue_info,
@@ -12,8 +10,7 @@ use crate::{
     build_output, BufferReadEvent, ClContext, ClDeviceID, ClEvent, ClKernel, ClMem,
     ClNumber, ClPointer, CommandQueueInfo, CommandQueueProperties, ContextPtr, DevicePtr,
     EventPtr, GlobalWorkSize, KernelPtr, LocalWorkSize, MemPtr, MutVecOrSlice, Output,
-    VecOrSlice, Waitlist, WaitlistSizeAndPtr, Work, BufferCreator, RetainRelease,
-    CheckValidClObject
+    VecOrSlice, Waitlist, WaitlistSizeAndPtr, Work, BufferCreator, ObjectWrapper,
 };
 
 #[derive(Debug, Clone)]
@@ -51,32 +48,6 @@ unsafe impl Waitlist for CommandQueueOptions {
         self.waitlist.iter().map(|evt| evt.event_ptr()).collect()
     }
 }
-
-// unsafe impl<T> ClInput<c_void> for &[T] {
-//     /// The size and pointer for a slice of T
-//     ///
-//     /// # Safety
-//     /// For use in OpenCL FFI calls. Use of invalid pointers or ClObjects is undefined behavior.
-//     unsafe fn size_and_ptr(&self) -> SizeAndPtr<c_void> {
-//         let size = std::mem::size_of::<T>() * self.len();
-//         let ptr = self.as_ptr() as *const c_void;
-//         SizeAndPtr::Const(size, ptr)
-//     }
-// }
-
-// unsafe impl<T> ClInput<c_void> for &mut [T] {
-//     /// The size and pointer for a mutable slice of T
-//     ///
-//     /// # Safety
-//     /// For use in OpenCL FFI calls. Use of invalid pointers or ClObjects is undefined behavior.
-//     unsafe fn size_and_ptr(&self) -> SizeAndPtr<c_void> {
-//         let size = std::mem::size_of::<T>() * self.len();
-//         let ptr = self.as_ptr() as *const _ as *mut c_void;
-//         SizeAndPtr::Mut(size, ptr)
-//     }
-// }
-
-// __release_retain!(command_queue, CommandQueue);
 
 /// Creates a new cl_command_queue.
 ///
@@ -256,36 +227,15 @@ pub unsafe trait CommandQueuePtr: Sized {
     }
 }
 
-pub struct ClCommandQueue {
-    object: cl_command_queue,
-    _unconstructable: (),
+unsafe impl CommandQueuePtr for ObjectWrapper<cl_command_queue> {
+    unsafe fn command_queue_ptr(&self) -> cl_command_queue {
+        self.cl_object()
+    }
 }
 
-impl ClCommandQueue {
-    /// Builds a ClCommandQueue after checking for null-pointer.
-    pub unsafe fn new(cq: cl_command_queue) -> Output<ClCommandQueue> {
-        cq.check_valid_cl_object()?;
-        Ok(ClCommandQueue::unchecked_new(cq))
-    }
+pub type ClCommandQueue = ObjectWrapper<cl_command_queue>;
 
-    /// Builds a ClCommandQueue without checking for null-pointer.
-    pub unsafe fn unchecked_new(object: cl_command_queue) -> ClCommandQueue {
-        ClCommandQueue {
-            object,
-            _unconstructable: (),
-        }
-    }
-
-    /// After checking for null-pointer and retaining the cl_command_queue builds a ClCommandQueue.
-    ///
-    /// # Safety
-    /// Calling this function with a cl_command_queue in an invalid state is undefined behavior.
-    pub unsafe fn retain_new(cq: cl_command_queue) -> Output<ClCommandQueue> {
-        cq.check_valid_cl_object()?;
-        cq.retain();
-        Ok(ClCommandQueue::unchecked_new(cq))
-    }
-
+impl ObjectWrapper<cl_command_queue> {
     /// Create a new ClCommandQueue in the given ClContext on the given
     /// ClDeviceID with the given CommandQueueProperties (optional).
     ///
@@ -420,61 +370,15 @@ impl ClCommandQueue {
     }
 
     pub unsafe fn finish(&mut self) -> Output<()> {
-        cl_finish(self.object)
+        cl_finish(self.cl_object())
     }
 }
-
-unsafe impl CommandQueuePtr for ClCommandQueue {
-    /// The ffi-usable cl_command_queue pointer.
-    ///
-    /// # Safety
-    /// Usage of invalid ClObjects is undefined behavior.
-    unsafe fn command_queue_ptr(&self) -> cl_command_queue {
-        self.object
-    }
-}
-
-impl Drop for ClCommandQueue {
-    /// Drops the ClCommandQueue by releasing and thereby decrementing the
-    /// reference count of the cl_command_queue.
-    fn drop(&mut self) {
-        unsafe {
-            cl_finish(self.object).unwrap();
-            self.object.release()
-        };
-    }
-}
-
-/// Clone is highly unsafe without ensuring Sync and Send
-// impl Clone for ClCommandQueue {
-//     /// Clones the ClCommandQueue by retaining and thereby incrementing the
-//     /// reference count of the cl_command_queue and returning a different
-//     /// ClCommandQueue wrapper around the cl_command_queue.
-//     ///
-
-//     fn clone(&self) -> ClCommandQueue {
-//         unsafe { ClCommandQueue::retain_new(self.object).unwrap() }
-//     }
-// }
-
-impl fmt::Debug for ClCommandQueue {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "ClCommandQueue{{{:?}}}", self.address())
-    }
-}
-
-impl PartialEq for ClCommandQueue {
-    fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(self.object, other.object)
-    }
-}
-
-impl Eq for ClCommandQueue {}
 
 #[cfg(test)]
 mod tests {
     use crate::*;
 
+    
     #[test]
     fn command_queue_can_be_created() {
         let (context, devices) = ll_testing::get_context();

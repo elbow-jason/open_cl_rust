@@ -1,12 +1,10 @@
-use std::fmt;
-
 use crate::ffi::{
     clCreateContext, clGetContextInfo, cl_context, cl_context_info, cl_context_properties,
     cl_device_id,
 };
 use crate::{
     build_output, ClDeviceID, ClPointer, ContextInfo, ContextProperties, DevicePtr, Output,
-    CheckValidClObject, RetainRelease,
+    ObjectWrapper,
 };
 
 use crate::cl_helpers::cl_get_info5;
@@ -70,29 +68,9 @@ pub unsafe trait ContextPtr: Sized {
     }
 }
 
-pub struct ClContext {
-    object: cl_context,
-    _unconstructable: (),
-}
+pub type ClContext = ObjectWrapper<cl_context>;
 
 impl ClContext {
-    pub unsafe fn unchecked_new(object: cl_context) -> ClContext {
-        ClContext {
-            object,
-            _unconstructable: (),
-        }
-    }
-    pub unsafe fn new(object: cl_context) -> Output<ClContext> {
-        object.check_valid_cl_object()?;
-        Ok(ClContext::unchecked_new(object))
-    }
-
-    pub unsafe fn retain_new(object: cl_context) -> Output<ClContext> {
-        object.check_valid_cl_object()?;
-        object.retain();
-        Ok(ClContext::unchecked_new(object))
-    }
-
     pub unsafe fn create<D>(devices: &[D]) -> Output<ClContext>
     where
         D: DevicePtr,
@@ -105,37 +83,7 @@ impl ClContext {
 
 unsafe impl ContextPtr for ClContext {
     unsafe fn context_ptr(&self) -> cl_context {
-        self.object
-    }
-}
-
-impl Drop for ClContext {
-    fn drop(&mut self) {
-        unsafe { self.context_ptr().release() }
-    }
-}
-
-impl Clone for ClContext {
-    fn clone(&self) -> ClContext {
-        unsafe {
-            let context = self.context_ptr();
-            context.retain();
-            ClContext::unchecked_new(context)
-        }
-    }
-}
-
-impl PartialEq for ClContext {
-    fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(self.object, other.object)
-    }
-}
-
-impl Eq for ClContext {}
-
-impl fmt::Debug for ClContext {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "ClContext{{{:?}}}", self.object)
+        self.cl_object()
     }
 }
 

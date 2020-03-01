@@ -42,17 +42,50 @@ check_is_null!(cl_program);
 check_is_null!(cl_platform_id);
 
 
-pub unsafe trait ClObject: Sized + Clone + Copy + Debug + CheckValidClObject {
+pub unsafe trait ClObject: Sized + Clone + Copy + Debug + CheckValidClObject + PartialEq {
+    fn type_name(&self) -> &'static str;
     fn address(&self) -> String {
         format!("{:?}", *self)
     }
 }
 
-unsafe impl ClObject for cl_command_queue {}
-unsafe impl ClObject for cl_context {}
-unsafe impl ClObject for cl_device_id {}
-unsafe impl ClObject for cl_event {}
-unsafe impl ClObject for cl_kernel {}
-unsafe impl ClObject for cl_mem {}
-unsafe impl ClObject for cl_program {}
-unsafe impl ClObject for cl_platform_id {}
+unsafe impl ClObject for cl_command_queue {
+    fn type_name(&self) -> &'static str {
+        "cl_command_queue"
+    }
+}
+unsafe impl ClObject for cl_context {
+    fn type_name(&self) -> &'static str {
+        "cl_context"
+    }
+}
+unsafe impl ClObject for cl_device_id {
+    fn type_name(&self) -> &'static str {
+        "cl_device_id"
+    }
+}
+unsafe impl ClObject for cl_event {
+    fn type_name(&self) -> &'static str {
+        "cl_event"
+    }
+}
+unsafe impl ClObject for cl_kernel {
+       fn type_name(&self) -> &'static str {
+        "cl_kernel"
+    }
+}
+unsafe impl ClObject for cl_mem {
+       fn type_name(&self) -> &'static str {
+        "cl_mem"
+    }
+}
+unsafe impl ClObject for cl_program {
+       fn type_name(&self) -> &'static str {
+        "cl_program"
+    }
+}
+unsafe impl ClObject for cl_platform_id {
+       fn type_name(&self) -> &'static str {
+        "cl_platform_id"
+    }
+}

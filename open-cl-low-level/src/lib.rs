@@ -53,6 +53,7 @@ pub mod status_code;
 pub mod strings;
 pub mod utils;
 pub mod vec_or_slice;
+pub mod object_wrapper;
 
 pub mod command_queue;
 pub mod context;
@@ -77,6 +78,7 @@ pub use error::Error;
 pub use output::{build_output, Output};
 pub use status_code::StatusCodeError;
 pub use vec_or_slice::{MutVecOrSlice, VecOrSlice};
+pub use object_wrapper::ObjectWrapper;
 
 pub use cl_bitflags::*;
 pub use cl_enums::*;

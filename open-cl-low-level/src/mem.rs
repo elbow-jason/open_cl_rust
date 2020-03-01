@@ -1,5 +1,4 @@
 use std::fmt;
-
 use libc::c_void;
 
 use crate::ffi::{
@@ -10,7 +9,7 @@ use crate::cl_helpers::cl_get_info5;
 use crate::{
     build_output, ClContext, ClNumber, ClPointer, ContextPtr, HostAccessMemFlags,
     KernelAccessMemFlags, MemFlags, MemInfo, MemLocationMemFlags, Output, NumberType,
-    NumberTyped, CheckValidClObject, RetainRelease,
+    NumberTyped, ObjectWrapper,
 };
 
 
@@ -246,9 +245,9 @@ pub unsafe trait MemPtr: NumberTyped {
     // }
 }
 
-#[derive(Eq, PartialEq, Hash)]
+#[derive(Eq, PartialEq)]
 pub struct ClMem {
-    object: cl_mem,
+    inner: ObjectWrapper<cl_mem>,
     t: NumberType,
 }
 
@@ -266,9 +265,8 @@ impl ClMem {
     /// when it is dropped. Mismanagement of a cl_mem's lifetime.  Therefore,
     /// this function is unsafe.
     pub unsafe fn new<T: ClNumber>(object: cl_mem) -> Output<ClMem> {
-        object.check_valid_cl_object()?;
         Ok(ClMem {
-            object,
+            inner: ObjectWrapper::new(object)?,
             t: T::number_type()
         })
     }
@@ -315,42 +313,22 @@ impl ClMem {
 
 unsafe impl MemPtr for ClMem {
     unsafe fn mem_ptr(&self) -> cl_mem {
-        self.object
+        self.inner.cl_object()
     }
 
     unsafe fn mem_ptr_ref(&self) -> &cl_mem {
-        &self.object
-    }
-}
-
-impl Drop for ClMem {
-    fn drop(&mut self) {
-        unsafe {
-            self.object.release();
-        }
-    }
-}
-
-impl Clone for ClMem {
-    fn clone(&self) -> ClMem {
-        unsafe {
-            let object = self.object;
-            object.retain();
-            ClMem{
-                object,
-                t: self.t,
-            }
-        }
+        self.inner.cl_object_ref()
     }
 }
 
 unsafe impl Send for ClMem {}
 
 impl fmt::Debug for ClMem {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "ClMem{{{:?}}}", self.object)
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", unsafe { self.mem_ptr() })
     }
 }
+
 
 #[cfg(test)]
 mod tests {

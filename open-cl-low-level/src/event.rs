@@ -1,10 +1,9 @@
-use std::fmt;
 use std::mem::ManuallyDrop;
 use std::time::Duration;
 
 use crate::{
     build_output, ClCommandQueue, ClContext, ClNumber, ClPointer, CommandExecutionStatus,
-    Error, EventInfo, Output, ProfilingInfo, Waitlist, CheckValidClObject, RetainRelease,
+    Error, EventInfo, Output, ProfilingInfo, Waitlist, ObjectWrapper,
 };
 
 use crate::ffi::{
@@ -37,12 +36,10 @@ pub unsafe fn cl_get_event_info<T: Copy>(
     cl_get_info5(event, info_flag, clGetEventInfo)
 }
 
+pub type ClEvent = ObjectWrapper<cl_event>;
+
 pub unsafe trait EventPtr: Sized {
     unsafe fn event_ptr(&self) -> cl_event;
-
-    fn address(&self) -> String {
-        format!("{:?}", unsafe { self.event_ptr() })
-    }
 }
 
 unsafe impl EventPtr for cl_event {
@@ -53,13 +50,13 @@ unsafe impl EventPtr for cl_event {
 
 unsafe impl EventPtr for ClEvent {
     unsafe fn event_ptr(&self) -> cl_event {
-        self.object
+        self.cl_object()
     }
 }
 
 unsafe impl EventPtr for &ClEvent {
     unsafe fn event_ptr(&self) -> cl_event {
-        self.object
+        self.cl_object()
     }
 }
 
@@ -73,30 +70,6 @@ pub enum EventError {
     EventAlreadyConsumed(String),
 }
 
-pub struct ClEvent {
-    object: cl_event,
-    _unconstructable: (),
-}
-
-impl ClEvent {
-    pub unsafe fn unchecked_new(evt: cl_event) -> ClEvent {
-        ClEvent {
-            object: evt,
-            _unconstructable: (),
-        }
-    }
-
-    pub unsafe fn new(evt: cl_event) -> Output<ClEvent> {
-        evt.check_valid_cl_object()?;
-        Ok(ClEvent::unchecked_new(evt))
-    }
-}
-
-impl fmt::Debug for ClEvent {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "ClEvent{{{:?}}}", self.object)
-    }
-}
 
 impl ClEvent {
     pub fn time(&self, info: ProfilingInfo) -> Output<u64> {
@@ -162,24 +135,6 @@ impl ClEvent {
         unsafe {
             self.info(EventInfo::CommandExecutionStatus)
                 .map(|ret| ret.into_one())
-        }
-    }
-}
-
-impl Clone for ClEvent {
-    fn clone(&self) -> ClEvent {
-        unsafe {
-            let evt = self.object;
-            evt.retain();
-            ClEvent::unchecked_new(evt)
-        }
-    }
-}
-
-impl Drop for ClEvent {
-    fn drop(&mut self) {
-        unsafe {
-            self.object.release();
         }
     }
 }
@@ -278,14 +233,6 @@ impl CompleteEvent {
         &self.event
     }
 }
-
-impl PartialEq for ClEvent {
-    fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(self.object, other.object)
-    }
-}
-
-impl Eq for ClEvent {}
 
 #[cfg(test)]
 mod tests {
