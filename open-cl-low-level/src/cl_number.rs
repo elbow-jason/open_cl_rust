@@ -3,7 +3,7 @@ use std::ops::Deref;
 use half::f16;
 use libc::size_t;
 
-use crate::{NumberType, NumberTypedT, Kind};
+use crate::{NumberType, NumberTypedT, NumberTypeKind};
 
 // primitive types
 use crate::ffi::{
@@ -369,13 +369,13 @@ macro_rules! impl_number_typed_t {
     ($snake:ident, $pascal:ident) => {
         impl NumberTypedT for $snake {
             fn number_type() -> NumberType {
-                NumberType::$pascal(Kind::Primitive)
+                NumberType::$pascal(NumberTypeKind::Primitive)
             }
         }
 
         impl NumberTypedT for $pascal {
             fn number_type() -> NumberType {
-                NumberType::$pascal(Kind::Primitive)
+                NumberType::$pascal(NumberTypeKind::Primitive)
             }
         }
     };
@@ -434,15 +434,13 @@ macro_rules! impl_zeroed_num {
 }
 
 
-
-
 macro_rules! num_to_kind {
-    (1) => { Kind::Primitive };
-    (2) => { Kind::Two };
-    (3) => { Kind::Three };
-    (4) => { Kind::Four };
-    (8) => { Kind::Eight };
-    (16) => { Kind::Sixteen };
+    (1) => { $crate::NumberTypeKind::Primitive };
+    (2) => { $crate::NumberTypeKind::Two };
+    (3) => { $crate::NumberTypeKind::Three };
+    (4) => { $crate::NumberTypeKind::Four };
+    (8) => { $crate::NumberTypeKind::Eight };
+    (16) => { $crate::NumberTypeKind::Sixteen };
 }
 
 macro_rules! newtype_primitive_and_newtype_vectors {

@@ -5,17 +5,17 @@ use crate::{Output};
 
 use libc::size_t;
 
-#[allow(unused_macros)]
+#[macro_export]
 macro_rules! apply_kind {
     ($primitive_t:ty, $kind:ident, $func:ident, [ $( $arg:expr ),* ]) => {
         paste::item! {
             match $kind {
-                Kind::Primitive => $func::<$primitive_t>($( $arg ),*),
-                Kind::Two => $func::<[<$primitive_t 2>]>($( $arg ),*),
-                Kind::Three => $func::<[<$primitive_t 3>]>($( $arg ),*),
-                Kind::Four => $func::<[<$primitive_t 4>]>($( $arg ),*),
-                Kind::Eight => $func::<[<$primitive_t 8>]>($( $arg ),*),
-                Kind::Sixteen => $func::<[<$primitive_t 16>]>($( $arg ),*),
+                $crate::NumberTypeKind::Primitive => $func::<$primitive_t>($( $arg ),*),
+                $crate::NumberTypeKind::Two => $func::<[<$primitive_t 2>]>($( $arg ),*),
+                $crate::NumberTypeKind::Three => $func::<[<$primitive_t 3>]>($( $arg ),*),
+                $crate::NumberTypeKind::Four => $func::<[<$primitive_t 4>]>($( $arg ),*),
+                $crate::NumberTypeKind::Eight => $func::<[<$primitive_t 8>]>($( $arg ),*),
+                $crate::NumberTypeKind::Sixteen => $func::<[<$primitive_t 16>]>($( $arg ),*),
             }
         }
     }
@@ -25,25 +25,25 @@ macro_rules! apply_kind {
 macro_rules! apply_number_type {
     ($num_type:expr, $func:ident, [ $( $arg:expr ),* ]) => {
         match $num_type.number_type() {
-            ClNumberType::ClBool => $func::<cl_bool>($( $arg ),*),
-            ClNumberType::ClDouble => $func::<cl_double>($( $arg ),*),
-            ClNumberType::ClSizeT => $func::<size_t>($( $arg ),*),
-            ClNumberType::ClHalf => $func::<cl_half>($( $arg ),*),
-            ClNumberType::ClChar(kind) => apply_kind!(cl_char, kind, $func, $( $arg ),*),
-            ClNumberType::ClUchar(kind) => apply_kind!(cl_u_char, kind, $func, $( $arg ),*),
-            ClNumberType::ClShort(kind) => apply_kind!(cl_short, kind, $func, $( $arg ),*),
-            ClNumberType::ClUshort(kind) => apply_kind!(cl_ushort, kind, $func, $( $arg ),*),
-            ClNumberType::ClInt(kind) => apply_kind!(cl_int, kind, $func, $( $arg ),*),
-            ClNumberType::ClUint(kind) => apply_kind!(cl_uint, kind, $func, $( $arg ),*),
-            ClNumberType::ClLong(kind) => apply_kind!(cl_long, kind, $func, $( $arg ),*),
-            ClNumberType::ClUlong(kind) => apply_kind!(cl_ulong, kind, $func, $( $arg ),*),
-            ClNumberType::ClFloat(kind) => apply_kind!(cl_float, kind, $func, $( $arg ),*),
+            $crate::NumberType::ClBool => $func::<cl_bool>($( $arg ),*),
+            $crate::NumberType::ClDouble => $func::<cl_double>($( $arg ),*),
+            $crate::NumberType::ClSizeT => $func::<size_t>($( $arg ),*),
+            $crate::NumberType::ClHalf => $func::<cl_half>($( $arg ),*),
+            $crate::NumberType::ClChar(kind) => apply_kind!(cl_char, kind, $func, $( $arg ),*),
+            $crate::NumberType::ClUchar(kind) => apply_kind!(cl_u_char, kind, $func, $( $arg ),*),
+            $crate::NumberType::ClShort(kind) => apply_kind!(cl_short, kind, $func, $( $arg ),*),
+            $crate::NumberType::ClUshort(kind) => apply_kind!(cl_ushort, kind, $func, $( $arg ),*),
+            $crate::NumberType::ClInt(kind) => apply_kind!(cl_int, kind, $func, $( $arg ),*),
+            $crate::NumberType::ClUint(kind) => apply_kind!(cl_uint, kind, $func, $( $arg ),*),
+            $crate::NumberType::ClLong(kind) => apply_kind!(cl_long, kind, $func, $( $arg ),*),
+            $crate::NumberType::ClUlong(kind) => apply_kind!(cl_ulong, kind, $func, $( $arg ),*),
+            $crate::NumberType::ClFloat(kind) => apply_kind!(cl_float, kind, $func, $( $arg ),*),
         }
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum Kind {
+pub enum NumberTypeKind {
     Primitive,
     Two,
     Three,
@@ -52,30 +52,30 @@ pub enum Kind {
     Sixteen,
 }
 
-impl Kind {
+impl NumberTypeKind {
     fn count(&self) -> usize {
         match self {
-            Kind::Primitive => 1,
-            Kind::Two => 2,
-            Kind::Three => 3,
-            Kind::Four => 4,
-            Kind::Eight => 5,
-            Kind::Sixteen => 6,
+            Self::Primitive => 1,
+            Self::Two => 2,
+            Self::Three => 3,
+            Self::Four => 4,
+            Self::Eight => 5,
+            Self::Sixteen => 6,
         }
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum NumberType {
-    ClChar(Kind),
-    ClUchar(Kind),
-    ClShort(Kind),
-    ClUshort(Kind),
-    ClInt(Kind),
-    ClUint(Kind),
-    ClLong(Kind),
-    ClUlong(Kind),
-    ClFloat(Kind),
+    ClChar(NumberTypeKind),
+    ClUchar(NumberTypeKind),
+    ClShort(NumberTypeKind),
+    ClUshort(NumberTypeKind),
+    ClInt(NumberTypeKind),
+    ClUint(NumberTypeKind),
+    ClLong(NumberTypeKind),
+    ClUlong(NumberTypeKind),
+    ClFloat(NumberTypeKind),
     ClHalf,
     ClBool,
     SizeT,
