@@ -14,7 +14,7 @@ name = "opencl_core"
 
 [dependencies]
 open-cl-sys = { version = "0.1.0", path = "../open-cl-sys" }
-open-cl-low-level = { version = "0.2.0", path = "../open-cl-low-level" }
+open-cl-low-level = { version = "0.2.1", path = "../open-cl-low-level" }
 paste = "0.1.6"
 libc = "0.2.65"
 # log = "0.4.8"

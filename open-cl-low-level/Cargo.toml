@@ -1,6 +1,6 @@
 [package]
 name = "open-cl-low-level"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Jason Goldberger <jasongoldberger@gmail.com>"]
 edition = "2018"
 license = "MIT"
