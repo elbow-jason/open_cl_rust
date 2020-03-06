@@ -37,4 +37,3 @@ eq_new_t_all_vectors!(ClLong, cl_long, i64);
 eq_new_t_all_vectors!(ClUlong, cl_ulong, u64);
 
 
-

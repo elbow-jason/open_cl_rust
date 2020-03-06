@@ -89,7 +89,7 @@ pub enum ClBool {
 /// May not be available on some platforms.
 /// Check availability with FFI call to `clGetDeviceInfo` or `device.extensions()`
 /// Enable in kernels with `#pragma OPENCL EXTENSION cl_khr_fp64 : enable`
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ClDouble(pub cl_double);
 
 /// Unsigned integer produced by the size of operator
