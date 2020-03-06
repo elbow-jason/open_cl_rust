@@ -3,11 +3,11 @@ use std::mem::ManuallyDrop;
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::{
-    Buffer, ClNumber, CommandQueueOptions, CommandQueueProperties, Context, Device, Kernel, Output,
+    Buffer, CommandQueueOptions, CommandQueueProperties, Context, Device, Kernel, Output,
     Waitlist, Work, NumberTyped,
 };
 
-use crate::ll::{ClCommandQueue, ClContext, ClDeviceID, CommandQueuePtr, ContextPtr, DevicePtr};
+use crate::ll::{FFINumber, ClCommandQueue, ClContext, ClDeviceID, CommandQueuePtr, ContextPtr, DevicePtr};
 
 pub trait CommandQueueLock<P>
 where
@@ -153,7 +153,7 @@ impl CommandQueue {
 
     /// write_buffer is used to move data from the host buffer (buffer: &[T]) to
     /// the OpenCL cl_mem pointer inside `d_mem: &Buffer<T>`.
-    pub fn write_buffer<T: ClNumber>(
+    pub fn write_buffer<T: FFINumber>(
         &self,
         device_buffer: &Buffer,
         host_buffer: &[T],
@@ -171,7 +171,7 @@ impl CommandQueue {
 
     /// read_buffer is used to move data from the `device_mem` (`cl_mem` pointer
     /// inside `&DeviceMem<T>`) into a `host_buffer` (`&mut [T]`).
-    pub fn read_buffer<T: ClNumber>(
+    pub fn read_buffer<T: FFINumber>(
         &self,
         device_buffer: &Buffer,
         host_buffer: &mut [T],

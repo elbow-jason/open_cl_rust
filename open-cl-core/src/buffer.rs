@@ -3,9 +3,9 @@ use std::fmt::Debug;
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::ll::{ClContext, ClMem, MemFlags, MemPtr};
-
+use crate::ll::numbers::{FFINumber};
 use crate::{
-    BufferCreator, ClNumber, Context, HostAccess, KernelAccess, MemConfig, MemLocation, Output,
+    BufferCreator,  Context, HostAccess, KernelAccess, MemConfig, MemLocation, Output,
     NumberType, NumberTyped
 };
 
@@ -59,7 +59,7 @@ impl Buffer {
         }
     }
 
-    pub fn create<T: ClNumber, B: BufferCreator<T>>(
+    pub fn create<T: FFINumber, B: BufferCreator<T>>(
         context: &Context,
         creator: B,
         host_access: HostAccess,
@@ -76,15 +76,15 @@ impl Buffer {
         Ok(Buffer::new(ll_mem, context.clone()))
     }
 
-    pub fn create_with_len<T: ClNumber>(context: &Context, len: usize) -> Output<Buffer> {
+    pub fn create_with_len<T: FFINumber>(context: &Context, len: usize) -> Output<Buffer> {
         Buffer::create_from::<T, usize>(context, len)
     }
 
-    pub fn create_from_slice<T: ClNumber>(context: &Context, data: &[T]) -> Output<Buffer> {
+    pub fn create_from_slice<T: FFINumber>(context: &Context, data: &[T]) -> Output<Buffer> {
         Buffer::create_from(context, data)
     }
 
-    pub fn create_from<T: ClNumber, B: BufferCreator<T>>(
+    pub fn create_from<T: FFINumber, B: BufferCreator<T>>(
         context: &Context,
         creator: B,
     ) -> Output<Buffer> {
@@ -92,7 +92,7 @@ impl Buffer {
         Buffer::create_with_config(context, creator, mem_config)
     }
 
-    pub fn create_with_config<T: ClNumber, B: BufferCreator<T>>(
+    pub fn create_with_config<T: FFINumber, B: BufferCreator<T>>(
         context: &Context,
         creator: B,
         mem_config: MemConfig,
@@ -106,7 +106,7 @@ impl Buffer {
         )
     }
 
-    pub fn create_from_low_level_context<T: ClNumber, B: BufferCreator<T>>(
+    pub fn create_from_low_level_context<T: FFINumber, B: BufferCreator<T>>(
         ll_context: &ClContext,
         creator: B,
         host_access: HostAccess,

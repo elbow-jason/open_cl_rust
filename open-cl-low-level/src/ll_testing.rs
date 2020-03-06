@@ -1,7 +1,10 @@
 use crate::{
     list_devices_by_type, list_platforms, ClCommandQueue, ClContext, ClDeviceID, ClKernel, ClMem,
-    ClNumber, ClProgram, DeviceType, MemConfig,
+    ClProgram, DeviceType, MemConfig,
 };
+
+use crate::numbers::FFINumber;
+
 use std::{thread, time};
 
 pub fn sleep(ms: u64) {
@@ -19,14 +22,14 @@ pub fn get_kernel(
     (context, devices, program, kernel)
 }
 
-pub fn get_mem<T: ClNumber>(size: usize) -> (Vec<ClDeviceID>, ClContext, ClMem) {
+pub fn get_mem<T: FFINumber>(size: usize) -> (Vec<ClDeviceID>, ClContext, ClMem) {
     let (context, devices) = get_context();
     let mem_config = MemConfig::default();
     let ll_mem = unsafe { ClMem::create_with_config::<T, usize>(&context, size, mem_config).unwrap() };
     (devices, context, ll_mem)
 }
 
-pub fn mem_from_data_and_context<T: ClNumber>(data: &[T], context: &ClContext) -> ClMem {
+pub fn mem_from_data_and_context<T: FFINumber>(data: &[T], context: &ClContext) -> ClMem {
     unsafe { ClMem::create_with_config(context, data, MemConfig::for_data()).unwrap() }
 }
 

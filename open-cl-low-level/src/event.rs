@@ -2,9 +2,11 @@ use std::mem::ManuallyDrop;
 use std::time::Duration;
 
 use crate::{
-    build_output, ClCommandQueue, ClContext, ClNumber, ClPointer, CommandExecutionStatus,
-    Error, EventInfo, Output, ProfilingInfo, Waitlist, ObjectWrapper,
+    build_output, ClCommandQueue, ClContext, ClPointer, CommandExecutionStatus, Error,
+    EventInfo, Output, ProfilingInfo, Waitlist, ObjectWrapper,
 };
+
+use crate::numbers::{FFINumber};
 
 use crate::ffi::{
     clGetEventInfo, clGetEventProfilingInfo, cl_command_queue, cl_context, cl_event, cl_event_info,
@@ -163,13 +165,13 @@ impl Profiling {
     }
 }
 
-pub struct BufferReadEvent<T: ClNumber> {
+pub struct BufferReadEvent<T: FFINumber> {
     event: ManuallyDrop<ClEvent>,
     host_buffer: ManuallyDrop<Option<Vec<T>>>,
     is_consumed: bool,
 }
 
-impl<T: ClNumber> BufferReadEvent<T> {
+impl<T: FFINumber> BufferReadEvent<T> {
     pub fn new(event: ClEvent, host_buffer: Option<Vec<T>>) -> BufferReadEvent<T> {
         BufferReadEvent {
             event: ManuallyDrop::new(event),
@@ -199,7 +201,7 @@ impl<T: ClNumber> BufferReadEvent<T> {
     }
 }
 
-impl<T: ClNumber> Drop for BufferReadEvent<T> {
+impl<T: FFINumber> Drop for BufferReadEvent<T> {
     fn drop(&mut self) {
         unsafe {
             self.event.wait().unwrap();

@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use crate::*;
+use crate::ll::numbers::{FFINumber};
 // use std::sync::RwLock;
 
 pub fn src_buffer_plus_one() -> &'static str {
@@ -48,7 +49,7 @@ pub fn get_program(src: &str) -> Program {
     unbuilt_program.build(&devices[..]).unwrap()
 }
 
-pub fn get_buffer<T: ClNumber>(size: usize) -> Buffer {
+pub fn get_buffer<T: FFINumber>(size: usize) -> Buffer {
     let context = testing::get_context();
     Buffer::create::<T, usize>(
         &context,

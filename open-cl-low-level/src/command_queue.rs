@@ -8,10 +8,11 @@ use crate::cl_helpers::cl_get_info5;
 use crate::CommandQueueInfo as CQInfo;
 use crate::{
     build_output, BufferReadEvent, ClContext, ClDeviceID, ClEvent, ClKernel, ClMem,
-    ClNumber, ClPointer, CommandQueueInfo, CommandQueueProperties, ContextPtr, DevicePtr,
+    ClPointer, CommandQueueInfo, CommandQueueProperties, ContextPtr, DevicePtr,
     EventPtr, GlobalWorkSize, KernelPtr, LocalWorkSize, MemPtr, MutVecOrSlice, Output,
     VecOrSlice, Waitlist, WaitlistSizeAndPtr, Work, BufferCreator, ObjectWrapper,
 };
+use crate::numbers::{FFINumber};
 
 #[derive(Debug, Clone)]
 pub struct CommandQueueOptions {
@@ -121,7 +122,7 @@ pub unsafe fn cl_enqueue_read_buffer<T>(
     command_queue_opts: CommandQueueOptions,
 ) -> Output<cl_event>
 where
-    T: ClNumber,
+    T: FFINumber,
 {
     let mut tracking_event = new_tracking_event();
     let waitlist = command_queue_opts.new_waitlist();
@@ -144,7 +145,7 @@ where
     build_output(tracking_event, err_code)
 }
 
-pub unsafe fn cl_enqueue_write_buffer<T: ClNumber>(
+pub unsafe fn cl_enqueue_write_buffer<T: FFINumber>(
     queue: cl_command_queue,
     mem: cl_mem,
     buffer: &[T],
@@ -285,7 +286,7 @@ impl ObjectWrapper<cl_command_queue> {
 
     /// write_buffer is used to move data from the host buffer (buffer: &[T]) to
     /// the mutable OpenCL cl_mem pointer.
-    pub unsafe fn write_buffer<'a, T: ClNumber, H: Into<VecOrSlice<'a, T>>>(
+    pub unsafe fn write_buffer<'a, T: FFINumber, H: Into<VecOrSlice<'a, T>>>(
         &mut self,
         mem: &mut ClMem,
         host_buffer: H,
@@ -298,7 +299,7 @@ impl ObjectWrapper<cl_command_queue> {
     }
 
     /// Copies data to a ClMem buffer from a host slice of T.
-    unsafe fn write_buffer_from_slice<'a, T: ClNumber>(
+    unsafe fn write_buffer_from_slice<'a, T: FFINumber>(
         &mut self,
         mem: &mut ClMem,
         host_buffer: &[T],
@@ -314,7 +315,7 @@ impl ObjectWrapper<cl_command_queue> {
     }
 
     /// Copies data from a ClMem<T> buffer to a &mut [T] or mut Vec<T>.
-    pub unsafe fn read_buffer<'a, T: ClNumber, H: Into<MutVecOrSlice<'a, T>>>(
+    pub unsafe fn read_buffer<'a, T: FFINumber, H: Into<MutVecOrSlice<'a, T>>>(
         &mut self,
         mem: &ClMem,
         host_buffer: H,
@@ -333,7 +334,7 @@ impl ObjectWrapper<cl_command_queue> {
     }
 
     /// Copies data from a ClMem<T> buffer to a &mut [T].
-    unsafe fn read_buffer_into_slice<T: ClNumber>(
+    unsafe fn read_buffer_into_slice<T: FFINumber>(
         &mut self,
         mem: &ClMem,
         host_buffer: &mut [T],

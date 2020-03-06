@@ -12,7 +12,7 @@ use crate::program::ProgramError;
 use crate::session::{SessionBuilderError, SessionError};
 use crate::status_code::StatusCodeError;
 use crate::work::WorkError;
-use crate::cl_number_type::TypeError;
+use crate::numbers::TypeError;
 
 #[derive(Debug, Fail, PartialEq, Clone, Eq)]
 pub enum Error {

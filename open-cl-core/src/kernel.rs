@@ -88,34 +88,34 @@ impl Kernel {
     }
 }
 
-pub enum KernelOpArg<'a, T: ClNumber> {
+pub enum KernelOpArg<'a, T: FFINumber> {
     Num(T),
     Buffer(&'a Buffer),
 }
 
-// pub enum ReturnArg<T: ClNumber> {
+// pub enum ReturnArg<T: FFINumber> {
 //     Num(T),
 //     Buffer(Buffer<T>),
 // }
 
-pub trait ToKernelOpArg<'a, T: ClNumber> {
+pub trait ToKernelOpArg<'a, T: FFINumber> {
     fn to_kernel_op_arg(&self) -> Output<KernelOpArg<'a, T>>;
 }
 
-impl<'a, T: ClNumber> ToKernelOpArg<'a, T> for T {
+impl<'a, T: FFINumber> ToKernelOpArg<'a, T> for T {
     fn to_kernel_op_arg(&self) -> Output<KernelOpArg<'a, T>> {
         Ok(KernelOpArg::Num(*self))
     }
 }
 
-impl<'a, T: ClNumber> ToKernelOpArg<'a, T> for &'a Buffer {
+impl<'a, T: FFINumber> ToKernelOpArg<'a, T> for &'a Buffer {
     fn to_kernel_op_arg(&self) -> Output<KernelOpArg<'a, T>> {
         self.number_type().type_check(T::number_type())?;
         Ok(KernelOpArg::Buffer(self))
     }
 }
 
-impl<'a, T: ClNumber> KernelOpArg<'a, T> {
+impl<'a, T: FFINumber> KernelOpArg<'a, T> {
     pub fn into_buffer(self) -> Output<&'a Buffer> {
         if let KernelOpArg::Buffer(buffer) = self {
             Ok(buffer)
@@ -133,7 +133,7 @@ impl<'a, T: ClNumber> KernelOpArg<'a, T> {
     }
 }
 
-pub struct KernelOperation<'a, T: ClNumber + KernelArg> {
+pub struct KernelOperation<'a, T: FFINumber + KernelArg> {
     _name: String,
     _args: Vec<KernelOpArg<'a, T>>,
     _work: Option<Work>,
@@ -141,7 +141,7 @@ pub struct KernelOperation<'a, T: ClNumber + KernelArg> {
     pub command_queue_opts: Option<CommandQueueOptions>,
 }
 
-impl<'a, T: ClNumber + KernelArg> KernelOperation<'a, T> {
+impl<'a, T: FFINumber + KernelArg> KernelOperation<'a, T> {
     pub fn new(name: &str) -> KernelOperation<T> {
         KernelOperation {
             _name: name.to_owned(),

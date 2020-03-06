@@ -29,6 +29,10 @@ extern crate failure;
 #[macro_use]
 extern crate bitflags;
 
+#[cfg(test)]
+#[macro_use]
+extern crate float_cmp;
+
 extern crate num_complex;
 
 pub extern crate open_cl_sys as ffi;
@@ -38,14 +42,14 @@ pub mod ll_testing;
 #[macro_use]
 pub mod macros;
 #[macro_use]
-pub mod cl_number_type;
+// pub mod cl_number_type;
 pub mod cl_retain_release;
 pub mod cl_object;
 pub mod cl_bitflags;
 pub mod cl_enums;
 pub mod cl_helpers;
 pub mod cl_input;
-pub mod cl_number;
+pub mod numbers;
 pub mod cl_pointer;
 pub mod error;
 pub mod output;
@@ -70,7 +74,7 @@ pub mod session;
 pub mod waitlist;
 pub mod work;
 
-pub use cl_number_type::*;
+// pub use cl_number_type::*;
 pub use cl_retain_release::RetainRelease;
 pub use cl_object::{ClObject, CheckValidClObject};
 pub use cl_pointer::ClPointer;
@@ -83,7 +87,7 @@ pub use object_wrapper::ObjectWrapper;
 pub use cl_bitflags::*;
 pub use cl_enums::*;
 pub use cl_input::*;
-pub use cl_number::ClNumber;
+pub use numbers::*;
 
 pub use context::*;
 pub use context_builder::*;

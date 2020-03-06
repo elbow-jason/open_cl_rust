@@ -7,17 +7,19 @@ use crate::ffi::{
 
 use crate::cl_helpers::cl_get_info5;
 use crate::{
-    build_output, ClContext, ClNumber, ClPointer, ContextPtr, HostAccessMemFlags,
-    KernelAccessMemFlags, MemFlags, MemInfo, MemLocationMemFlags, Output, NumberType,
-    NumberTyped, ObjectWrapper,
+    build_output, ClContext, ClPointer, ContextPtr, HostAccessMemFlags,
+    KernelAccessMemFlags, MemFlags, MemInfo, MemLocationMemFlags, Output,
+    ObjectWrapper,
 };
+
+use crate::numbers::{FFINumber, NumberType, NumberTyped};
 
 
 /// Low-level helper for creating a cl_mem buffer from a context, mem flags, and a buffer creator.
 ///
 /// # Safety
 /// Use of a invalid cl_context in this function call is undefined behavior.
-pub unsafe fn cl_create_buffer_with_creator<T: ClNumber, B: BufferCreator<T>>(
+pub unsafe fn cl_create_buffer_with_creator<T: FFINumber, B: BufferCreator<T>>(
     context: cl_context,
     mem_flags: cl_mem_flags,
     buffer_creator: B,
@@ -54,7 +56,7 @@ where
     unsafe { cl_get_info5(device_mem, flag, clGetMemObjectInfo) }
 }
 
-pub trait BufferCreator<T: ClNumber>: Sized {
+pub trait BufferCreator<T: FFINumber>: Sized {
     /// The SizeAndPtr of a buffer creation arg.
     ///
     /// Currently the only 2 types that implement BufferCreator are
@@ -64,7 +66,7 @@ pub trait BufferCreator<T: ClNumber>: Sized {
     fn mem_config(&self) -> MemConfig;
 }
 
-impl<T: ClNumber> BufferCreator<T> for &[T] {
+impl<T: FFINumber> BufferCreator<T> for &[T] {
     fn buffer_byte_size(&self) -> usize {
         std::mem::size_of::<T>() * self.len()
     }
@@ -79,7 +81,7 @@ impl<T: ClNumber> BufferCreator<T> for &[T] {
     }
 }
 
-impl<T: ClNumber> BufferCreator<T> for &mut [T] {
+impl<T: FFINumber> BufferCreator<T> for &mut [T] {
     fn buffer_byte_size(&self) -> usize {
         std::mem::size_of::<T>() * self.len()
     }
@@ -95,7 +97,7 @@ impl<T: ClNumber> BufferCreator<T> for &mut [T] {
 }
 
 
-impl<T: ClNumber> BufferCreator<T> for usize {
+impl<T: FFINumber> BufferCreator<T> for usize {
     fn buffer_byte_size(&self) -> usize {
         std::mem::size_of::<T>() * *self
     }
@@ -264,14 +266,14 @@ impl ClMem {
     /// This function does not retain its cl_mem, but will release its cl_mem
     /// when it is dropped. Mismanagement of a cl_mem's lifetime.  Therefore,
     /// this function is unsafe.
-    pub unsafe fn new<T: ClNumber>(object: cl_mem) -> Output<ClMem> {
+    pub unsafe fn new<T: FFINumber>(object: cl_mem) -> Output<ClMem> {
         Ok(ClMem {
             inner: ObjectWrapper::new(object)?,
             t: T::number_type()
         })
     }
 
-    pub fn create<T: ClNumber, B: BufferCreator<T>>(
+    pub fn create<T: FFINumber, B: BufferCreator<T>>(
         context: &ClContext,
         buffer_creator: B,
         host_access: HostAccess,
@@ -297,7 +299,7 @@ impl ClMem {
     ///
     /// # Safety
     /// Using an invalid context in this function call is undefined behavior.
-    pub unsafe fn create_with_config<T: ClNumber, B: BufferCreator<T>>(
+    pub unsafe fn create_with_config<T: FFINumber, B: BufferCreator<T>>(
         context: &ClContext,
         buffer_creator: B,
         mem_config: MemConfig,
