@@ -13,11 +13,26 @@ use crate::{
     ObjectWrapper
 };
 
+use crate::numbers::{FFINumber, AsPtr};
+
 pub unsafe trait KernelArg {
     /// size_of<T> or size_of<T> * len
     fn kernel_arg_size(&self) -> usize;
     unsafe fn kernel_arg_ptr(&self) -> *const c_void;
     unsafe fn kernel_arg_mut_ptr(&mut self) -> *mut c_void;
+}
+
+unsafe impl<T: FFINumber + AsPtr> KernelArg for T {
+    fn kernel_arg_size(&self) -> usize {
+        std::mem::size_of::<T>()
+    }
+    unsafe fn kernel_arg_ptr(&self) -> *const c_void {
+        self.as_ptr() as *const _ as *const c_void
+    }
+
+    unsafe fn kernel_arg_mut_ptr(&mut self) -> *mut c_void {
+        self.as_mut_ptr() as *const _ as *mut c_void
+    }
 }
 
 unsafe impl KernelArg for ClMem {
@@ -33,38 +48,38 @@ unsafe impl KernelArg for ClMem {
     }
 }
 
-macro_rules! sized_scalar_kernel_arg {
-    ($scalar:ty) => {
-        unsafe impl KernelArg for $scalar {
-            fn kernel_arg_size(&self) -> usize {
-                std::mem::size_of::<$scalar>()
-            }
+// macro_rules! sized_scalar_kernel_arg {
+//     ($scalar:ty) => {
+//         unsafe impl KernelArg for $scalar {
+//             fn kernel_arg_size(&self) -> usize {
+//                 std::mem::size_of::<$scalar>()
+//             }
 
-            unsafe fn kernel_arg_ptr(&self) -> *const c_void {
-                (self as *const $scalar) as *const c_void
-            }
+//             unsafe fn kernel_arg_ptr(&self) -> *const c_void {
+//                 (self as *const $scalar) as *const c_void
+//             }
 
-            unsafe fn kernel_arg_mut_ptr(&mut self) -> *mut c_void {
-                (self as *mut $scalar) as *mut c_void
-            }
-        }
-    };
-}
+//             unsafe fn kernel_arg_mut_ptr(&mut self) -> *mut c_void {
+//                 (self as *mut $scalar) as *mut c_void
+//             }
+//         }
+//     };
+// }
 
-sized_scalar_kernel_arg!(isize);
-sized_scalar_kernel_arg!(i8);
-sized_scalar_kernel_arg!(i16);
-sized_scalar_kernel_arg!(i32);
-sized_scalar_kernel_arg!(i64);
+// sized_scalar_kernel_arg!(isize);
+// sized_scalar_kernel_arg!(i8);
+// sized_scalar_kernel_arg!(i16);
+// sized_scalar_kernel_arg!(i32);
+// sized_scalar_kernel_arg!(i64);
 
-sized_scalar_kernel_arg!(usize);
-sized_scalar_kernel_arg!(u8);
-sized_scalar_kernel_arg!(u16);
-sized_scalar_kernel_arg!(u32);
-sized_scalar_kernel_arg!(u64);
+// sized_scalar_kernel_arg!(usize);
+// sized_scalar_kernel_arg!(u8);
+// sized_scalar_kernel_arg!(u16);
+// sized_scalar_kernel_arg!(u32);
+// sized_scalar_kernel_arg!(u64);
 
-sized_scalar_kernel_arg!(f32);
-sized_scalar_kernel_arg!(f64);
+// sized_scalar_kernel_arg!(f32);
+// sized_scalar_kernel_arg!(f64);
 
 // pub use kernel_arg::{KernelArg, KernelArgSizeAndPointer};
 // use super::kernel_arg::{KernelArg, KernelArgSizeAndPointer};

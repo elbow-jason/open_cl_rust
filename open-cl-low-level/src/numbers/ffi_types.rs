@@ -48,6 +48,7 @@ macro_rules! ffi_number {
     }
 }
 
+ffi_number!(cl_double);
 ffi_number!(cl_char, cl_char16, cl_char2, cl_char4, cl_char8);
 ffi_number!(cl_float, cl_float16, cl_float2, cl_float4, cl_float8);
 ffi_number!(cl_int, cl_int16, cl_int2, cl_int4, cl_int8);
