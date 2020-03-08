@@ -10,7 +10,7 @@ use crate::{
 use crate::ll::{
     list_devices_by_type, list_platforms, BufferReadEvent, ClCommandQueue, ClContext, ClDeviceID,
     ClEvent, ClKernel, ClMem, ClProgram, CommandQueueProperties, CommandQueuePtr,
-    DevicePtr, KernelArg,
+    DevicePtr
 };
 
 use crate::ll::numbers::{FFINumber};
@@ -217,12 +217,11 @@ impl Session {
         }
     }
 
-    pub fn execute_sync_kernel_operation<'a, T>(
+    pub fn execute_sync_kernel_operation<'a>(
         &self,
-        mut kernel_op: KernelOperation<'a, T>,
+        mut kernel_op: KernelOperation<'a>,
     ) -> Output<()>
     where
-        T: FFINumber + KernelArg,
     {
         unsafe {
             let kernel = self.create_kernel(kernel_op.name())?;

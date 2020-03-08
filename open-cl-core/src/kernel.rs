@@ -1,5 +1,8 @@
 use std::mem::ManuallyDrop;
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::marker::PhantomData;
+
+use libc::c_void;
 
 use crate::ll::*;
 
@@ -88,9 +91,49 @@ impl Kernel {
     }
 }
 
-pub enum KernelOpArg<'a, T: FFINumber> {
-    Num(T),
+pub enum KernelOpArg<'a> {
+    Num(NumArg<'a>),
     Buffer(&'a Buffer),
+}
+
+pub struct NumArg<'a> {
+    t: NumberType,
+    _phantom: PhantomData<&'a c_void>,
+    _ptr: *const c_void,
+}
+
+impl<'a> NumArg<'a> {
+    pub fn new<T: NumberTypedT + AsPtr + KernelArg + Copy>(num: T) -> NumArg<'a> {
+        NumArg {
+            t: T::number_type(),
+            _ptr: num.as_ptr() as *const c_void,
+            _phantom: PhantomData,
+        }
+    }
+
+    pub fn into_number<T: NumberTypedT + Copy>(self) -> Output<T> {
+        self.number_type().type_check(T::number_type())?;
+        unsafe { Ok(*(self._ptr as *const T)) }
+    }
+}
+
+impl<'a> NumberTyped for NumArg<'a> {
+    fn number_type(&self) -> NumberType {
+        self.t
+    }
+}
+
+
+unsafe impl<'a> KernelArg for NumArg<'a> {
+    fn kernel_arg_size(&self) -> usize {
+        self.t.size_of_t()
+    }
+    unsafe fn kernel_arg_ptr(&self) -> *const c_void {
+        self._ptr as *const c_void
+    }
+    unsafe fn kernel_arg_mut_ptr(&mut self) -> *mut c_void {
+        self._ptr as *mut c_void
+    }
 }
 
 // pub enum ReturnArg<T: FFINumber> {
@@ -98,24 +141,23 @@ pub enum KernelOpArg<'a, T: FFINumber> {
 //     Buffer(Buffer<T>),
 // }
 
-pub trait ToKernelOpArg<'a, T: FFINumber> {
-    fn to_kernel_op_arg(&self) -> Output<KernelOpArg<'a, T>>;
+pub trait ToKernelOpArg<'a> {
+    fn to_kernel_op_arg(&self) -> KernelOpArg<'a>;
 }
 
-impl<'a, T: FFINumber> ToKernelOpArg<'a, T> for T {
-    fn to_kernel_op_arg(&self) -> Output<KernelOpArg<'a, T>> {
-        Ok(KernelOpArg::Num(*self))
+impl<'a, T> ToKernelOpArg<'a> for T where T: FFINumber + AsPtr + Sized {
+    fn to_kernel_op_arg(&self) -> KernelOpArg<'a> {
+        KernelOpArg::Num(NumArg::new(*self))
     }
 }
 
-impl<'a, T: FFINumber> ToKernelOpArg<'a, T> for &'a Buffer {
-    fn to_kernel_op_arg(&self) -> Output<KernelOpArg<'a, T>> {
-        self.number_type().type_check(T::number_type())?;
-        Ok(KernelOpArg::Buffer(self))
+impl<'a> ToKernelOpArg<'a> for &'a Buffer {
+    fn to_kernel_op_arg(&self) -> KernelOpArg<'a> {
+        KernelOpArg::Buffer(self)
     }
 }
 
-impl<'a, T: FFINumber> KernelOpArg<'a, T> {
+impl<'a> KernelOpArg<'a> {
     pub fn into_buffer(self) -> Output<&'a Buffer> {
         if let KernelOpArg::Buffer(buffer) = self {
             Ok(buffer)
@@ -124,25 +166,25 @@ impl<'a, T: FFINumber> KernelOpArg<'a, T> {
         }
     }
 
-    pub fn into_num(self) -> Output<T> {
+    pub fn into_num<T: NumberTypedT + Copy>(self) -> Output<T> {
         if let KernelOpArg::Num(num) = self {
-            Ok(num)
+            num.into_number::<T>()
         } else {
             Err(KernelError::KernelOpArgWasNotMem.into())
         }
     }
 }
 
-pub struct KernelOperation<'a, T: FFINumber + KernelArg> {
+pub struct KernelOperation<'a> {
     _name: String,
-    _args: Vec<KernelOpArg<'a, T>>,
+    _args: Vec<KernelOpArg<'a>>,
     _work: Option<Work>,
     _returning: Option<usize>,
     pub command_queue_opts: Option<CommandQueueOptions>,
 }
 
-impl<'a, T: FFINumber + KernelArg> KernelOperation<'a, T> {
-    pub fn new(name: &str) -> KernelOperation<T> {
+impl<'a> KernelOperation<'a> {
+    pub fn new(name: &str) -> KernelOperation<'a> {
         KernelOperation {
             _name: name.to_owned(),
             _args: vec![],
@@ -160,25 +202,25 @@ impl<'a, T: FFINumber + KernelArg> KernelOperation<'a, T> {
         self.command_queue_opts.clone()
     }
 
-    pub fn args(&self) -> &[KernelOpArg<T>] {
+    pub fn args(&self) -> &[KernelOpArg<'a>] {
         &self._args[..]
     }
 
-    pub fn mut_args(&mut self) -> &mut [KernelOpArg<'a, T>] {
+    pub fn mut_args(&mut self) -> &mut [KernelOpArg<'a>] {
         &mut self._args[..]
     }
 
-    pub fn with_dims<D: Into<Dims>>(mut self, dims: D) -> KernelOperation<'a, T> {
+    pub fn with_dims<D: Into<Dims>>(mut self, dims: D) -> KernelOperation<'a> {
         self._work = Some(Work::new(dims.into()));
         self
     }
 
-    pub fn with_work<W: Into<Work>>(mut self, work: W) -> KernelOperation<'a, T> {
+    pub fn with_work<W: Into<Work>>(mut self, work: W) -> KernelOperation<'a> {
         self._work = Some(work.into());
         self
     }
 
-    pub fn add_arg<A: Into<KernelOpArg<'a, T>>>(mut self, arg: A) -> KernelOperation<'a, T> {
+    pub fn add_arg<A: Into<KernelOpArg<'a>>>(mut self, arg: A) -> KernelOperation<'a> {
         self._args.push(arg.into());
         self
     }
@@ -186,12 +228,12 @@ impl<'a, T: FFINumber + KernelArg> KernelOperation<'a, T> {
     pub fn with_command_queue_options(
         mut self,
         opts: CommandQueueOptions,
-    ) -> KernelOperation<'a, T> {
+    ) -> KernelOperation<'a> {
         self.command_queue_opts = Some(opts);
         self
     }
 
-    pub fn with_returning_arg(mut self, arg_index: usize) -> KernelOperation<'a, T> {
+    pub fn with_returning_arg(mut self, arg_index: usize) -> KernelOperation<'a> {
         self._returning = Some(arg_index);
         self
     }
