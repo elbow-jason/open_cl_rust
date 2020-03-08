@@ -13,7 +13,7 @@ use crate::{
     ObjectWrapper
 };
 
-use crate::numbers::{FFINumber, AsPtr};
+use crate::numbers::{AsPtr};
 
 pub unsafe trait KernelArg {
     /// size_of<T> or size_of<T> * len
@@ -22,7 +22,7 @@ pub unsafe trait KernelArg {
     unsafe fn kernel_arg_mut_ptr(&mut self) -> *mut c_void;
 }
 
-unsafe impl<T: FFINumber + AsPtr> KernelArg for T {
+unsafe impl<T: AsPtr + Sized> KernelArg for T {
     fn kernel_arg_size(&self) -> usize {
         std::mem::size_of::<T>()
     }
