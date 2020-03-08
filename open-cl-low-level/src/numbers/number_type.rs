@@ -471,4 +471,11 @@ mod tests {
         let t = apply_number_type!(cl_bool::number_type(), test_func_to_be_applied, []);
         assert_eq!(t, NumberType::ClUint);
     }
+
+    #[test]
+    fn apply_number_type_macro_works_with_a_variable() {
+        let a = cl_bool::number_type();
+        let t = apply_number_type!(a, test_func_to_be_applied, []);
+        assert_eq!(t, NumberType::ClUint);
+    }
 }

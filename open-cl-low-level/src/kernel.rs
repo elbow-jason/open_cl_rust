@@ -472,6 +472,42 @@ mod tests {
         let () = unsafe { kernel.set_arg(0, &mut arg1) }.unwrap();
     }
 
+    #[test]
+    fn kernel_set_arg_works_for_cl_uchar2() {
+        let src: &str = "
+        __kernel void test123(uchar2 i) {
+            i[0] + 1;
+        }";
+        let (_context, _devices, _program, mut kernel) = ll_testing::get_kernel(src, KERNEL_NAME);
+        let mut arg1: cl_uchar2 = *ClUchar2([1u8, 1u8].convert_to());
+        assert_eq!(2, std::mem::size_of::<cl_uchar2>());
+        let () = unsafe { kernel.set_arg(0, &mut arg1) }.unwrap();
+    }
+
+    #[test]
+    fn kernel_set_arg_works_for_cl_uchar3() {
+        let src: &str = "
+        __kernel void test123(uchar2 i) {
+            i[0] + 1;
+        }";
+        let (_context, _devices, _program, mut kernel) = ll_testing::get_kernel(src, KERNEL_NAME);
+        let mut arg1: cl_uchar3 = *ClUchar3([1u8, 1u8, 1u8].convert_to());
+        assert_eq!(4, std::mem::size_of::<cl_uchar3>());
+        let () = unsafe { kernel.set_arg(0, &mut arg1) }.unwrap();
+    }
+
+    #[test]
+    fn kernel_set_arg_works_for_cl_uchar() {
+        let src: &str = "
+        __kernel void test123(uchar i) {
+            i + 1;
+        }";
+        let (_context, _devices, _program, mut kernel) = ll_testing::get_kernel(src, KERNEL_NAME);
+        let mut arg1: cl_uchar = *ClUchar(1u8);
+        assert_eq!(1, std::mem::size_of::<cl_uchar>());
+        let () = unsafe { kernel.set_arg(0, &mut arg1) }.unwrap();
+    }
+
     fn build_session(src: &str) -> Session {
         unsafe { SessionBuilder::new().with_program_src(src).build().unwrap() }
     }
