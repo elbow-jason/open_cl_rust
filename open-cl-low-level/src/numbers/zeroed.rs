@@ -37,6 +37,19 @@ impl Zeroed for ClDouble {
     }
 }
 
+impl Zeroed for SizeT {
+    fn zeroed() -> SizeT {
+        SizeT(0 as libc::size_t)
+    }
+}
+
+
+impl Zeroed for libc::size_t {
+    fn zeroed() -> libc::size_t {
+        0 as libc::size_t
+    }
+}
+
 macro_rules! impl_ffi {
     ($ffi_t:ident) => {
         impl Zeroed for $ffi_t {
