@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 use std::slice;
+use std::marker::PhantomData;
 
 use crate::{Output};
 
@@ -400,20 +401,21 @@ impl<T: NumberTypedT> NumberTypedT for Vec<T> {
 
 pub struct NumberTypedSlice<'a> {
     t: NumberType,
-    _ref: &'a libc::c_void,
+    _phantom: PhantomData<&'a libc::c_void>,
+    _ptr: *const libc::c_void,
     _len: usize,
 }
 
 impl<'a> NumberTypedSlice<'a> {
     pub fn try_as_slice<T: NumberTypedT>(&self) -> Output<&'a [T]> {
         self.t.type_check(T::number_type())?;
-        let s = unsafe { slice::from_raw_parts(self._ref as *const _ as *const T, self._len) };
+        let s = unsafe { slice::from_raw_parts(self._ptr as *const T, self._len) };
         Ok(s)
     }
 
     pub fn try_as_mut_slice<T: NumberTypedT>(&self) -> Output<&'a mut [T]> {
         self.t.type_check(T::number_type())?;
-        let s = unsafe { slice::from_raw_parts_mut(self._ref as *const _ as *mut T, self._len) };
+        let s = unsafe { slice::from_raw_parts_mut(self._ptr as *mut T, self._len) };
         Ok(s)
     }
 }
@@ -431,6 +433,23 @@ impl NumberTypedVec {
         let v = unsafe { Vec::from_raw_parts(self._ptr as *mut T, self._len, self._cap) };
         std::mem::forget(self);
         Ok(v)
+    }
+
+    pub fn as_number_typed_slice<'a>(&self) -> NumberTypedSlice<'a> {
+        NumberTypedSlice {
+            t: self.t,
+            _ptr: self._ptr as *const libc::c_void,
+            _len: self._len,
+            _phantom: PhantomData
+        }
+    }
+
+    pub fn try_as_slice<T: NumberTypedT>(&self) -> Output<&[T]> {
+        self.as_number_typed_slice().try_as_slice()
+    }
+
+    pub fn try_as_mut_slice<T: NumberTypedT>(&mut self) -> Output<&mut [T]> {
+        self.as_number_typed_slice().try_as_mut_slice()
     }
 }
 
