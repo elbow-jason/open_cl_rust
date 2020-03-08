@@ -21,7 +21,7 @@ macro_rules! as_ptr {
     }
 }
 
-as_ptr!(libc::c_void);
+as_ptr!(libc::size_t);
 as_ptr!(cl_double);
 as_ptr!(cl_char, cl_char16, cl_char2, cl_char4, cl_char8);
 as_ptr!(cl_float, cl_float16, cl_float2, cl_float4, cl_float8);
