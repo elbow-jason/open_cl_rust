@@ -1,6 +1,7 @@
 pub mod cl_number;
 pub mod ffi_types;
 pub mod zeroed;
+#[macro_use]
 pub mod number_type;
 pub mod conversion;
 pub mod newtypes;

@@ -42,14 +42,15 @@ pub mod ll_testing;
 #[macro_use]
 pub mod macros;
 #[macro_use]
-// pub mod cl_number_type;
+pub mod numbers;
+
 pub mod cl_retain_release;
 pub mod cl_object;
 pub mod cl_bitflags;
 pub mod cl_enums;
 pub mod cl_helpers;
 pub mod cl_input;
-pub mod numbers;
+
 pub mod cl_pointer;
 pub mod error;
 pub mod output;
