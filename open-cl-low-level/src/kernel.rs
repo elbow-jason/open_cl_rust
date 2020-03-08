@@ -299,8 +299,12 @@ impl KernelOperation{
 
 #[cfg(test)]
 mod tests {
-    use crate::ffi::*;
-    use crate::*;
+    use crate::ffi::{cl_mem, clSetKernelArg};
+    use crate::ffi::{cl_uchar2, cl_uchar3};
+    use crate::ffi::{cl_uchar, cl_char, cl_ushort, cl_uint, cl_float, cl_double, cl_ulong, cl_long};
+    use crate::numbers::ConvertTo;
+    use crate::numbers::{ClUchar, ClUchar2, ClUchar3};
+    use crate::{ll_testing, KernelPtr, ClKernel, ClContext, ClProgram, Session, MemPtr, SessionBuilder};
     use libc::c_void;
 
     const SRC: &'static str = "
