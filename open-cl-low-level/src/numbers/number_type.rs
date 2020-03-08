@@ -448,9 +448,22 @@ impl<T: NumberTypedT> From<Vec<T>> for NumberTypedVec {
     }
 }
 
+unsafe fn _ntv_drop<T: NumberTypedT>(ntv: &mut NumberTypedVec) {
+    ntv.number_type().type_check(T::number_type()).unwrap();
+    Vec::from_raw_parts(ntv._ptr as *const _ as *mut T, ntv._len, ntv._cap);
+}
+
 impl NumberTyped for NumberTypedVec {
     fn number_type(&self) -> NumberType {
         self.t
+    }
+}
+
+impl Drop for NumberTypedVec {
+    fn drop(&mut self) {
+        unsafe {
+            apply_number_type!(self.t, _ntv_drop, [self])
+        };
     }
 }
 

@@ -58,6 +58,3 @@ ffi_number!(cl_uchar, cl_uchar16, cl_uchar2, cl_uchar4, cl_uchar8);
 ffi_number!(cl_uint, cl_uint16, cl_uint2,  cl_uint4, cl_uint8);
 ffi_number!(cl_ulong, cl_ulong16, cl_ulong2,  cl_ulong4, cl_ulong8);
 ffi_number!(cl_ushort, cl_ushort16, cl_ushort2, cl_ushort4, cl_ushort8);
-
-
-
