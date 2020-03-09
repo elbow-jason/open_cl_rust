@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt;
 use std::slice;
 use std::marker::PhantomData;
 
@@ -78,16 +78,6 @@ macro_rules! apply_number_type {
             $crate::NumberType::ClFloat16 => $func::<cl_float16>($( $arg ),*),
         }
     }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum NumberTypeKind {
-    Primitive,
-    Two,
-    Three,
-    Four,
-    Eight,
-    Sixteen,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -362,6 +352,11 @@ pub struct NumberTypedSlice<'a> {
     _len: usize,
 }
 
+impl<'a> fmt::Debug for NumberTypedSlice<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "NumberTypedSlice{{t: {:?}, ptr: {:?}, len: {:?}}}", self.t, self._ptr, self._len)
+    }
+}
 
 impl<'a> AsPtr<c_void> for NumberTypedSlice<'a> {
     fn as_ptr(&self) -> *const c_void {
@@ -405,6 +400,11 @@ pub struct NumberTypedVec {
 }
 
 
+impl fmt::Debug for NumberTypedVec {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "NumberTypedVec{{t: {:?}, ptr: {:?}, len: {:?}, capacity: {:?}}}", self.t, self._ptr, self._len, self._cap)
+    }
+}
 
 impl AsPtr<c_void> for NumberTypedVec {
     fn as_ptr(&self) -> *const c_void {
