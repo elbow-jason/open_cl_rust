@@ -4,11 +4,11 @@ use std::marker::PhantomData;
 
 use crate::{Output};
 
-use libc::size_t;
+use libc::{size_t, c_void};
 
 use super::newtypes::*;
 use super::ffi_types::*;
-// use super::number_type::*;
+use super::as_ptr::AsPtr;
 
 pub fn apply<T: NumberTypedT, F: FnOnce() -> T + Sized>(t: NumberType, fun: F) -> T {
     t.type_check(T::number_type()).unwrap_or_else(|e| panic!("{:?}", e));
@@ -401,12 +401,33 @@ impl<T: NumberTypedT> NumberTypedT for Vec<T> {
 
 pub struct NumberTypedSlice<'a> {
     t: NumberType,
-    _phantom: PhantomData<&'a libc::c_void>,
-    _ptr: *const libc::c_void,
+    _phantom: PhantomData<&'a c_void>,
+    _ptr: *const c_void,
     _len: usize,
 }
 
+
+impl<'a> AsPtr<c_void> for NumberTypedSlice<'a> {
+    fn as_ptr(&self) -> *const c_void {
+        self._ptr
+    }
+
+    fn as_mut_ptr(&mut self) -> *mut c_void {
+        self._ptr as *mut c_void
+    }
+}
+
+impl<'a> NumberTyped for NumberTypedSlice<'a> {
+    fn number_type(&self) -> NumberType {
+        self.t
+    }
+}
+
 impl<'a> NumberTypedSlice<'a> {
+    pub fn len(&self) -> usize {
+        self._len
+    }
+
     pub fn try_as_slice<T: NumberTypedT>(&self) -> Output<&'a [T]> {
         self.t.type_check(T::number_type())?;
         let s = unsafe { slice::from_raw_parts(self._ptr as *const T, self._len) };
@@ -422,12 +443,26 @@ impl<'a> NumberTypedSlice<'a> {
 
 pub struct NumberTypedVec {
     t: NumberType,
-    _ptr: *mut libc::c_void,
+    _ptr: *mut c_void,
     _len: usize,
     _cap: usize,
 }
 
+impl AsPtr<c_void> for NumberTypedVec {
+    fn as_ptr(&self) -> *const c_void {
+        self._ptr as *const c_void
+    }
+
+    fn as_mut_ptr(&mut self) -> *mut c_void {
+        self._ptr
+    }
+}
+
 impl NumberTypedVec {
+    pub fn as_mut_ptr(&self) -> *mut c_void {
+        self._ptr
+    }
+
     pub fn len(&self) -> usize {
         self._len
     }
@@ -446,7 +481,7 @@ impl NumberTypedVec {
     pub fn as_number_typed_slice<'a>(&self) -> NumberTypedSlice<'a> {
         NumberTypedSlice {
             t: self.t,
-            _ptr: self._ptr as *const libc::c_void,
+            _ptr: self._ptr as *const c_void,
             _len: self._len,
             _phantom: PhantomData
         }
@@ -466,7 +501,7 @@ impl<T: NumberTypedT> From<Vec<T>> for NumberTypedVec {
     fn from(mut v: Vec<T>) -> NumberTypedVec {
         let ntv = NumberTypedVec{
             t: T::number_type(),
-            _ptr: v.as_mut_ptr() as *mut libc::c_void,
+            _ptr: v.as_mut_ptr() as *mut c_void,
             _len: v.len(),
             _cap: v.capacity()
         };

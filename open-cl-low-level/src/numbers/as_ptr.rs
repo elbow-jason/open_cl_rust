@@ -1,8 +1,8 @@
 use super::ffi_types::*;
 
-pub trait AsPtr {
-    fn as_ptr(&self) -> *const Self;
-    fn as_mut_ptr(&mut self) -> *mut Self;
+pub trait AsPtr<T = Self> {
+    fn as_ptr(&self) -> *const T;
+    fn as_mut_ptr(&mut self) -> *mut T;
 }
 
 macro_rules! as_ptr {
