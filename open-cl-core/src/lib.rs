@@ -49,7 +49,7 @@ pub use buffer::Buffer;
 pub use command_queue::CommandQueue;
 pub use context::Context;
 pub use device::Device;
-pub use kernel::{Kernel, KernelOpArg, KernelOperation, NumArg};
+pub use kernel::{Kernel, KernelOpArg, KernelOperation, NumArg, ToKernelOpArg};
 pub use platform::Platform;
 pub use program::{Program, UnbuiltProgram};
 pub use session::Session;
@@ -57,5 +57,5 @@ pub use session::Session;
 pub use ll::{
     BufferCreator, ClNumber, CommandQueueOptions, CommandQueueProperties, DeviceType, Error,
     HostAccess, KernelAccess, MemConfig, MemLocation, MutVecOrSlice, Output, VecOrSlice, Waitlist,
-    Work, NumberType, NumberTyped, NumberTypedT,
+    Work, NumberType, NumberTyped, NumberTypedT
 };
