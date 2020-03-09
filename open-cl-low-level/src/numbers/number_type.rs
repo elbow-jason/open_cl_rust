@@ -452,6 +452,18 @@ impl NumberTypedVec {
     pub fn try_as_mut_slice<T: NumberTypedT>(&mut self) -> Output<&mut [T]> {
         self.as_number_typed_slice().try_as_mut_slice()
     }
+
+    pub fn try_iter<T: NumberTypedT>(&self) -> Output<std::slice::Iter<T>> {
+        Ok(self.try_as_slice()?.iter())
+    }
+
+    pub fn try_iter_mut<T: NumberTypedT>(&mut self) -> Output<std::slice::IterMut<T>> {
+        Ok(self.try_as_mut_slice()?.iter_mut())
+    }
+
+    pub fn try_into_iter<T: NumberTypedT>(self) -> Output<std::vec::IntoIter<T>> {
+        Ok(self.try_to_vec()?.into_iter())
+    }
 }
 
 
@@ -486,6 +498,9 @@ impl Drop for NumberTypedVec {
         };
     }
 }
+
+
+
 
 // impl Clone for NumberTypeVec {
 //     fn clone(&self) -> NumberTypeVec {
