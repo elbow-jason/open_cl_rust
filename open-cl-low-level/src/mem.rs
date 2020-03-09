@@ -146,7 +146,7 @@ pub unsafe trait MemPtr: NumberTyped {
     /// Calling this function with an invalid ClMem is invalid behavior.
     unsafe fn len(&self) -> Output<usize> {
         let mem_size_in_bytes = self.size()?;
-        Ok(mem_size_in_bytes / self.number_type().size_of_t())
+        Ok(mem_size_in_bytes / self.number_type().size_of())
     }
 
     /// Determines if ClMem is empty or not.

@@ -181,69 +181,25 @@ pub enum TypeError {
     InvalidValue(NumberType, String),
 }
 
+#[inline]
+fn _size_of<T: Sized>() -> usize {
+    std::mem::size_of::<T>()
+}
+
+#[inline]
+fn _align_of<T>() -> usize {
+    std::mem::align_of::<T>()
+}
+
+
 impl NumberType {
-    pub fn size_of_t(&self) -> usize {
-        match self {
-            NumberType::ClChar => std::mem::size_of::<cl_char>(),
-            NumberType::ClChar2 => std::mem::size_of::<cl_char2>(),
-            NumberType::ClChar3 => std::mem::size_of::<cl_char3>(),
-            NumberType::ClChar4 => std::mem::size_of::<cl_char4>(),
-            NumberType::ClChar8 => std::mem::size_of::<cl_char8>(),
-            NumberType::ClChar16 => std::mem::size_of::<cl_char16>(),
-            NumberType::ClUchar => std::mem::size_of::<cl_uchar>(),
-            NumberType::ClUchar2 => std::mem::size_of::<cl_uchar2>(),
-            NumberType::ClUchar3 => std::mem::size_of::<cl_uchar3>(),
-            NumberType::ClUchar4 => std::mem::size_of::<cl_uchar4>(),
-            NumberType::ClUchar8 => std::mem::size_of::<cl_uchar8>(),
-            NumberType::ClUchar16 => std::mem::size_of::<cl_uchar16>(),
-            NumberType::ClShort => std::mem::size_of::<cl_short>(),
-            NumberType::ClShort2 => std::mem::size_of::<cl_short2>(),
-            NumberType::ClShort3 => std::mem::size_of::<cl_short3>(),
-            NumberType::ClShort4 => std::mem::size_of::<cl_short4>(),
-            NumberType::ClShort8 => std::mem::size_of::<cl_short8>(),
-            NumberType::ClShort16 => std::mem::size_of::<cl_short16>(),
-            NumberType::ClUshort => std::mem::size_of::<cl_ushort>(),
-            NumberType::ClUshort2 => std::mem::size_of::<cl_ushort2>(),
-            NumberType::ClUshort3 => std::mem::size_of::<cl_ushort3>(),
-            NumberType::ClUshort4 => std::mem::size_of::<cl_ushort4>(),
-            NumberType::ClUshort8 => std::mem::size_of::<cl_ushort8>(),
-            NumberType::ClUshort16 => std::mem::size_of::<cl_ushort16>(),
-            NumberType::ClInt => std::mem::size_of::<cl_int>(),
-            NumberType::ClInt2 => std::mem::size_of::<cl_int2>(),
-            NumberType::ClInt3 => std::mem::size_of::<cl_int3>(),
-            NumberType::ClInt4 => std::mem::size_of::<cl_int4>(),
-            NumberType::ClInt8 => std::mem::size_of::<cl_int8>(),
-            NumberType::ClInt16 => std::mem::size_of::<cl_int16>(),
-            NumberType::ClUint => std::mem::size_of::<cl_uint>(),
-            NumberType::ClUint2 => std::mem::size_of::<cl_uint2>(),
-            NumberType::ClUint3 => std::mem::size_of::<cl_uint3>(),
-            NumberType::ClUint4 => std::mem::size_of::<cl_uint4>(),
-            NumberType::ClUint8 => std::mem::size_of::<cl_uint8>(),
-            NumberType::ClUint16 => std::mem::size_of::<cl_uint16>(),
-            NumberType::ClLong => std::mem::size_of::<cl_long>(),
-            NumberType::ClLong2 => std::mem::size_of::<cl_long2>(),
-            NumberType::ClLong3 => std::mem::size_of::<cl_long3>(),
-            NumberType::ClLong4 => std::mem::size_of::<cl_long4>(),
-            NumberType::ClLong8 => std::mem::size_of::<cl_long8>(),
-            NumberType::ClLong16 => std::mem::size_of::<cl_long16>(),
-            NumberType::ClUlong => std::mem::size_of::<cl_ulong>(),
-            NumberType::ClUlong2 => std::mem::size_of::<cl_ulong2>(),
-            NumberType::ClUlong3 => std::mem::size_of::<cl_ulong3>(),
-            NumberType::ClUlong4 => std::mem::size_of::<cl_ulong4>(),
-            NumberType::ClUlong8 => std::mem::size_of::<cl_ulong8>(),
-            NumberType::ClUlong16 => std::mem::size_of::<cl_ulong16>(),
-            NumberType::ClFloat => std::mem::size_of::<cl_float>(),
-            NumberType::ClFloat2 => std::mem::size_of::<cl_float2>(),
-            NumberType::ClFloat3 => std::mem::size_of::<cl_float3>(),
-            NumberType::ClFloat4 => std::mem::size_of::<cl_float4>(),
-            NumberType::ClFloat8 => std::mem::size_of::<cl_float8>(),
-            NumberType::ClFloat16 => std::mem::size_of::<cl_float16>(),
-            NumberType::ClHalf => std::mem::size_of::<cl_half>(),
-            NumberType::SizeT => std::mem::size_of::<size_t>(),
-            NumberType::ClDouble => std::mem::size_of::<cl_double>(),
-        }
+    pub fn size_of(&self) -> usize {
+        apply_number_type!(self, _size_of, [])
     }
 
+    pub fn align_of(&self) -> usize {
+        apply_number_type!(self, _align_of, [])
+    }
 
     pub fn matches(&self, other: NumberType) -> bool {
         *self == other
@@ -448,6 +404,8 @@ pub struct NumberTypedVec {
     _cap: usize,
 }
 
+
+
 impl AsPtr<c_void> for NumberTypedVec {
     fn as_ptr(&self) -> *const c_void {
         self._ptr as *const c_void
@@ -528,6 +486,12 @@ impl Drop for NumberTypedVec {
         };
     }
 }
+
+// impl Clone for NumberTypeVec {
+//     fn clone(&self) -> NumberTypeVec {
+//         let data = 
+//     }
+// }
 
 
 #[cfg(test)]

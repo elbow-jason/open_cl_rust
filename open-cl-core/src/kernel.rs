@@ -126,7 +126,7 @@ impl<'a> NumberTyped for NumArg<'a> {
 
 unsafe impl<'a> KernelArg for NumArg<'a> {
     fn kernel_arg_size(&self) -> usize {
-        self.t.size_of_t()
+        self.t.size_of()
     }
     unsafe fn kernel_arg_ptr(&self) -> *const c_void {
         self._ptr as *const c_void
@@ -135,11 +135,6 @@ unsafe impl<'a> KernelArg for NumArg<'a> {
         self._ptr as *mut c_void
     }
 }
-
-// pub enum ReturnArg<T: FFINumber> {
-//     Num(T),
-//     Buffer(Buffer<T>),
-// }
 
 pub trait ToKernelOpArg<'a> {
     fn to_kernel_op_arg(&self) -> KernelOpArg<'a>;
