@@ -220,8 +220,8 @@ impl<'a> KernelOperation<'a> {
         self
     }
 
-    pub fn add_arg<A: Into<KernelOpArg<'a>>>(mut self, arg: A) -> KernelOperation<'a> {
-        self._args.push(arg.into());
+    pub fn add_arg<A: ToKernelOpArg<'a>>(mut self, arg: &A) -> KernelOperation<'a> {
+        self._args.push(arg.to_kernel_op_arg());
         self
     }
 

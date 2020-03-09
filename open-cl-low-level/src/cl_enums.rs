@@ -74,7 +74,7 @@ macro_rules! __test_enum_converter {
             $(
                 #[allow(non_snake_case)]
                 #[test]
-                fn [<type_ $enum_type __ $enum_value _converts_to_and_from_ $other_type>]() {
+                fn [<type_ $enum_type _ $enum_value _converts_to_and_from_ $other_type>]() {
                     assert_eq!($enum_type::from($other_value), $enum_type::$enum_value);
                     assert_eq!($other_type::from($enum_type::$enum_value), $other_value);
                 }
