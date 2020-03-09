@@ -428,6 +428,14 @@ pub struct NumberTypedVec {
 }
 
 impl NumberTypedVec {
+    pub fn len(&self) -> usize {
+        self._len
+    }
+
+    pub fn capacity(&self) -> usize {
+        self._cap
+    }
+
     pub fn try_to_vec<T: NumberTypedT>(self) -> Output<Vec<T>> {
         self.t.type_check(T::number_type())?;
         let v = unsafe { Vec::from_raw_parts(self._ptr as *mut T, self._len, self._cap) };
