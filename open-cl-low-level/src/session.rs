@@ -1,15 +1,15 @@
+use std::convert::TryInto;
 use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
-use std::convert::TryInto;
 
-use crate::vec_or_slice::{VecOrSlice, MutVecOrSlice};
-use crate::numbers::{FFINumber, NumberTyped};
+use crate::numbers::{ClNum, NumberTyped};
+use crate::vec_or_slice::{MutVecOrSlice, VecOrSlice};
 use crate::{
-    ClDeviceID, ClContext, ClProgram, ClCommandQueue, Output, CommandQueueProperties,
-    Error, DeviceType, utils, ClKernel, CommandQueueOptions, ClMem, ClEvent,
-    BufferReadEvent, Work, ClPlatformID, ClContextBuilder, BuiltClContext,
-    KernelOperation, BufferCreator, MemConfig, cl_enqueue_nd_range_kernel, list_platforms,
-    list_devices_by_type, Waitlist, KernelPtr, CommandQueuePtr
+    cl_enqueue_nd_range_kernel, list_devices_by_type, list_platforms, utils, BufferCreator,
+    BufferReadEvent, BuiltClContext, ClCommandQueue, ClContext, ClContextBuilder, ClDeviceID,
+    ClEvent, ClKernel, ClMem, ClPlatformID, ClProgram, CommandQueueOptions, CommandQueueProperties,
+    CommandQueuePtr, DeviceType, Error, KernelOperation, KernelPtr, MemConfig, Output, Waitlist,
+    Work,
 };
 
 /// An error related to Session Building.
@@ -131,7 +131,7 @@ impl Session {
     /// # Safety
     /// This function can cause undefined behavior if the OpenCL context object that
     /// is passed is not in a valid state (null, released, etc.)
-    pub unsafe fn create_mem<T: FFINumber, B: BufferCreator<T>>(
+    pub unsafe fn create_mem<T: ClNum, B: BufferCreator<T>>(
         &self,
         buffer_creator: B,
     ) -> Output<ClMem> {
@@ -145,7 +145,7 @@ impl Session {
     /// # Safety
     /// This function can cause undefined behavior if the OpenCL context object that
     /// is passed is not in a valid state (null, released, etc.)
-    pub unsafe fn create_mem_with_config<T: FFINumber, B: BufferCreator<T>>(
+    pub unsafe fn create_mem_with_config<T: ClNum, B: BufferCreator<T>>(
         &self,
         buffer_creator: B,
         mem_config: MemConfig,
@@ -169,7 +169,7 @@ impl Session {
     /// ClMem is valid, if the ClCommandQueue's dependencies are valid, if the ClCommandQueue's object
     /// itself still valid, if the device's size and type exactly match the host buffer's size and type,
     /// if the waitlist's events are in a valid state and the list goes on...
-    pub unsafe fn write_buffer<'a, T: FFINumber, H: Into<VecOrSlice<'a, T>>>(
+    pub unsafe fn write_buffer<'a, T: ClNum, H: Into<VecOrSlice<'a, T>>>(
         &mut self,
         queue_index: usize,
         mem: &mut ClMem,
@@ -190,7 +190,7 @@ impl Session {
     /// ClMem is valid, if the ClCommandQueue's dependencies are valid, if the ClCommandQueue's object
     /// itself still valid, if the device's size and type exactly match the host buffer's size and type,
     /// if the waitlist's events are in a valid state and the list goes on...
-    pub unsafe fn read_buffer<'a, T: FFINumber, H: Into<MutVecOrSlice<'a, T>>>(
+    pub unsafe fn read_buffer<'a, T: ClNum, H: Into<MutVecOrSlice<'a, T>>>(
         &mut self,
         queue_index: usize,
         mem: &mut ClMem,
@@ -234,11 +234,7 @@ impl Session {
             let mut kernel = self.create_kernel(kernel_op.name())?;
             let queue: &mut ClCommandQueue = self.get_queue_by_index(queue_index)?;
             for (arg_index, (arg_size, arg_ptr)) in kernel_op.mut_args().iter_mut().enumerate() {
-                kernel.set_arg_raw(
-                    arg_index.try_into().unwrap(),
-                    *arg_size,
-                    *arg_ptr
-                )?;
+                kernel.set_arg_raw(arg_index.try_into().unwrap(), *arg_size, *arg_ptr)?;
             }
             let work = kernel_op.work()?;
             let event = queue.enqueue_kernel(&mut kernel, &work, kernel_op.command_queue_opts())?;

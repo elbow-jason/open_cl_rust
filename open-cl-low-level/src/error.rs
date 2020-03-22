@@ -7,12 +7,12 @@ use crate::context_builder::ContextBuilderError;
 use crate::device::DeviceError;
 use crate::event::EventError;
 use crate::kernel::KernelError;
+use crate::numbers::TypeError;
 use crate::platform::PlatformError;
 use crate::program::ProgramError;
 use crate::session::{SessionBuilderError, SessionError};
 use crate::status_code::StatusCodeError;
 use crate::work::WorkError;
-use crate::numbers::TypeError;
 
 #[derive(Debug, Fail, PartialEq, Clone, Eq)]
 pub enum Error {
@@ -51,6 +51,8 @@ pub enum Error {
 
     #[fail(display = "OpenCL returned a null pointer")]
     ClObjectCannotBeNull,
+    // #[fail(display = "{:?}", _0)]
+    // NumberConversionError(NumberConversionError),
 }
 
 impl Error {
@@ -119,3 +121,8 @@ impl From<TypeError> for Error {
     }
 }
 
+// impl From<NumberConversionError> for Error {
+//     fn from(err: NumberConversionError) -> Error {
+//         Error::NumberConversionError(err)
+//     }
+// }

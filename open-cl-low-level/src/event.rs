@@ -2,11 +2,11 @@ use std::mem::ManuallyDrop;
 use std::time::Duration;
 
 use crate::{
-    build_output, ClCommandQueue, ClContext, ClPointer, CommandExecutionStatus, Error,
-    EventInfo, Output, ProfilingInfo, Waitlist, ObjectWrapper,
+    build_output, ClCommandQueue, ClContext, ClPointer, CommandExecutionStatus, Error, EventInfo,
+    ObjectWrapper, Output, ProfilingInfo, Waitlist,
 };
 
-use crate::numbers::{FFINumber};
+use crate::numbers::ClNum;
 
 use crate::ffi::{
     clGetEventInfo, clGetEventProfilingInfo, cl_command_queue, cl_context, cl_event, cl_event_info,
@@ -71,7 +71,6 @@ pub enum EventError {
     #[fail(display = "Event was already consumed. {:?}", _0)]
     EventAlreadyConsumed(String),
 }
-
 
 impl ClEvent {
     pub fn time(&self, info: ProfilingInfo) -> Output<u64> {
@@ -165,13 +164,13 @@ impl Profiling {
     }
 }
 
-pub struct BufferReadEvent<T: FFINumber> {
+pub struct BufferReadEvent<T: ClNum> {
     event: ManuallyDrop<ClEvent>,
     host_buffer: ManuallyDrop<Option<Vec<T>>>,
     is_consumed: bool,
 }
 
-impl<T: FFINumber> BufferReadEvent<T> {
+impl<T: ClNum> BufferReadEvent<T> {
     pub fn new(event: ClEvent, host_buffer: Option<Vec<T>>) -> BufferReadEvent<T> {
         BufferReadEvent {
             event: ManuallyDrop::new(event),
@@ -201,7 +200,7 @@ impl<T: FFINumber> BufferReadEvent<T> {
     }
 }
 
-impl<T: FFINumber> Drop for BufferReadEvent<T> {
+impl<T: ClNum> Drop for BufferReadEvent<T> {
     fn drop(&mut self) {
         unsafe {
             self.event.wait().unwrap();
@@ -258,9 +257,8 @@ mod tests {
             let input_data: Vec<u64> = vec![1, 2, 3];
             let data = &input_data[..];
             let mem_cfg = data.mem_config();
-            let mut mem_buffer: ClMem =
-                ClMem::create_with_config(session.context(), data, mem_cfg)
-                    .unwrap_or_else(|e| panic!("Failed to ClMem::create_with_config() {:?}", e));
+            let mut mem_buffer: ClMem = ClMem::create_with_config(session.context(), data, mem_cfg)
+                .unwrap_or_else(|e| panic!("Failed to ClMem::create_with_config() {:?}", e));
             let () = kernel
                 .set_arg(0, &mut mem_buffer)
                 .expect("Failed to set_arg(0, &mem_buffer)");

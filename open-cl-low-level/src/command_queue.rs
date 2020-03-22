@@ -1,18 +1,18 @@
 use crate::ffi::{
     clCreateCommandQueue, clEnqueueNDRangeKernel, clEnqueueReadBuffer, clEnqueueWriteBuffer,
     clFinish, clGetCommandQueueInfo, cl_bool, cl_command_queue, cl_command_queue_info,
-    cl_command_queue_properties, cl_context, cl_device_id, cl_event, cl_kernel, cl_mem
+    cl_command_queue_properties, cl_context, cl_device_id, cl_event, cl_kernel, cl_mem,
 };
 
 use crate::cl_helpers::cl_get_info5;
+use crate::numbers::ClNum;
 use crate::CommandQueueInfo as CQInfo;
 use crate::{
-    build_output, BufferReadEvent, ClContext, ClDeviceID, ClEvent, ClKernel, ClMem,
-    ClPointer, CommandQueueInfo, CommandQueueProperties, ContextPtr, DevicePtr,
-    EventPtr, GlobalWorkSize, KernelPtr, LocalWorkSize, MemPtr, MutVecOrSlice, Output,
-    VecOrSlice, Waitlist, WaitlistSizeAndPtr, Work, BufferCreator, ObjectWrapper,
+    build_output, BufferCreator, BufferReadEvent, ClContext, ClDeviceID, ClEvent, ClKernel, ClMem,
+    ClPointer, CommandQueueInfo, CommandQueueProperties, ContextPtr, DevicePtr, EventPtr,
+    GlobalWorkSize, KernelPtr, LocalWorkSize, MemPtr, MutVecOrSlice, ObjectWrapper, Output,
+    VecOrSlice, Waitlist, WaitlistSizeAndPtr, Work,
 };
-use crate::numbers::{FFINumber};
 
 #[derive(Debug, Clone)]
 pub struct CommandQueueOptions {
@@ -122,7 +122,7 @@ pub unsafe fn cl_enqueue_read_buffer<T>(
     command_queue_opts: CommandQueueOptions,
 ) -> Output<cl_event>
 where
-    T: FFINumber,
+    T: ClNum,
 {
     let mut tracking_event = new_tracking_event();
     let waitlist = command_queue_opts.new_waitlist();
@@ -145,7 +145,7 @@ where
     build_output(tracking_event, err_code)
 }
 
-pub unsafe fn cl_enqueue_write_buffer<T: FFINumber>(
+pub unsafe fn cl_enqueue_write_buffer<T: ClNum>(
     queue: cl_command_queue,
     mem: cl_mem,
     buffer: &[T],
@@ -155,7 +155,6 @@ pub unsafe fn cl_enqueue_write_buffer<T: FFINumber>(
 
     let waitlist = command_queue_opts.new_waitlist();
     let wl = waitlist.as_slice();
-    
     let err_code = clEnqueueWriteBuffer(
         queue,
         mem,
@@ -286,7 +285,7 @@ impl ObjectWrapper<cl_command_queue> {
 
     /// write_buffer is used to move data from the host buffer (buffer: &[T]) to
     /// the mutable OpenCL cl_mem pointer.
-    pub unsafe fn write_buffer<'a, T: FFINumber, H: Into<VecOrSlice<'a, T>>>(
+    pub unsafe fn write_buffer<'a, T: ClNum, H: Into<VecOrSlice<'a, T>>>(
         &mut self,
         mem: &mut ClMem,
         host_buffer: H,
@@ -299,7 +298,7 @@ impl ObjectWrapper<cl_command_queue> {
     }
 
     /// Copies data to a ClMem buffer from a host slice of T.
-    unsafe fn write_buffer_from_slice<'a, T: FFINumber>(
+    unsafe fn write_buffer_from_slice<'a, T: ClNum>(
         &mut self,
         mem: &mut ClMem,
         host_buffer: &[T],
@@ -315,7 +314,7 @@ impl ObjectWrapper<cl_command_queue> {
     }
 
     /// Copies data from a ClMem<T> buffer to a &mut [T] or mut Vec<T>.
-    pub unsafe fn read_buffer<'a, T: FFINumber, H: Into<MutVecOrSlice<'a, T>>>(
+    pub unsafe fn read_buffer<'a, T: ClNum, H: Into<MutVecOrSlice<'a, T>>>(
         &mut self,
         mem: &ClMem,
         host_buffer: H,
@@ -334,7 +333,7 @@ impl ObjectWrapper<cl_command_queue> {
     }
 
     /// Copies data from a ClMem<T> buffer to a &mut [T].
-    unsafe fn read_buffer_into_slice<T: FFINumber>(
+    unsafe fn read_buffer_into_slice<T: ClNum>(
         &mut self,
         mem: &ClMem,
         host_buffer: &mut [T],
@@ -379,7 +378,6 @@ impl ObjectWrapper<cl_command_queue> {
 mod tests {
     use crate::*;
 
-    
     #[test]
     fn command_queue_can_be_created() {
         let (context, devices) = ll_testing::get_context();

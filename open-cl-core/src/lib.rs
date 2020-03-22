@@ -55,7 +55,7 @@ pub use program::{Program, UnbuiltProgram};
 pub use session::Session;
 
 pub use ll::{
-    BufferCreator, ClNumber, CommandQueueOptions, CommandQueueProperties, DeviceType, Error,
-    HostAccess, KernelAccess, MemConfig, MemLocation, MutVecOrSlice, Output, VecOrSlice, Waitlist,
-    Work, NumberType, NumberTyped, NumberTypedT
+    BufferCreator, ClNum, CommandQueueOptions, CommandQueueProperties, DeviceType, Error,
+    HostAccess, KernelAccess, MemConfig, MemLocation, MutVecOrSlice, NumberType, NumberTyped,
+    NumberTypedT, Output, VecOrSlice, Waitlist, Work,
 };

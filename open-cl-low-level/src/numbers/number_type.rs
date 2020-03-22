@@ -1,17 +1,18 @@
 use std::fmt;
-use std::slice;
 use std::marker::PhantomData;
+use std::slice;
 
-use crate::{Output};
+use crate::Output;
 
-use libc::{size_t, c_void};
+use libc::c_void;
 
-use super::newtypes::*;
-use super::ffi_types::*;
 use super::as_ptr::AsPtr;
+// use super::cl_newtype::*;
+use super::cl_number::*;
 
 pub fn apply<T: NumberTypedT, F: FnOnce() -> T + Sized>(t: NumberType, fun: F) -> T {
-    t.type_check(T::number_type()).unwrap_or_else(|e| panic!("{:?}", e));
+    t.type_check(T::number_type())
+        .unwrap_or_else(|e| panic!("{:?}", e));
     fun()
 }
 
@@ -39,7 +40,7 @@ macro_rules! apply_number_type {
             $crate::NumberType::ClShort3 => $func::<cl_short3>($( $arg ),*),
             $crate::NumberType::ClShort4 => $func::<cl_short4>($( $arg ),*),
             $crate::NumberType::ClShort8 => $func::<cl_short8>($( $arg ),*),
-            $crate::NumberType::ClShort16 => $func::<cl_short16>($( $arg ),*), 
+            $crate::NumberType::ClShort16 => $func::<cl_short16>($( $arg ),*),
             $crate::NumberType::ClUshort => $func::<cl_ushort>($( $arg ),*),
             $crate::NumberType::ClUshort2 => $func::<cl_ushort2>($( $arg ),*),
             $crate::NumberType::ClUshort3 => $func::<cl_ushort3>($( $arg ),*),
@@ -160,14 +161,16 @@ fn _match_or_panic(t1: NumberType, t2: NumberType) {
     }
 }
 
-
 /// An error related to CL types.
 #[derive(Debug, Fail, PartialEq, Eq, Clone)]
 pub enum TypeError {
     #[fail(display = "TypeMismatchError - expected {:?}, but found {:?}", _0, _1)]
     TypeMismatch(NumberType, NumberType),
 
-    #[fail(display = "InvalidTypeError - the value {:?} is not a valid value for type {}", _0, 1)]
+    #[fail(
+        display = "InvalidTypeError - the value {:?} is not a valid value for type {}",
+        _0, 1
+    )]
     InvalidValue(NumberType, String),
 }
 
@@ -180,7 +183,6 @@ fn _size_of<T: Sized>() -> usize {
 fn _align_of<T>() -> usize {
     std::mem::align_of::<T>()
 }
-
 
 impl NumberType {
     pub fn size_of(&self) -> usize {
@@ -214,9 +216,12 @@ pub trait NumberTypedT {
     fn matches(other: NumberType) -> bool {
         Self::number_type() == other
     }
-    
     fn match_or_panic(other: NumberType) {
         _match_or_panic(Self::number_type(), other);
+    }
+
+    fn type_name() -> String {
+        format!("{:?}", Self::number_type())
     }
 }
 
@@ -226,118 +231,95 @@ pub trait NumberTyped {
     fn matches(&self, other: NumberType) -> bool {
         self.number_type() == other
     }
-    
     fn match_or_panic(&self, other: NumberType) {
         _match_or_panic(self.number_type(), other);
     }
 }
 
-impl NumberTypedT for f64 {
-    fn number_type() -> NumberType {
-        NumberType::ClDouble
-    }
-}
+// impl NumberTypedT for f64 {
+//     fn number_type() -> NumberType {
+//         NumberType::ClDouble
+//     }
+// }
 
-impl NumberTypedT for bool {
-    fn number_type() -> NumberType {
-        NumberType::ClUint
-    }
-}
+// impl NumberTypedT for ClBool {
+//     fn number_type() -> NumberType {
+//         NumberType::ClUint
+//     }
+// }
 
+// impl NumberTypedT for ClHalf {
+//     fn number_type() -> NumberType {
+//         NumberType::ClHalf
+//     }
+// }
 
-impl NumberTypedT for ClBool {
-    fn number_type() -> NumberType {
-        NumberType::ClUint
-    }
-}
+// impl NumberTypedT for ClDouble {
+//     fn number_type() -> NumberType {
+//         NumberType::ClDouble
+//     }
+// }
 
-impl NumberTypedT for ClHalf {
-    fn number_type() -> NumberType {
-        NumberType::ClHalf
-    }
-}
+// macro_rules! impl_number_typed_t {
+//     ($snake:ident, $pascal:ident) => {
+//         impl NumberTypedT for $snake {
+//             fn number_type() -> NumberType {
+//                 NumberType::$pascal
+//             }
+//         }
 
-impl NumberTypedT for ClDouble {
-    fn number_type() -> NumberType {
-        NumberType::ClDouble
-    }
-}
+//         impl NumberTypedT for $pascal {
+//             fn number_type() -> NumberType {
+//                 NumberType::$pascal
+//             }
+//         }
+//     };
+//     ($snake:ident, $pascal:ident, 3) => {
+//         paste::item! {
+//             impl NumberTypedT for [<$pascal 3>] {
+//                 fn number_type() -> NumberType {
+//                     NumberType::[<$pascal 3>]
+//                 }
+//             }
+//         }
+//     };
+//     ($snake:ident, $pascal:ident, $num:expr) => {
+//         paste::item! {
+//             impl NumberTypedT for [<$pascal $num>] {
+//                 fn number_type() -> NumberType {
+//                     NumberType::[<$pascal $num>]
+//                 }
+//             }
 
-impl NumberTypedT for size_t {
-    fn number_type() -> NumberType {
-        NumberType::SizeT
-    }
-}
+//             impl NumberTypedT for [<$snake $num>] {
+//                 fn number_type() -> NumberType {
+//                     NumberType::[<$pascal $num>]
+//                 }
+//             }
+//         }
+//     };
+// }
 
-impl NumberTypedT for SizeT {
-    fn number_type() -> NumberType {
-        NumberType::SizeT
-    }
-}
+// macro_rules! impl_number_typed_t_for_all {
+//     ($t:ident, $new_t:ident) => {
+//         impl_number_typed_t!($t, $new_t);
+//         impl_number_typed_t!($t, $new_t, 2);
+//         impl_number_typed_t!($t, $new_t, 3);
+//         impl_number_typed_t!($t, $new_t, 4);
+//         impl_number_typed_t!($t, $new_t, 8);
+//         impl_number_typed_t!($t, $new_t, 16);
+//     };
+// }
 
-
-
-macro_rules! impl_number_typed_t {
-    ($snake:ident, $pascal:ident) => {
-        impl NumberTypedT for $snake {
-            fn number_type() -> NumberType {
-                NumberType::$pascal
-            }
-        }
-
-        impl NumberTypedT for $pascal {
-            fn number_type() -> NumberType {
-                NumberType::$pascal
-            }
-        }
-    };
-    ($snake:ident, $pascal:ident, 3) => {
-        paste::item! {
-            impl NumberTypedT for [<$pascal 3>] {
-                fn number_type() -> NumberType {
-                    NumberType::[<$pascal 3>]
-                }
-            }
-        }
-    };
-    ($snake:ident, $pascal:ident, $num:expr) => {
-        paste::item! {
-            impl NumberTypedT for [<$pascal $num>] {
-                fn number_type() -> NumberType {
-                    NumberType::[<$pascal $num>]
-                }
-            }
-
-            impl NumberTypedT for [<$snake $num>] {
-                fn number_type() -> NumberType {
-                    NumberType::[<$pascal $num>]
-                }
-            }
-        }
-    }
-}
-
-macro_rules! impl_number_typed_t_for_all {
-    ($t:ident, $new_t:ident) => {
-        impl_number_typed_t!($t, $new_t);
-        impl_number_typed_t!($t, $new_t, 2);
-        impl_number_typed_t!($t, $new_t, 3);
-        impl_number_typed_t!($t, $new_t, 4);
-        impl_number_typed_t!($t, $new_t, 8);
-        impl_number_typed_t!($t, $new_t, 16);
-    }
-}
-
-impl_number_typed_t_for_all!(cl_char, ClChar);
-impl_number_typed_t_for_all!(cl_uchar, ClUchar);
-impl_number_typed_t_for_all!(cl_short, ClShort);
-impl_number_typed_t_for_all!(cl_ushort, ClUshort);
-impl_number_typed_t_for_all!(cl_int, ClInt);
-impl_number_typed_t_for_all!(cl_uint, ClUint);
-impl_number_typed_t_for_all!(cl_long, ClLong);
-impl_number_typed_t_for_all!(cl_ulong, ClUlong);
-impl_number_typed_t_for_all!(cl_float, ClFloat);
-
+// impl_number_typed_t_for_all!(cl_char, ClChar);
+// impl_number_typed_t_for_all!(cl_uchar, ClUchar);
+// impl_number_typed_t_for_all!(cl_short, ClShort);
+// impl_number_typed_t_for_all!(cl_ushort, ClUshort);
+// impl_number_typed_t_for_all!(cl_int, ClInt);
+// impl_number_typed_t_for_all!(cl_uint, ClUint);
+// impl_number_typed_t_for_all!(cl_long, ClLong);
+// impl_number_typed_t_for_all!(cl_ulong, ClUlong);
+// impl_number_typed_t_for_all!(cl_float, ClFloat);
 
 impl<T: NumberTypedT> NumberTypedT for Vec<T> {
     fn number_type() -> NumberType {
@@ -354,7 +336,11 @@ pub struct NumberTypedSlice<'a> {
 
 impl<'a> fmt::Debug for NumberTypedSlice<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "NumberTypedSlice{{t: {:?}, ptr: {:?}, len: {:?}}}", self.t, self._ptr, self._len)
+        write!(
+            f,
+            "NumberTypedSlice{{t: {:?}, ptr: {:?}, len: {:?}}}",
+            self.t, self._ptr, self._len
+        )
     }
 }
 
@@ -399,10 +385,13 @@ pub struct NumberTypedVec {
     _cap: usize,
 }
 
-
 impl fmt::Debug for NumberTypedVec {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "NumberTypedVec{{t: {:?}, ptr: {:?}, len: {:?}, capacity: {:?}}}", self.t, self._ptr, self._len, self._cap)
+        write!(
+            f,
+            "NumberTypedVec{{t: {:?}, ptr: {:?}, len: {:?}, capacity: {:?}}}",
+            self.t, self._ptr, self._len, self._cap
+        )
     }
 }
 
@@ -441,7 +430,7 @@ impl NumberTypedVec {
             t: self.t,
             _ptr: self._ptr as *const c_void,
             _len: self._len,
-            _phantom: PhantomData
+            _phantom: PhantomData,
         }
     }
 
@@ -466,14 +455,13 @@ impl NumberTypedVec {
     }
 }
 
-
 impl<T: NumberTypedT> From<Vec<T>> for NumberTypedVec {
     fn from(mut v: Vec<T>) -> NumberTypedVec {
-        let ntv = NumberTypedVec{
+        let ntv = NumberTypedVec {
             t: T::number_type(),
             _ptr: v.as_mut_ptr() as *mut c_void,
             _len: v.len(),
-            _cap: v.capacity()
+            _cap: v.capacity(),
         };
         std::mem::forget(v);
         ntv
@@ -493,32 +481,24 @@ impl NumberTyped for NumberTypedVec {
 
 impl Drop for NumberTypedVec {
     fn drop(&mut self) {
-        unsafe {
-            apply_number_type!(self.t, _ntv_drop, [self])
-        };
+        unsafe { apply_number_type!(self.t, _ntv_drop, [self]) };
     }
 }
 
-
-
-
 // impl Clone for NumberTypeVec {
 //     fn clone(&self) -> NumberTypeVec {
-//         let data = 
+//         let data =
 //     }
 // }
 
-
 #[cfg(test)]
 mod tests {
-    
 
     use crate::numbers::*;
 
     fn test_func_to_be_applied<T: NumberTypedT>() -> NumberType {
         T::number_type()
     }
-
 
     #[test]
     fn apply_number_type_macro_works() {

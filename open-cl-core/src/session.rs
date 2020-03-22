@@ -3,17 +3,16 @@ use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::{
     Buffer, BufferCreator, CommandQueueOptions, Context, Device, DeviceType, Kernel, KernelOpArg,
-    KernelOperation, MemConfig, MutVecOrSlice, Output, Program, VecOrSlice, Waitlist,
-    Work, NumberTyped,
+    KernelOperation, MemConfig, MutVecOrSlice, NumberTyped, Output, Program, VecOrSlice, Waitlist,
+    Work,
 };
 
 use crate::ll::{
     list_devices_by_type, list_platforms, BufferReadEvent, ClCommandQueue, ClContext, ClDeviceID,
-    ClEvent, ClKernel, ClMem, ClProgram, CommandQueueProperties, CommandQueuePtr,
-    DevicePtr
+    ClEvent, ClKernel, ClMem, ClProgram, CommandQueueProperties, CommandQueuePtr, DevicePtr,
 };
 
-use crate::ll::numbers::{FFINumber};
+use crate::ll::numbers::ClNum;
 
 #[derive(Debug)]
 pub struct Session {
@@ -129,7 +128,7 @@ impl Session {
     /// Creates a ClMem object in the given context, with the given buffer creator
     /// (either a length or some data). This function uses the BufferCreator's implementation
     /// to retrieve the appropriate MemConfig.
-    pub fn create_buffer<T: FFINumber, B: BufferCreator<T>>(
+    pub fn create_buffer<T: ClNum, B: BufferCreator<T>>(
         &self,
         buffer_creator: B,
     ) -> Output<Buffer> {
@@ -145,7 +144,7 @@ impl Session {
 
     /// Creates a ClMem object in the given context, with the given buffer creator
     /// (either a length or some data) and a given MemConfig.
-    pub fn create_buffer_with_config<T: FFINumber, B: BufferCreator<T>>(
+    pub fn create_buffer_with_config<T: ClNum, B: BufferCreator<T>>(
         &self,
         buffer_creator: B,
         mem_config: MemConfig,
@@ -162,7 +161,7 @@ impl Session {
     /// This function copies data from the host buffer into the device mem buffer. The host
     /// buffer must be a mutable slice or a vector to ensure the safety of the read_Buffer
     /// operation.
-    pub fn sync_write_buffer<'a, T: FFINumber, H: Into<VecOrSlice<'a, T>>>(
+    pub fn sync_write_buffer<'a, T: ClNum, H: Into<VecOrSlice<'a, T>>>(
         &self,
         buffer: &Buffer,
         host_buffer: H,
@@ -180,7 +179,7 @@ impl Session {
     /// This function copies data from a device mem buffer into a host buffer. The host
     /// buffer must be a mutable slice or a vector. For the moment the device mem must also
     /// be passed as mutable; I don't trust OpenCL.
-    pub fn sync_read_buffer<'a, T: FFINumber, H: Into<MutVecOrSlice<'a, T>>>(
+    pub fn sync_read_buffer<'a, T: ClNum, H: Into<MutVecOrSlice<'a, T>>>(
         &self,
         buffer: &Buffer,
         host_buffer: H,
@@ -221,8 +220,7 @@ impl Session {
         &self,
         mut kernel_op: KernelOperation<'a>,
     ) -> Output<()>
-    where
-    {
+where {
         unsafe {
             let kernel = self.create_kernel(kernel_op.name())?;
             let work = kernel_op.work()?;

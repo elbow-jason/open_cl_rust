@@ -1,6 +1,6 @@
+use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
-use std::marker::PhantomData;
 
 use libc::c_void;
 
@@ -123,7 +123,6 @@ impl<'a> NumberTyped for NumArg<'a> {
     }
 }
 
-
 unsafe impl<'a> KernelArg for NumArg<'a> {
     fn kernel_arg_size(&self) -> usize {
         self.t.size_of()
@@ -140,7 +139,10 @@ pub trait ToKernelOpArg<'a> {
     fn to_kernel_op_arg(&self) -> KernelOpArg<'a>;
 }
 
-impl<'a, T> ToKernelOpArg<'a> for T where T: FFINumber + AsPtr + Sized {
+impl<'a, T> ToKernelOpArg<'a> for T
+where
+    T: ClNum + AsPtr + Sized,
+{
     fn to_kernel_op_arg(&self) -> KernelOpArg<'a> {
         KernelOpArg::Num(NumArg::new(*self))
     }
@@ -220,10 +222,7 @@ impl<'a> KernelOperation<'a> {
         self
     }
 
-    pub fn with_command_queue_options(
-        mut self,
-        opts: CommandQueueOptions,
-    ) -> KernelOperation<'a> {
+    pub fn with_command_queue_options(mut self, opts: CommandQueueOptions) -> KernelOperation<'a> {
         self.command_queue_opts = Some(opts);
         self
     }
