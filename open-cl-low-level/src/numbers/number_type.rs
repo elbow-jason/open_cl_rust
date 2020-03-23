@@ -239,91 +239,6 @@ pub trait NumberTyped {
     }
 }
 
-// impl NumberTypedT for f64 {
-//     fn number_type() -> NumberType {
-//         NumberType::ClDouble
-//     }
-// }
-
-// impl NumberTypedT for ClBool {
-//     fn number_type() -> NumberType {
-//         NumberType::ClUint
-//     }
-// }
-
-// impl NumberTypedT for ClHalf {
-//     fn number_type() -> NumberType {
-//         NumberType::ClHalf
-//     }
-// }
-
-// impl NumberTypedT for ClDouble {
-//     fn number_type() -> NumberType {
-//         NumberType::ClDouble
-//     }
-// }
-
-// macro_rules! impl_number_typed_t {
-//     ($snake:ident, $pascal:ident) => {
-//         impl NumberTypedT for $snake {
-//             fn number_type() -> NumberType {
-//                 NumberType::$pascal
-//             }
-//         }
-
-//         impl NumberTypedT for $pascal {
-//             fn number_type() -> NumberType {
-//                 NumberType::$pascal
-//             }
-//         }
-//     };
-//     ($snake:ident, $pascal:ident, 3) => {
-//         paste::item! {
-//             impl NumberTypedT for [<$pascal 3>] {
-//                 fn number_type() -> NumberType {
-//                     NumberType::[<$pascal 3>]
-//                 }
-//             }
-//         }
-//     };
-//     ($snake:ident, $pascal:ident, $num:expr) => {
-//         paste::item! {
-//             impl NumberTypedT for [<$pascal $num>] {
-//                 fn number_type() -> NumberType {
-//                     NumberType::[<$pascal $num>]
-//                 }
-//             }
-
-//             impl NumberTypedT for [<$snake $num>] {
-//                 fn number_type() -> NumberType {
-//                     NumberType::[<$pascal $num>]
-//                 }
-//             }
-//         }
-//     };
-// }
-
-// macro_rules! impl_number_typed_t_for_all {
-//     ($t:ident, $new_t:ident) => {
-//         impl_number_typed_t!($t, $new_t);
-//         impl_number_typed_t!($t, $new_t, 2);
-//         impl_number_typed_t!($t, $new_t, 3);
-//         impl_number_typed_t!($t, $new_t, 4);
-//         impl_number_typed_t!($t, $new_t, 8);
-//         impl_number_typed_t!($t, $new_t, 16);
-//     };
-// }
-
-// impl_number_typed_t_for_all!(cl_char, ClChar);
-// impl_number_typed_t_for_all!(cl_uchar, ClUchar);
-// impl_number_typed_t_for_all!(cl_short, ClShort);
-// impl_number_typed_t_for_all!(cl_ushort, ClUshort);
-// impl_number_typed_t_for_all!(cl_int, ClInt);
-// impl_number_typed_t_for_all!(cl_uint, ClUint);
-// impl_number_typed_t_for_all!(cl_long, ClLong);
-// impl_number_typed_t_for_all!(cl_ulong, ClUlong);
-// impl_number_typed_t_for_all!(cl_float, ClFloat);
-
 impl<T: NumberTypedT> NumberTypedT for Vec<T> {
     fn number_type() -> NumberType {
         T::number_type()
@@ -487,12 +402,6 @@ impl Drop for NumberTypedVec {
         unsafe { apply_number_type!(self.t, _ntv_drop, [self]) };
     }
 }
-
-// impl Clone for NumberTypeVec {
-//     fn clone(&self) -> NumberTypeVec {
-//         let data =
-//     }
-// }
 
 #[cfg(test)]
 mod tests {

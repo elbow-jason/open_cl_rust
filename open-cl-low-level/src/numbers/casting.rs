@@ -6,7 +6,7 @@ use crate::{
     AsSlice, ClRustPrimitiveNum, Error, NumChange, Number, NumberType, NumberTypedT, Output, Zeroed,
 };
 
-use num_traits::{FromPrimitive, NumCast, ToPrimitive};
+use num_traits::{NumCast, ToPrimitive};
 
 #[derive(Debug, Fail, PartialEq, Eq, Clone)]
 pub enum NumCastError {
@@ -29,7 +29,7 @@ impl NumCastError {
     }
 }
 
-pub trait TryClCastNumber<T, X = (), Y = ()> {
+pub trait TryClCastNumber<T> {
     fn try_cl_cast_number(self) -> Output<T>;
 }
 
@@ -145,11 +145,10 @@ where
     }
 }
 
-impl<S, T, U> TryClCastNumber<Vec<U>> for S
+impl<T, U> TryClCastNumber<Vec<U>> for Vec<T>
 where
-    S: Iterator<Item = T>,
     T: TryClCastNumber<U>,
-    U: ToPrimitive + FromPrimitive + NumCast + NumberTypedT + NumChange + Number,
+    U: NumberTypedT,
 {
     fn try_cl_cast_number(self) -> Output<Vec<U>> {
         let mut out: Vec<U> = Vec::new();
@@ -189,6 +188,17 @@ where
             Error::from(nce)
         })?;
         _cl_uint_to_bool::<T>(val)
+    }
+}
+#[cfg(test)]
+mod tests {
+    use crate::TryClCastNumber;
+
+    #[test]
+    fn can_cast_a_vec() {
+        let data1 = vec![0u8, 1, 2, 3, 4, 5, 6, 7];
+        let data2: Vec<i32> = data1.try_cl_cast_number().unwrap();
+        assert_eq!(data2, vec![0i32, 1, 2, 3, 4, 5, 6, 7]);
     }
 }
 
