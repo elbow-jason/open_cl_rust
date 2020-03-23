@@ -145,15 +145,15 @@ where
     }
 }
 
-impl<T, U> TryClCastNumber<Vec<U>> for Vec<T>
+impl<T, U> TryClCastNumber<Vec<U>> for &[T]
 where
-    T: TryClCastNumber<U>,
+    T: TryClCastNumber<U> + Copy,
     U: NumberTypedT,
 {
     fn try_cl_cast_number(self) -> Output<Vec<U>> {
         let mut out: Vec<U> = Vec::new();
         for item in self {
-            match item.try_cl_cast_number() {
+            match (*item).try_cl_cast_number() {
                 Ok(u) => out.push(u),
                 Err(e) => return Err(e),
             }

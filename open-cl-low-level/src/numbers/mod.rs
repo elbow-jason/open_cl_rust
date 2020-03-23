@@ -11,9 +11,6 @@ pub use trait_impls::*;
 pub mod cl_number;
 pub use cl_number::*;
 
-pub mod cl_newtype;
-pub use cl_newtype::*;
-
 pub mod casting;
 pub use casting::*;
 
