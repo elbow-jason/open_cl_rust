@@ -10,6 +10,8 @@ pub trait ClNewNum: Number {}
 
 pub trait ClRustNum: Number {}
 
+pub trait ClRustPrimitiveNum: Number {}
+
 pub trait NumChange: Number {
     type ClNum: ClNum;
     type NewNum: ClNewNum;
@@ -24,15 +26,18 @@ pub trait Zeroed {
     fn zeroed() -> Self;
 }
 
-// pub trait ClPrimitive {}
 pub trait ClPrimitive:
     NumCast + ToPrimitive + FromPrimitive + Copy + NumberTypedT + ClNum + Debug
 {
 }
-// pub trait IsClVector: Copy + FFINumber {}
-pub trait ClVector<T: ClPrimitive>: Copy + ClNum {}
-pub trait ClVector2 {}
-pub trait ClVector3 {}
-pub trait ClVector4 {}
-pub trait ClVector8 {}
-pub trait ClVector16 {}
+
+// pub trait ClVector<T: ClPrimitive>: Copy + ClNum {}
+pub trait ClVector2<T: ClPrimitive>: Copy + ClNum {}
+pub trait ClVector3<T: ClPrimitive>: Copy + ClNum {}
+pub trait ClVector4<T: ClPrimitive>: Copy + ClNum {}
+pub trait ClVector8<T: ClPrimitive>: Copy + ClNum {}
+pub trait ClVector16<T: ClPrimitive>: Copy + ClNum {}
+
+pub trait InnerMutRef<T> {
+    fn inner_mut_ref(&mut self) -> &mut T;
+}

@@ -1,5 +1,6 @@
 pub use libc::size_t;
 
+pub use half::f16;
 // u8
 pub use crate::ffi::{cl_uchar, cl_uchar16, cl_uchar2, cl_uchar3, cl_uchar4, cl_uchar8};
 

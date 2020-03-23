@@ -1,4 +1,8 @@
-use super::traits::{ClNewNum, ClNum, ClRustNum, NumChange, Number, Zeroed};
+use super::traits::{
+    ClNewNum, ClNum, ClPrimitive, ClRustNum, ClRustPrimitiveNum, InnerMutRef, NumChange, Number,
+    Zeroed,
+};
+use super::traits::{ClVector16, ClVector2, ClVector3, ClVector4, ClVector8};
 use crate::ffi::*;
 use crate::{ClNewType, ClType, NumberType, NumberTypedT, RustType};
 use half::f16;
@@ -129,8 +133,10 @@ macro_rules! __impl_newtype_funcs {
             pub fn inner(&self) -> $cl_type {
                 self.0
             }
+        }
 
-            pub fn inner_mut_ref(&mut self) -> &$cl_type {
+        impl InnerMutRef<$cl_type> for $new_type {
+            fn inner_mut_ref(&mut self) -> &mut $cl_type {
                 &mut self.0
             }
         }
@@ -174,6 +180,8 @@ macro_rules! defnumber {
         }
     ) => {
         __impl_newtype!($NewType, $cl_type);
+        impl ClRustPrimitiveNum for $cl_type {}
+        impl ClPrimitive for $cl_type {}
         __impl_newtype_funcs!($NewType, $cl_type);
 
         __impl_number_traits_aliased!($cl_type, $NewType);
@@ -185,64 +193,24 @@ macro_rules! defnumber {
         __impl_num_change_for_new_type_primitive!($cl_type, $NewType, $cl_type);
     };
 
-    (
-        pub struct $NewType:ident: $cl_type:ty | $rust_type:ty {
-            cl_zero: $cl_zero:expr,
-            rust_zero: $rust_zero:expr,
-        }
-    ) => {
-        __impl_newtype!($NewType, $cl_type);
-        __impl_newtype_funcs!($NewType, $cl_type);
+    // (
+    //     pub struct $NewType:ident: $cl_type:ty | $rust_type:ty {
+    //         cl_zero: $cl_zero:expr,
+    //         rust_zero: $rust_zero:expr,
+    //     }
+    // ) => {
+    //     __impl_newtype!($NewType, $cl_type);
+    //     __impl_newtype_funcs!($NewType, $cl_type);
 
-        __impl_number_traits_aliased!($cl_type, $NewType);
+    //     __impl_number_traits_aliased!($cl_type, $NewType);
 
-        __number_typed_t!($NewType, [$cl_type, $NewType]);
-        __impl_zeroed!($cl_type => $cl_zero);
-        __impl_zeroed!($NewType => $NewType($cl_zero));
-        __impl_num_change_for_cl_type_primitive!($cl_type, $NewType, $rust_type);
-        __impl_num_change_for_new_type_primitive!($cl_type, $NewType, $rust_type);
-    }
+    //     __number_typed_t!($NewType, [$cl_type, $NewType]);
+    //     __impl_zeroed!($cl_type => $cl_zero);
+    //     __impl_zeroed!($NewType => $NewType($cl_zero));
+    //     __impl_num_change_for_cl_type_primitive!($cl_type, $NewType, $rust_type);
+    //     __impl_num_change_for_new_type_primitive!($cl_type, $NewType, $rust_type);
+    // }
 }
-
-// macro_rules! deffloat {
-//     (
-//         $(#[$outer:meta])*
-//         pub struct $NewType:ident: $cl_type:ty {
-//             // rust_type: $rust_type:ty,
-//             cl_zero: $cl_zero:expr,
-//         }
-//     ) => {
-//         __impl_newtype_float!($NewType, $cl_type);
-//         __impl_newtype_funcs!($NewType, $cl_type);
-
-//         __impl_number_traits_aliased!($cl_type, $NewType);
-
-//         __number_typed_t!($NewType, [$cl_type, $NewType]);
-//         __impl_zeroed!($cl_type => $cl_zero);
-//         __impl_zeroed!($NewType => $NewType($cl_zero));
-//         __impl_num_change_for_cl_type_primitive!($cl_type, $NewType, $cl_type);
-//         __impl_num_change_for_new_type_primitive!($cl_type, $NewType, $cl_type);
-//     };
-
-//     (
-//         $(#[$outer:meta])*
-//         pub struct $NewType:ident: $cl_type:ty | $rust_type:ty {
-//             cl_zero: $cl_zero:expr,
-//             rust_zero: $rust_zero:expr,
-//         }
-//     ) => {
-//         __impl_newtype_float!($NewType, $cl_type, [$( $outer ),*]);
-//         __impl_newtype_funcs!($NewType, $cl_type);
-
-//         __impl_number_traits_aliased!($cl_type, $NewType);
-
-//         __number_typed_t!($NewType, [$cl_type, $NewType]);
-//         __impl_zeroed!($cl_type => $cl_zero);
-//         __impl_zeroed!($NewType => $NewType($cl_zero));
-//         __impl_num_change_for_cl_type_primitive!($cl_type, $NewType, $rust_type);
-//         __impl_num_change_for_new_type_primitive!($cl_type, $NewType, $rust_type);
-//     }
-// }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ClBool(pub cl_bool);
@@ -258,13 +226,13 @@ impl ClRustNum for bool {}
 
 impl NumberTypedT for ClBool {
     fn number_type() -> NumberType {
-        NumberType::ClUint
+        NumberType::Bool
     }
 }
 
 impl NumberTypedT for bool {
     fn number_type() -> NumberType {
-        NumberType::ClUint
+        NumberType::Bool
     }
 }
 
@@ -398,104 +366,53 @@ impl NumChange for f16 {
 #[derive(Clone, Copy, Debug)]
 pub struct ClFloat(pub cl_float);
 
+impl Number for ClFloat {}
+impl Number for cl_float {}
+
+impl ClPrimitive for cl_float {}
+impl ClNum for cl_float {}
+impl ClNewNum for ClFloat {}
+impl ClRustNum for f32 {}
+impl ClRustPrimitiveNum for f32 {}
+
 __impl_zeroed!(ClFloat => ClFloat(0.0f32));
 __impl_zeroed!(cl_float => 0.0f32);
 __impl_newtype_funcs!(ClFloat, cl_float);
 __number_typed_t!(ClFloat, [ClFloat, cl_float]);
+__impl_num_change_for_cl_type_primitive!(cl_float, ClFloat, f32);
+__impl_num_change_for_new_type_primitive!(cl_float, ClFloat, f32);
 
 #[derive(Clone, Copy, Debug)]
 pub struct ClDouble(pub cl_double);
+
+impl Number for ClDouble {}
+impl Number for cl_double {}
+
+impl ClNum for cl_double {}
+impl ClNewNum for ClDouble {}
+impl ClRustNum for f64 {}
+impl ClRustPrimitiveNum for f64 {}
 
 __impl_zeroed!(ClDouble => ClDouble(0.0f64));
 __impl_zeroed!(cl_double => 0.0f64);
 __impl_newtype_funcs!(ClDouble, cl_double);
 __number_typed_t!(ClDouble, [ClDouble, cl_double]);
+__impl_num_change_for_cl_type_primitive!(cl_double, ClDouble, f64);
+__impl_num_change_for_new_type_primitive!(cl_double, ClDouble, f64);
 
 defnumber! {
     pub struct SizeT: size_t {
         cl_zero: 0usize,
     }
 }
-// #[derive(Clone, Copy)]
-// pub struct ClUchar2(pub cl_uchar2);
-
-// unsafe impl Send for ClUchar2 {}
-// unsafe impl Sync for ClUchar2 {}
-
-// // __number_typed_t!()
-// __number_typed_t!(ClUchar2, [cl_uchar2, ClUchar2, [u8; 2]]);
-// __impl_zeroed_vector!(cl_uchar2);
-// __impl_zeroed!(ClUchar2 => ClUchar2(cl_uchar2::zeroed()));
-// __impl_zeroed!([u8; 2] => [0u8, 0u8]);
-
-// impl Number for cl_uchar2 {}
-// impl Number for ClUchar2 {}
-// impl Number for [u8; 2] {}
-
-// impl ClNum for cl_uchar2 {}
-// impl ClNewNum for ClUchar2 {}
-// impl ClRustNum for [u8; 2] {}
-
-// impl NumChange for ClUchar2 {
-//     type ClNum = cl_uchar2;
-//     type NewNum = ClUchar2;
-//     type RustNum = [u8; 2];
-
-//     fn to_cl_num(self) -> <Self as NumChange>::ClNum {
-//         self.0
-//     }
-
-//     fn to_new_num(self) -> <Self as NumChange>::NewNum {
-//         self
-//     }
-
-//     fn to_rust_num(self) -> <Self as NumChange>::RustNum {
-//         self.0.s
-//     }
-// }
-
-// impl NumChange for cl_uchar2 {
-//     type ClNum = cl_uchar2;
-//     type NewNum = ClUchar2;
-//     type RustNum = [u8; 2];
-
-//     fn to_cl_num(self) -> <Self as NumChange>::ClNum {
-//         self
-//     }
-
-//     fn to_new_num(self) -> <Self as NumChange>::NewNum {
-//         ClUchar2(self)
-//     }
-
-//     fn to_rust_num(self) -> <Self as NumChange>::RustNum {
-//         self.s
-//     }
-// }
-
-// impl NumChange for [u8; 2] {
-//     type ClNum = cl_uchar2;
-//     type NewNum = ClUchar2;
-//     type RustNum = [u8; 2];
-
-//     fn to_cl_num(self) -> <Self as NumChange>::ClNum {
-//         let mut cl_val = cl_uchar2::zeroed();
-//         cl_val.s = self;
-//         cl_val
-//     }
-
-//     fn to_new_num(self) -> <Self as NumChange>::NewNum {
-//         ClUchar2(self.to_cl_num())
-//     }
-
-//     fn to_rust_num(self) -> <Self as NumChange>::RustNum {
-//         self
-//     }
-// }
 
 macro_rules! __impl_newtype_vector {
-     ($cl_type:ty, $NewType:ident, [$rust_t:ty; 3], $rust_zeroed:expr) => {
+     ($cl_base:ident, $cl_type:ty, $NewType:ident, [$rust_t:ty; 3], $rust_zeroed:expr) => {
         #[derive(Clone, Copy)]
         pub struct $NewType(pub $cl_type);
+
+        // impl ClVector<$cl_base> for $cl_type {}
+        impl ClVector3<$cl_base> for $cl_type {}
 
         impl fmt::Debug for $NewType {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -564,7 +481,7 @@ macro_rules! __impl_newtype_vector {
         }
 
     };
-    ($cl_type:ty, $NewType:ident, [$rust_t:ty; $size:expr], $rust_zeroed:expr) => {
+    ($cl_base:ident, $cl_type:ty, $NewType:ident, [$rust_t:ty; $size:expr], $rust_zeroed:expr) => {
         #[derive(Clone, Copy)]
         pub struct $NewType(pub $cl_type);
 
@@ -574,14 +491,19 @@ macro_rules! __impl_newtype_vector {
             }
         }
 
+        impl InnerMutRef<[$cl_base; $size]> for $cl_type {
+            fn inner_mut_ref(&mut self) -> &mut [$cl_base; $size] {
+                unsafe { &mut self.s }
+            }
+        }
+
         unsafe impl Send for $NewType {}
         unsafe impl Sync for $NewType {}
-        // impl fmt::Debug for ClHalf {
-        //     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        //         write!(f, "ClHalf{{{:?}}}", f16::from_bits(self.0))
-        //     }
-        // }
-        // __number_typed_t!()
+
+        paste::item! {
+            impl [<ClVector $size>]<$cl_base> for $cl_type {}
+        }
+
         __number_typed_t!($NewType, [$cl_type, $NewType, [$rust_t; $size]]);
         __impl_zeroed_vector!($cl_type);
         __impl_zeroed!($NewType => $NewType(zeroed_vector!($cl_type)));
@@ -655,11 +577,11 @@ macro_rules! __impl_newtype_vector {
 macro_rules! impl_all_vectors {
     ($cl_base:ident, $new_base:ident, $rust_t:ty, $zero:expr) => {
         paste::item! {
-            __impl_newtype_vector!([<$cl_base 2>], [<$new_base 2>], [$rust_t; 2], $zero);
-            __impl_newtype_vector!([<$cl_base 3>], [<$new_base 3>], [$rust_t; 3], $zero);
-            __impl_newtype_vector!([<$cl_base 4>], [<$new_base 4>], [$rust_t; 4], $zero);
-            __impl_newtype_vector!([<$cl_base 8>], [<$new_base 8>], [$rust_t; 8], $zero);
-            __impl_newtype_vector!([<$cl_base 16>], [<$new_base 16>], [$rust_t; 16], $zero);
+            __impl_newtype_vector!($cl_base, [<$cl_base 2>], [<$new_base 2>], [$rust_t; 2], $zero);
+            __impl_newtype_vector!($cl_base, [<$cl_base 3>], [<$new_base 3>], [$rust_t; 3], $zero);
+            __impl_newtype_vector!($cl_base, [<$cl_base 4>], [<$new_base 4>], [$rust_t; 4], $zero);
+            __impl_newtype_vector!($cl_base, [<$cl_base 8>], [<$new_base 8>], [$rust_t; 8], $zero);
+            __impl_newtype_vector!($cl_base, [<$cl_base 16>], [<$new_base 16>], [$rust_t; 16], $zero);
         }
     };
 }

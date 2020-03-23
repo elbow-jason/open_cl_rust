@@ -1,3 +1,7 @@
+#[macro_use]
+pub mod number_type;
+pub use number_type::*;
+
 pub mod traits;
 pub use traits::*;
 
@@ -10,21 +14,11 @@ pub use cl_number::*;
 pub mod cl_newtype;
 pub use cl_newtype::*;
 
-pub mod rust_number;
-pub use rust_number::*;
-
-// pub mod zeroed;
-#[macro_use]
-pub mod number_type;
-pub mod conversion;
+pub mod casting;
+pub use casting::*;
 
 pub mod as_ptr;
-pub mod as_slice;
-pub mod comparison;
-
-pub use number_type::*;
-// pub use zeroed::Zeroed;
-
 pub use as_ptr::*;
+
+pub mod as_slice;
 pub use as_slice::*;
-pub use conversion::*;

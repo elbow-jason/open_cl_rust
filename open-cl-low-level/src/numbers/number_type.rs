@@ -77,6 +77,7 @@ macro_rules! apply_number_type {
             $crate::NumberType::ClFloat4 => $func::<cl_float4>($( $arg ),*),
             $crate::NumberType::ClFloat8 => $func::<cl_float8>($( $arg ),*),
             $crate::NumberType::ClFloat16 => $func::<cl_float16>($( $arg ),*),
+            $crate::NumberType::Bool => $func::<bool>($( $arg ),*),
         }
     }
 }
@@ -146,6 +147,8 @@ pub enum NumberType {
     ClLong16,
     ClUlong16,
     ClFloat16,
+
+    Bool,
 }
 
 impl NumberTyped for NumberType {

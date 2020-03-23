@@ -305,7 +305,7 @@ mod tests {
     use crate::ffi::{
         cl_char, cl_double, cl_float, cl_long, cl_uchar, cl_uint, cl_ulong, cl_ushort,
     };
-    use crate::ffi::{cl_uchar2, cl_uchar3};
+    // use crate::ffi::{cl_uchar2, cl_uchar3};
     // use crate::numbers::ConvertTo;
     use crate::numbers::ClUchar;
     // use crate::numbers::{ClUchar, ClUchar2, ClUchar3};

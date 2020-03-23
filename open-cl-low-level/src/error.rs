@@ -7,6 +7,7 @@ use crate::context_builder::ContextBuilderError;
 use crate::device::DeviceError;
 use crate::event::EventError;
 use crate::kernel::KernelError;
+use crate::numbers::casting::NumCastError;
 use crate::numbers::TypeError;
 use crate::platform::PlatformError;
 use crate::program::ProgramError;
@@ -16,48 +17,53 @@ use crate::work::WorkError;
 
 #[derive(Debug, Fail, PartialEq, Clone, Eq)]
 pub enum Error {
-    #[fail(display = "{:?}", _0)]
+    #[fail(display = "{}", _0)]
     StatusCodeError(StatusCodeError),
 
-    #[fail(display = "{:?}", _0)]
+    #[fail(display = "{}", _0)]
     PlatformError(PlatformError),
 
-    #[fail(display = "{:?}", _0)]
+    #[fail(display = "{}", _0)]
     DeviceError(DeviceError),
 
-    #[fail(display = "{:?}", _0)]
+    #[fail(display = "{}", _0)]
     ProgramError(ProgramError),
 
-    #[fail(display = "{:?}", _0)]
+    #[fail(display = "{}", _0)]
     KernelError(KernelError),
 
-    #[fail(display = "{:?}", _0)]
+    #[fail(display = "{}", _0)]
     EventError(EventError),
 
-    #[fail(display = "{:?}", _0)]
+    #[fail(display = "{}", _0)]
     ContextBuilderError(ContextBuilderError),
 
-    #[fail(display = "{:?}", _0)]
+    #[fail(display = "{}", _0)]
     SessionBuilderError(SessionBuilderError),
 
-    #[fail(display = "{:?}", _0)]
+    #[fail(display = "{}", _0)]
     SessionError(SessionError),
 
-    #[fail(display = "{:?}", _0)]
+    #[fail(display = "{}", _0)]
     WorkError(WorkError),
 
-    #[fail(display = "{:?}", _0)]
+    #[fail(display = "{}", _0)]
     TypeError(TypeError),
 
     #[fail(display = "OpenCL returned a null pointer")]
     ClObjectCannotBeNull,
-    // #[fail(display = "{:?}", _0)]
-    // NumberConversionError(NumberConversionError),
+
+    #[fail(display = "{}", _0)]
+    NumCastError(NumCastError),
 }
 
 impl Error {
     pub fn panic(e: Error) {
         panic!("{:?}", e);
+    }
+
+    pub fn as_output<T>(self) -> Result<T, Error> {
+        Err(self)
     }
 }
 
@@ -121,8 +127,8 @@ impl From<TypeError> for Error {
     }
 }
 
-// impl From<NumberConversionError> for Error {
-//     fn from(err: NumberConversionError) -> Error {
-//         Error::NumberConversionError(err)
-//     }
-// }
+impl From<NumCastError> for Error {
+    fn from(err: NumCastError) -> Error {
+        Error::NumCastError(err)
+    }
+}
