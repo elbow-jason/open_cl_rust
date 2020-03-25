@@ -372,6 +372,12 @@ impl<T: NumberTypedT> NumberTypedT for Vec<T> {
     }
 }
 
+impl<T: NumberTypedT> NumberTyped for Vec<T> {
+    fn number_type(&self) -> NumberType {
+        T::number_type()
+    }
+}
+
 pub struct NumberTypedSlice<'a> {
     t: NumberType,
     _phantom: PhantomData<&'a c_void>,
