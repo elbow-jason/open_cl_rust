@@ -1,12 +1,33 @@
 // use std::convert::{TryFrom, TryInto};
 use std::fmt;
 
+use num_traits::NumCast;
+
 use super::cl_number::*;
-use crate::{
-    AsSlice, ClRustPrimitiveNum, Error, NumChange, Number, NumberType, NumberTypedT, Output, Zeroed,
+use super::trait_impls::{ClBool, SizeT};
+use super::trait_impls::{ClChar, ClInt, ClLong, ClShort, ClUchar, ClUint, ClUlong, ClUshort};
+use super::trait_impls::{
+    ClChar2, ClFloat2, ClInt2, ClLong2, ClShort2, ClUchar2, ClUint2, ClUlong2, ClUshort2,
 };
 
-use num_traits::{NumCast, ToPrimitive};
+use super::trait_impls::{
+    ClChar3, ClFloat3, ClInt3, ClLong3, ClShort3, ClUchar3, ClUint3, ClUlong3, ClUshort3,
+};
+
+use super::trait_impls::{
+    ClChar4, ClFloat4, ClInt4, ClLong4, ClShort4, ClUchar4, ClUint4, ClUlong4, ClUshort4,
+};
+
+use super::trait_impls::{
+    ClChar8, ClFloat8, ClInt8, ClLong8, ClShort8, ClUchar8, ClUint8, ClUlong8, ClUshort8,
+};
+
+use super::trait_impls::{
+    ClChar16, ClFloat16, ClInt16, ClLong16, ClShort16, ClUchar16, ClUint16, ClUlong16, ClUshort16,
+};
+use super::trait_impls::{ClDouble, ClFloat, ClHalf};
+
+use crate::{AsSlice, Error, NumberType, NumberTypedT, Output, Zeroed};
 
 #[derive(Debug, Fail, PartialEq, Eq, Clone)]
 pub enum NumCastError {
@@ -19,7 +40,7 @@ pub enum NumCastError {
 }
 
 impl NumCastError {
-    fn casting_failed<T: NumberTypedT + fmt::Debug, U: NumberTypedT>(t: T) -> Error {
+    fn casting_failed<T: NumberTypedT + fmt::Debug, U: NumberTypedT>(t: &T) -> Error {
         let e = NumCastError::CastingFailed {
             from: T::number_type(),
             to: U::number_type(),
@@ -29,31 +50,64 @@ impl NumCastError {
     }
 }
 
-pub trait TryClCastNumber<T> {
-    fn try_cl_cast_number(self) -> Output<T>;
+pub trait ClTryFrom<T>
+where
+    Self: Sized,
+{
+    fn try_from(val: T) -> Output<Self>;
 }
 
-fn _try_cast_number<T, U>(val: T) -> Output<U>
+pub trait ClTryInto<T> {
+    fn try_into(val: Self) -> Output<T>;
+}
+
+impl<T, U> ClTryInto<T> for U
 where
-    U: NumberTypedT + NumCast,
-    T: ToPrimitive + NumberTypedT + fmt::Debug + Copy,
+    T: ClTryFrom<U>,
 {
-    match NumCast::from(val) {
-        Some(u) => Ok(u),
-        None => NumCastError::casting_failed::<T, U>(val).as_output(),
+    fn try_into(val: U) -> Output<T> {
+        ClTryFrom::<U>::try_from(val)
     }
 }
 
+impl<T> ClTryFrom<T> for bool
+where
+    T: ClTryInto<cl_uint> + NumberTypedT + fmt::Debug + Copy,
+{
+    fn try_from(val: T) -> Output<bool> {
+        ClTryInto::try_into(val)
+            .and_then(|int| cast_cl_uint_to_bool(int))
+            .map_err(|_| {
+                let nce = NumCastError::casting_failed::<T, bool>(&val);
+                Error::from(nce)
+            })
+    }
+}
+
+// macro_rules! __impl_try_from_bool {
+//     () => {
+//         unimplemented!();
+//     };
+// }
+
+// macro_rules! __impl_primitive_casting_once {
+//     ($t1:ident, $t2:ident) => {
+//         impl ClTryFrom<$t1> for $t2 {
+//             fn try_from(val: $t1) ->
+//         }
+//     }
+// }
+
 macro_rules! __impl_vector_casting_once {
     ($vector1:ident, $base1:ident, $vector2:ident, $base2:ident) => {
-        impl TryClCastNumber<$vector2> for $vector1 {
-            fn try_cl_cast_number(self) -> Output<$vector2> {
+        impl ClTryFrom<$vector1> for $vector2 {
+            fn try_from(val: $vector1) -> Output<$vector2> {
                 let mut vector = $vector2::zeroed();
-                let slice_t: &[$base1] = self.as_slice();
-                let slice_u: &mut [$base2] = vector.as_mut_slice();
-                debug_assert!(slice_u.len() == slice_t.len());
-                for (i, item) in slice_t.iter().enumerate() {
-                    slice_u[i] = item.try_cl_cast_number()?;
+                let slice1: &[$base1] = val.as_slice();
+                let slice2: &mut [$base2] = vector.as_mut_slice();
+                debug_assert!(slice1.len() == slice2.len());
+                for (i, item) in slice1.iter().enumerate() {
+                    slice2[i] = ClTryFrom::<$base1>::try_from(*item)?;
                 }
                 Ok(vector)
             }
@@ -104,26 +158,135 @@ __impl_vector_casting!([
     cl_uchar, cl_char, cl_ushort, cl_short, cl_uint, cl_int, cl_ulong, cl_long, cl_float,
 ]);
 
-impl<T, U> TryClCastNumber<U> for T
-where
-    T: NumCast + NumberTypedT + NumChange + fmt::Debug + Number + ClRustPrimitiveNum,
-    U: NumCast + NumberTypedT + NumChange + Number + ClRustPrimitiveNum,
-{
-    fn try_cl_cast_number(self) -> Output<U> {
-        _try_cast_number::<T, U>(self)
+macro_rules! __impl_try_from_new_types {
+    ($t1:ident, $t2:ident) => {
+        impl ClTryFrom<$t1> for $t2 {
+            fn try_from(val: $t1) -> Output<$t2> {
+                match ClTryFrom::try_from(val.0) {
+                    Ok(casted_val) => Ok($t2(casted_val)),
+                    Err(_) => Err(NumCastError::casting_failed::<$t1, $t2>(&val)),
+                }
+            }
+        }
+    };
+}
+
+macro_rules! __try_from_new_types_3 {
+    ($t1:ident, [$( $t2:ident ),*]) => {
+        $(
+            __impl_try_from_new_types!($t1, $t2);
+        )*
+    };
+}
+
+macro_rules! __try_from_new_types_2 {
+    ([$( $t1:ident ),*], $types:tt) => {
+        $(
+            __try_from_new_types_3!($t1, $types);
+        )*
+    };
+}
+
+macro_rules! __try_from_all_new_types {
+    ($types:tt) => {
+        __try_from_new_types_2!($types, $types);
+    };
+}
+
+__try_from_all_new_types!([
+    ClUchar, ClChar, ClUshort, ClShort, ClUint, ClInt, ClUlong, ClLong, ClHalf, ClFloat, ClDouble,
+    ClBool, SizeT
+]);
+
+fn cast_cl_uint_to_bool(val: cl_uint) -> Output<bool> {
+    match val {
+        0 => Ok(false),
+        1 => Ok(true),
+        got => {
+            let nce = NumCastError::CastingFailed {
+                from: cl_uint::number_type(),
+                to: bool::number_type(),
+                val: format!("{:?}", got),
+            };
+            Err(Error::from(nce))
+        }
     }
 }
+
+__try_from_all_new_types!([
+    ClUchar2, ClChar2, ClUshort2, ClShort2, ClUint2, ClInt2, ClUlong2, ClLong2, ClFloat2
+]);
+
+__try_from_all_new_types!([
+    ClChar4, ClFloat4, ClInt4, ClLong4, ClShort4, ClUchar4, ClUint4, ClUlong4, ClUshort4
+]);
+
+__try_from_all_new_types!([
+    ClChar8, ClFloat8, ClInt8, ClLong8, ClShort8, ClUchar8, ClUint8, ClUlong8, ClUshort8
+]);
+
+__try_from_all_new_types!([
+    ClChar16, ClFloat16, ClInt16, ClLong16, ClShort16, ClUchar16, ClUint16, ClUlong16, ClUshort16
+]);
+
+__try_from_all_new_types!([
+    ClChar3, ClFloat3, ClInt3, ClLong3, ClShort3, ClUchar3, ClUint3, ClUlong3, ClUshort3
+]);
+
+macro_rules! __impl_try_from_cl_types {
+    ($t1:ident, $t2:ident) => {
+        impl ClTryFrom<$t1> for $t2 {
+            fn try_from(val: $t1) -> Output<$t2> {
+                NumCast::from(val).ok_or_else(|| {
+                    let nce = NumCastError::CastingFailed {
+                        from: $t1::number_type(),
+                        to: $t2::number_type(),
+                        val: format!("{:?}", val),
+                    };
+                    Error::from(nce)
+                })
+            }
+        }
+    };
+}
+
+macro_rules! __try_from_cl_types_3 {
+    ($t1:ident, [$( $t2:ident ),*]) => {
+        $(
+            __impl_try_from_cl_types!($t1, $t2);
+        )*
+    };
+}
+
+macro_rules! __try_from_cl_types_2 {
+    ([$( $t1:ident ),*], $types:tt) => {
+        $(
+            __try_from_cl_types_3!($t1, $types);
+        )*
+    };
+}
+
+macro_rules! __try_from_all_cl_types {
+    ($types:tt) => {
+        __try_from_cl_types_2!($types, $types);
+    };
+}
+
+__try_from_all_cl_types!([
+    cl_uchar, cl_char, cl_ushort, cl_short, cl_uint, cl_int, cl_long, cl_ulong, cl_float,
+    cl_double, size_t
+]);
 
 const F16_MAX: f32 = 65504.0;
 const F16_MIN: f32 = -65504.0;
 
-impl<T> TryClCastNumber<f16> for T
+impl<T> ClTryFrom<T> for f16
 where
-    T: TryClCastNumber<f32> + NumChange + fmt::Debug,
+    T: ClTryInto<f32> + NumberTypedT + fmt::Debug + Copy,
 {
-    fn try_cl_cast_number(self) -> Output<f16> {
-        let error_func = || Error::from(NumCastError::casting_failed::<T, f16>(self));
-        let float: f32 = self.try_cl_cast_number().map_err(|_| error_func())?;
+    fn try_from(val: T) -> Output<f16> {
+        let error_func = || Error::from(NumCastError::casting_failed::<T, f16>(&val));
+        let float: f32 = ClTryInto::try_into(val).map_err(|_| error_func())?;
         if float > F16_MAX {
             return error_func().as_output();
         }
@@ -136,24 +299,31 @@ where
     }
 }
 
-impl<T> TryClCastNumber<T> for f16
-where
-    T: NumberTypedT + NumCast + Number + NumChange + ClRustPrimitiveNum + fmt::Debug,
-{
-    fn try_cl_cast_number(self) -> Output<T> {
-        self.to_f32().try_cl_cast_number()
-    }
+macro_rules! __impl_try_from_f16 {
+    ($( $t:ident ),*) => {
+        $(
+            impl ClTryFrom<f16> for $t {
+                fn try_from(val: f16) -> Output<$t> {
+                    ClTryFrom::try_from(val.to_f32())
+                }
+            }
+        )*
+    };
 }
 
-impl<T, U> TryClCastNumber<Vec<U>> for &[T]
+__impl_try_from_f16!(
+    cl_uchar, cl_char, cl_ushort, cl_short, cl_uint, cl_int, cl_ulong, cl_long, cl_float, cl_double
+);
+
+impl<S, T> ClTryFrom<&[S]> for Vec<T>
 where
-    T: TryClCastNumber<U> + Copy,
-    U: NumberTypedT,
+    T: ClTryFrom<S>,
+    S: Copy,
 {
-    fn try_cl_cast_number(self) -> Output<Vec<U>> {
-        let mut out: Vec<U> = Vec::new();
-        for item in self {
-            match (*item).try_cl_cast_number() {
+    fn try_from(val: &[S]) -> Output<Vec<T>> {
+        let mut out: Vec<T> = Vec::with_capacity(val.len());
+        for item in val {
+            match ClTryFrom::try_from(*item) {
                 Ok(u) => out.push(u),
                 Err(e) => return Err(e),
             }
@@ -162,49 +332,31 @@ where
     }
 }
 
-#[inline]
-fn _cl_uint_to_bool<T: NumberTypedT>(val: cl_uint) -> Output<bool> {
-    match val {
-        0 => Ok(false),
-        1 => Ok(true),
-        got => {
-            let nce = NumCastError::CastingFailed {
-                from: T::number_type(),
-                to: bool::number_type(),
-                val: format!("{:?}", got),
-            };
-            Err(Error::from(nce))
-        }
+impl<S, T> ClTryFrom<Vec<S>> for Vec<T>
+where
+    T: ClTryFrom<S>,
+    S: Copy,
+{
+    fn try_from(val: Vec<S>) -> Output<Vec<T>> {
+        ClTryFrom::try_from(&val[..])
     }
 }
 
-impl<T> TryClCastNumber<bool> for T
-where
-    T: TryClCastNumber<cl_uint> + NumberTypedT + fmt::Debug + NumChange,
-{
-    fn try_cl_cast_number(self) -> Output<bool> {
-        let val: cl_uint = self.try_cl_cast_number().map_err(|_| {
-            let nce = NumCastError::casting_failed::<T, bool>(self);
-            Error::from(nce)
-        })?;
-        _cl_uint_to_bool::<T>(val)
-    }
-}
 #[cfg(test)]
 mod tests {
-    use crate::TryClCastNumber;
+    use crate::ClTryFrom;
 
     #[test]
     fn can_cast_a_vec() {
         let data1 = vec![0u8, 1, 2, 3, 4, 5, 6, 7];
-        let data2: Vec<i32> = data1.try_cl_cast_number().unwrap();
+        let data2: Vec<i32> = ClTryFrom::try_from(&data1[..]).unwrap();
         assert_eq!(data2, vec![0i32, 1, 2, 3, 4, 5, 6, 7]);
     }
 }
 
 #[cfg(test)]
 mod primitive_tests {
-    use super::{NumCastError, TryClCastNumber};
+    use super::{ClTryFrom, NumCastError};
     use crate::numbers::cl_number::*;
     use crate::Output;
     use half::f16;
@@ -216,7 +368,7 @@ mod primitive_tests {
                 #[test]
                 fn [<cl_casting_works_from_f16_to_ $t>]() {
                     let a = f16::from_f32(3.0);
-                    let b: f16 = a.try_cl_cast_number().unwrap_or_else(|e| {
+                    let b: f16 = ClTryFrom::try_from(a).unwrap_or_else(|e| {
                         panic!("failed to cast from f16 {:?} to {:?}", e, stringify!($t));
                     });
                     assert_eq!(f32::from(b), 3.0);
@@ -231,7 +383,7 @@ mod primitive_tests {
                 #[test]
                 fn [<cl_casting_works_from_ $t1 _to_f16>]() {
                     let a: $t1 = 3.0 as $t1;
-                    let b: f16 = a.try_cl_cast_number().unwrap_or_else(|e| {
+                    let b: f16 = ClTryFrom::try_from(a).unwrap_or_else(|e| {
                         panic!("failed to cast to f16 {:?}", e);
                     });
                     assert_eq!(f32::from(b), 3.0);
@@ -240,8 +392,8 @@ mod primitive_tests {
                 #[test]
                 fn [<cl_casting_fails_from_ $t1 _to_bool_when_out_of_range>]() {
                     let a: $t1 = $bad_num as $t1;
-                    let b: Output<f16> = a.try_cl_cast_number();
-                    let e = NumCastError::casting_failed::<$t1, f16>(a);
+                    let b: Output<f16> = ClTryFrom::try_from(a);
+                    let e = NumCastError::casting_failed::<$t1, f16>(&a);
                     assert_eq!(b, Err(e));
                 }
             }
@@ -252,7 +404,7 @@ mod primitive_tests {
                 #[test]
                 fn [<cl_casting_works_for_conversion_from_ $t1 _to_bool>]() {
                     let a: $t1 = $good_num as $t1;
-                    let b: bool = a.try_cl_cast_number().unwrap_or_else(|e| {
+                    let b: bool = ClTryFrom::try_from(a).unwrap_or_else(|e| {
                         panic!("failed to cast bool {:?}", e);
                     });
                     assert_eq!(b, true);
@@ -261,8 +413,8 @@ mod primitive_tests {
                 #[test]
                 fn [<cl_casting_fails_from_ $t1 _to_bool_when_out_of_range>]() {
                     let a: $t1 = $bad_num as $t1;
-                    let b: Output<bool> = a.try_cl_cast_number();
-                    let e = NumCastError::casting_failed::<$t1, bool>(a);
+                    let b: Output<bool> = ClTryFrom::try_from(a);
+                    let e = NumCastError::casting_failed::<$t1, bool>(&a);
                     assert_eq!(b, Err(e));
                 }
             }
@@ -272,15 +424,15 @@ mod primitive_tests {
                 #[test]
                 fn [<cl_casting_works_from_ $t1 _to_ $t2>]() {
                     let a: $t1 = $good_num as $t1;
-                    let b: Output<$t2> = a.try_cl_cast_number();
+                    let b: Output<$t2> = ClTryFrom::try_from(a);
                     assert_eq!(b, Ok($good_num as $t2));
                 }
 
                 #[test]
                 fn [<cl_casting_fails_from_ $t1 _to_ $t2 _when_out_of_range>]() {
                     let a: $t1 = $bad_num as $t1;
-                    let b: Output<$t2> = a.try_cl_cast_number();
-                    let e = NumCastError::casting_failed::<$t1, $t2>(a);
+                    let b: Output<$t2> = ClTryFrom::try_from(a);
+                    let e = NumCastError::casting_failed::<$t1, $t2>(&a);
                     assert_eq!(b, Err(e));
                 }
             }
@@ -290,7 +442,7 @@ mod primitive_tests {
                 #[test]
                 fn [<cl_casting_works_from_ $t1 _to_f16>]() {
                     let a: $t1 = $good_num as $t1;
-                    let b: f16 = a.try_cl_cast_number().unwrap_or_else(|e| {
+                    let b: f16 = ClTryFrom::try_from(a).unwrap_or_else(|e| {
                         panic!("{:?}", e);
                     });
                     assert_eq!(f32::from(b), f32::from(b));
@@ -303,7 +455,7 @@ mod primitive_tests {
                 #[test]
                 fn [<cl_casting_works_from_ $t1 _to_ $t2>]() {
                     let a: $t1 = $good_num as $t1;
-                    let b: $t2 = a.try_cl_cast_number().unwrap_or_else(|e| {
+                    let b: $t2 = ClTryFrom::try_from(a).unwrap_or_else(|e| {
                         panic!("{:?}", e);
                     });
                     assert_eq!(b as $t1, $good_num);
@@ -473,7 +625,7 @@ mod primitive_tests {
 #[cfg(test)]
 mod vector_tests {
     use crate::numbers::cl_number::*;
-    use crate::{NumChange, TryClCastNumber};
+    use crate::{ClTryFrom, NumChange};
 
     macro_rules! __test_casting_once {
         ($t1:ident, $t2:ident, $good_data:expr, $expected:expr) => {
@@ -481,7 +633,7 @@ mod vector_tests {
                 #[test]
                 fn [<cl_casting_vector_from_ $t1 _to_ $t2>]() {
                     let data1: $t1 = $good_data.to_cl_num();
-                    let data2: $t2 = data1.try_cl_cast_number().unwrap_or_else(|e| {
+                    let data2: $t2 = ClTryFrom::try_from(data1).unwrap_or_else(|e| {
                         panic!("{:?}", e);
                     });
                     assert_eq!(unsafe { data2.s }, $expected)
@@ -497,7 +649,7 @@ mod vector_tests {
                     #[test]
                     fn [<cl_casting_vector_from_ $left_t $size _to_ $right_t $size>]() {
                         let data1: [<$left_t $size>] = $left_data.to_cl_num();
-                        let data2: [<$right_t $size>] = data1.try_cl_cast_number().unwrap_or_else(|e| {
+                        let data2: [<$right_t $size>] = ClTryFrom::try_from(data1).unwrap_or_else(|e| {
                             panic!("{:?}", e);
                         });
                         assert_eq!(unsafe { data2.s }, $right_data);

@@ -1,14 +1,15 @@
-use crate::NumberTypedT;
+// use crate::NumberTypedT;
+use super::number_type::NumberTypedT;
 use num_traits::cast::{FromPrimitive, NumCast, ToPrimitive};
 use std::fmt::Debug;
 
-pub trait Number: Sized + Clone + Copy + Send + Sync + 'static + Zeroed + NumberTypedT {}
+pub trait Number: Sized + Clone + Copy + Send + Sync + 'static + Zeroed {}
 
-pub trait ClNum: Number {}
+pub trait ClNum: Number + NumberTypedT {}
 
-pub trait ClNewNum: Number {}
+pub trait ClNewNum: Number + NumberTypedT {}
 
-pub trait ClRustNum: Number {}
+pub trait ClRustNum: Number + NumberTypedT {}
 
 pub trait ClRustPrimitiveNum: Number {}
 
@@ -26,10 +27,7 @@ pub trait Zeroed {
     fn zeroed() -> Self;
 }
 
-pub trait ClPrimitive:
-    NumCast + ToPrimitive + FromPrimitive + Copy + NumberTypedT + ClNum + Debug
-{
-}
+pub trait ClPrimitive: NumCast + ToPrimitive + FromPrimitive + Copy + ClNum + Debug {}
 
 // pub trait ClVector<T: ClPrimitive>: Copy + ClNum {}
 pub trait ClVector2<T: ClPrimitive>: Copy + ClNum {}

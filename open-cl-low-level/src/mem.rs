@@ -11,7 +11,7 @@ use crate::{
     MemFlags, MemInfo, MemLocationMemFlags, ObjectWrapper, Output,
 };
 
-use crate::numbers::{ClNum, NumberType, NumberTyped};
+use crate::numbers::{ClNum, NumberType, NumberTyped, NumberTypedT};
 
 /// Low-level helper for creating a cl_mem buffer from a context, mem flags, and a buffer creator.
 ///
@@ -261,14 +261,14 @@ impl ClMem {
     /// This function does not retain its cl_mem, but will release its cl_mem
     /// when it is dropped. Mismanagement of a cl_mem's lifetime.  Therefore,
     /// this function is unsafe.
-    pub unsafe fn new<T: ClNum>(object: cl_mem) -> Output<ClMem> {
+    pub unsafe fn new<T: ClNum + NumberTypedT>(object: cl_mem) -> Output<ClMem> {
         Ok(ClMem {
             inner: ObjectWrapper::new(object)?,
             t: T::number_type(),
         })
     }
 
-    pub fn create<T: ClNum, B: BufferCreator<T>>(
+    pub fn create<T: ClNum + NumberTypedT, B: BufferCreator<T>>(
         context: &ClContext,
         buffer_creator: B,
         host_access: HostAccess,
@@ -294,7 +294,7 @@ impl ClMem {
     ///
     /// # Safety
     /// Using an invalid context in this function call is undefined behavior.
-    pub unsafe fn create_with_config<T: ClNum, B: BufferCreator<T>>(
+    pub unsafe fn create_with_config<T: ClNum + NumberTypedT, B: BufferCreator<T>>(
         context: &ClContext,
         buffer_creator: B,
         mem_config: MemConfig,
