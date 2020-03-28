@@ -359,8 +359,8 @@ mod primitive_tests {
     use super::{ClTryFrom, NumCastError};
     use crate::numbers::cl_number::*;
     use crate::Output;
-    use half::f16;
-    use libc::size_t;
+    // use half::f16;
+    // use libc::size_t;
 
     macro_rules! __test_casting_f16 {
         ($t:ty) => {
