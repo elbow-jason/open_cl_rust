@@ -4,7 +4,7 @@ use libc::c_void;
 
 use half::f16;
 
-pub trait AsPtr<T = Self> {
+pub trait AsPtr<T> {
     fn as_ptr(&self) -> *const T;
     fn as_mut_ptr(&mut self) -> *mut T;
 }
@@ -12,7 +12,7 @@ pub trait AsPtr<T = Self> {
 macro_rules! as_ptr {
     ($($t:ty),*) => {
         $(
-            impl AsPtr for $t {
+            impl AsPtr<$t> for $t {
                 fn as_ptr(&self) -> *const $t {
                     self as *const $t
                 }

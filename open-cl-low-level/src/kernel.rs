@@ -14,14 +14,17 @@ use crate::{
 
 use crate::numbers::AsPtr;
 
-pub unsafe trait KernelArg {
+pub unsafe trait KernelArg<T = Self> {
     /// size_of<T> or size_of<T> * len
     fn kernel_arg_size(&self) -> usize;
     unsafe fn kernel_arg_ptr(&self) -> *const c_void;
     unsafe fn kernel_arg_mut_ptr(&mut self) -> *mut c_void;
 }
 
-unsafe impl<T: AsPtr + Sized> KernelArg for T {
+unsafe impl<T> KernelArg for T
+where
+    T: AsPtr<T>,
+{
     fn kernel_arg_size(&self) -> usize {
         std::mem::size_of::<T>()
     }

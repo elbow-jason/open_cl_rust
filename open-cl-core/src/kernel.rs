@@ -103,7 +103,7 @@ pub struct NumArg<'a> {
 }
 
 impl<'a> NumArg<'a> {
-    pub fn new<T: NumberTypedT + AsPtr + KernelArg + Copy>(num: T) -> NumArg<'a> {
+    pub fn new<T: NumberTypedT + AsPtr<T> + KernelArg + Copy>(num: T) -> NumArg<'a> {
         NumArg {
             t: T::number_type(),
             _ptr: num.as_ptr() as *const c_void,
@@ -141,7 +141,7 @@ pub trait ToKernelOpArg<'a> {
 
 impl<'a, T> ToKernelOpArg<'a> for T
 where
-    T: ClNum + AsPtr + Sized,
+    T: ClNum + AsPtr<T> + Sized,
 {
     fn to_kernel_op_arg(&self) -> KernelOpArg<'a> {
         KernelOpArg::Num(NumArg::new(*self))
