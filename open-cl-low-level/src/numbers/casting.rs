@@ -625,14 +625,14 @@ mod primitive_tests {
 #[cfg(test)]
 mod vector_tests {
     use crate::numbers::cl_number::*;
-    use crate::{ClTryFrom, NumChange};
+    use crate::{ClTryFrom, IntoClNum};
 
     macro_rules! __test_casting_once {
         ($t1:ident, $t2:ident, $good_data:expr, $expected:expr) => {
             paste::item! {
                 #[test]
                 fn [<cl_casting_vector_from_ $t1 _to_ $t2>]() {
-                    let data1: $t1 = $good_data.to_cl_num();
+                    let data1: $t1 = $good_data.into_cl_num();
                     let data2: $t2 = ClTryFrom::try_from(data1).unwrap_or_else(|e| {
                         panic!("{:?}", e);
                     });
@@ -648,7 +648,7 @@ mod vector_tests {
                 $(
                     #[test]
                     fn [<cl_casting_vector_from_ $left_t $size _to_ $right_t $size>]() {
-                        let data1: [<$left_t $size>] = $left_data.to_cl_num();
+                        let data1: [<$left_t $size>] = $left_data.into_cl_num();
                         let data2: [<$right_t $size>] = ClTryFrom::try_from(data1).unwrap_or_else(|e| {
                             panic!("{:?}", e);
                         });

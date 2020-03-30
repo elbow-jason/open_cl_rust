@@ -1,6 +1,6 @@
 use super::traits::{
-    ClNewNum, ClNum, ClPrimitive, ClRustNum, ClRustPrimitiveNum, InnerMutRef, NumChange, Number,
-    Zeroed,
+    ClNewNum, ClNum, ClPrimitive, ClRustNum, ClRustPrimitiveNum, InnerMutRef, IntoClNum,
+    IntoNewNum, IntoRustNum, Number, Zeroed,
 };
 use super::traits::{ClVector16, ClVector2, ClVector3, ClVector4, ClVector8};
 use crate::ffi::*;
@@ -8,6 +8,46 @@ use crate::{ClNewType, ClType, NumberType, NumberTypedT, RustType};
 use half::f16;
 use libc::size_t;
 use std::fmt;
+
+pub trait NumLevelChange: Number {
+    type ClNum: ClNum;
+    type NewNum: ClNewNum;
+    type RustNum: ClRustNum;
+
+    fn change_to_cl_num(self) -> Self::ClNum;
+    fn change_to_new_num(self) -> Self::NewNum;
+    fn change_to_rust_num(self) -> Self::RustNum;
+}
+
+impl<T> IntoClNum for T
+where
+    T: NumLevelChange,
+{
+    type Num = <T as NumLevelChange>::ClNum;
+    fn into_cl_num(self) -> Self::Num {
+        self.change_to_cl_num()
+    }
+}
+
+impl<T> IntoNewNum for T
+where
+    T: NumLevelChange,
+{
+    type Num = <T as NumLevelChange>::NewNum;
+    fn into_new_num(self) -> Self::Num {
+        self.change_to_new_num()
+    }
+}
+
+impl<T> IntoRustNum for T
+where
+    T: NumLevelChange,
+{
+    type Num = <T as NumLevelChange>::RustNum;
+    fn into_rust_num(self) -> Self::Num {
+        self.change_to_rust_num()
+    }
+}
 
 impl<T> ClType for T where T: ClNum {}
 impl<T> RustType for T where T: ClRustNum {}
@@ -63,20 +103,20 @@ macro_rules! __number_typed_t {
 
 macro_rules! __impl_num_change_for_cl_type_primitive {
     ($cl_type:ty, $new_type:ident, $rust_type:ty) => {
-        impl NumChange for $cl_type {
+        impl NumLevelChange for $cl_type {
             type ClNum = $cl_type;
             type NewNum = $new_type;
             type RustNum = $rust_type;
 
-            fn to_cl_num(self) -> Self::ClNum {
+            fn change_to_cl_num(self) -> Self::ClNum {
                 self
             }
 
-            fn to_new_num(self) -> Self::NewNum {
+            fn change_to_new_num(self) -> Self::NewNum {
                 $new_type(self)
             }
 
-            fn to_rust_num(self) -> Self::RustNum {
+            fn change_to_rust_num(self) -> Self::RustNum {
                 self
             }
         }
@@ -85,20 +125,20 @@ macro_rules! __impl_num_change_for_cl_type_primitive {
 
 macro_rules! __impl_num_change_for_new_type_primitive {
     ($cl_type:ty, $new_type:ident, $rust_type:ty) => {
-        impl NumChange for $new_type {
+        impl NumLevelChange for $new_type {
             type ClNum = $cl_type;
             type NewNum = $new_type;
             type RustNum = $rust_type;
 
-            fn to_cl_num(self) -> <Self as NumChange>::ClNum {
+            fn change_to_cl_num(self) -> <Self as NumLevelChange>::ClNum {
                 self.to_inner()
             }
 
-            fn to_new_num(self) -> <Self as NumChange>::NewNum {
+            fn change_to_new_num(self) -> <Self as NumLevelChange>::NewNum {
                 self
             }
 
-            fn to_rust_num(self) -> <Self as NumChange>::RustNum {
+            fn change_to_rust_num(self) -> <Self as NumLevelChange>::RustNum {
                 self.to_inner()
             }
         }
@@ -238,20 +278,20 @@ impl NumberTypedT for bool {
 
 __impl_zeroed!(ClBool => ClBool(0u32));
 
-impl NumChange for ClBool {
+impl NumLevelChange for ClBool {
     type ClNum = cl_bool;
     type NewNum = ClBool;
     type RustNum = bool;
 
-    fn to_cl_num(self) -> <Self as NumChange>::ClNum {
+    fn change_to_cl_num(self) -> <Self as NumLevelChange>::ClNum {
         self.to_inner()
     }
 
-    fn to_new_num(self) -> <Self as NumChange>::NewNum {
+    fn change_to_new_num(self) -> <Self as NumLevelChange>::NewNum {
         self
     }
 
-    fn to_rust_num(self) -> <Self as NumChange>::RustNum {
+    fn change_to_rust_num(self) -> <Self as NumLevelChange>::RustNum {
         match self.to_inner() {
             0 => false,
             1 => true,
@@ -327,38 +367,38 @@ impl ClNewNum for ClHalf {}
 impl ClRustNum for f16 {}
 __number_typed_t!(ClHalf, [ClHalf, f16]);
 
-impl NumChange for ClHalf {
+impl NumLevelChange for ClHalf {
     type ClNum = cl_half;
     type NewNum = ClHalf;
     type RustNum = f16;
 
-    fn to_cl_num(self) -> cl_half {
+    fn change_to_cl_num(self) -> cl_half {
         self.0
     }
 
-    fn to_new_num(self) -> ClHalf {
+    fn change_to_new_num(self) -> ClHalf {
         self
     }
 
-    fn to_rust_num(self) -> f16 {
+    fn change_to_rust_num(self) -> f16 {
         f16::from_bits(self.0)
     }
 }
 
-impl NumChange for f16 {
+impl NumLevelChange for f16 {
     type ClNum = cl_half;
     type NewNum = ClHalf;
     type RustNum = f16;
 
-    fn to_cl_num(self) -> <Self as NumChange>::ClNum {
+    fn change_to_cl_num(self) -> <Self as NumLevelChange>::ClNum {
         self.to_bits()
     }
 
-    fn to_new_num(self) -> <Self as NumChange>::NewNum {
+    fn change_to_new_num(self) -> <Self as NumLevelChange>::NewNum {
         ClHalf(self.to_bits())
     }
 
-    fn to_rust_num(self) -> <Self as NumChange>::RustNum {
+    fn change_to_rust_num(self) -> <Self as NumLevelChange>::RustNum {
         self
     }
 }
@@ -416,7 +456,7 @@ macro_rules! __impl_newtype_vector {
 
         impl fmt::Debug for $NewType {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                write!(f, "{:?}({:?})", stringify!($NewType), self.to_rust_num())
+                write!(f, "{:?}({:?})", stringify!($NewType), self.change_to_rust_num())
             }
         }
 
@@ -440,42 +480,42 @@ macro_rules! __impl_newtype_vector {
         impl ClNewNum for $NewType {}
         impl ClRustNum for [$rust_t; 3] {}
 
-        impl NumChange for $NewType {
+        impl NumLevelChange for $NewType {
             type ClNum = $cl_type;
             type NewNum = $NewType;
             type RustNum = [$rust_t; 3];
 
-            fn to_cl_num(self) -> <Self as NumChange>::ClNum {
+            fn change_to_cl_num(self) -> <Self as NumLevelChange>::ClNum {
                 self.0
             }
 
-            fn to_new_num(self) -> <Self as NumChange>::NewNum {
+            fn change_to_new_num(self) -> <Self as NumLevelChange>::NewNum {
                 self
             }
 
-            fn to_rust_num(self) -> <Self as NumChange>::RustNum {
+            fn change_to_rust_num(self) -> <Self as NumLevelChange>::RustNum {
                 let val = unsafe{ self.0.s };
                 [val[0], val[1], val[2]]
             }
         }
 
-        impl NumChange for [$rust_t; 3] {
+        impl NumLevelChange for [$rust_t; 3] {
             type ClNum = $cl_type;
             type NewNum = $NewType;
             type RustNum = [$rust_t; 3];
 
-            fn to_cl_num(self) -> <Self as NumChange>::ClNum {
+            fn change_to_cl_num(self) -> <Self as NumLevelChange>::ClNum {
                 let mut cl_val: $cl_type = zeroed_vector!($cl_type);
                 let inner_s = [self[0], self[1], self[2], $rust_zeroed];
                 cl_val.s = inner_s;
                 cl_val
             }
 
-            fn to_new_num(self) -> <Self as NumChange>::NewNum {
-                $NewType(self.to_cl_num())
+            fn change_to_new_num(self) -> <Self as NumLevelChange>::NewNum {
+                $NewType(self.change_to_cl_num())
             }
 
-            fn to_rust_num(self) -> <Self as NumChange>::RustNum {
+            fn change_to_rust_num(self) -> <Self as NumLevelChange>::RustNum {
                 self
             }
         }
@@ -487,7 +527,7 @@ macro_rules! __impl_newtype_vector {
 
         impl fmt::Debug for $NewType {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                write!(f, "{:?}({:?})", stringify!($NewType), self.to_rust_num())
+                write!(f, "{:?}({:?})", stringify!($NewType), self.change_to_rust_num())
             }
         }
 
@@ -517,58 +557,58 @@ macro_rules! __impl_newtype_vector {
         impl ClNewNum for $NewType {}
         impl ClRustNum for [$rust_t; $size] {}
 
-        impl NumChange for $NewType {
+        impl NumLevelChange for $NewType {
             type ClNum = $cl_type;
             type NewNum = $NewType;
             type RustNum = [$rust_t; $size];
 
-            fn to_cl_num(self) -> <Self as NumChange>::ClNum {
+            fn change_to_cl_num(self) -> <Self as NumLevelChange>::ClNum {
                 self.0
             }
 
-            fn to_new_num(self) -> <Self as NumChange>::NewNum {
+            fn change_to_new_num(self) -> <Self as NumLevelChange>::NewNum {
                 self
             }
 
-            fn to_rust_num(self) -> <Self as NumChange>::RustNum {
+            fn change_to_rust_num(self) -> <Self as NumLevelChange>::RustNum {
                 unsafe { self.0.s }
             }
         }
 
-        impl NumChange for $cl_type {
+        impl NumLevelChange for $cl_type {
             type ClNum = $cl_type;
             type NewNum = $NewType;
             type RustNum = [$rust_t; $size];
 
-            fn to_cl_num(self) -> <Self as NumChange>::ClNum {
+            fn change_to_cl_num(self) -> <Self as NumLevelChange>::ClNum {
                 self
             }
 
-            fn to_new_num(self) -> <Self as NumChange>::NewNum {
+            fn change_to_new_num(self) -> <Self as NumLevelChange>::NewNum {
                 $NewType(self)
             }
 
-            fn to_rust_num(self) -> <Self as NumChange>::RustNum {
+            fn change_to_rust_num(self) -> <Self as NumLevelChange>::RustNum {
                 unsafe { self.s }
             }
         }
 
-        impl NumChange for [$rust_t; $size] {
+        impl NumLevelChange for [$rust_t; $size] {
             type ClNum = $cl_type;
             type NewNum = $NewType;
             type RustNum = [$rust_t; $size];
 
-            fn to_cl_num(self) -> <Self as NumChange>::ClNum {
+            fn change_to_cl_num(self) -> <Self as NumLevelChange>::ClNum {
                 let mut cl_val = zeroed_vector!($cl_type);
                 cl_val.s = self;
                 cl_val
             }
 
-            fn to_new_num(self) -> <Self as NumChange>::NewNum {
-                $NewType(self.to_cl_num())
+            fn change_to_new_num(self) -> <Self as NumLevelChange>::NewNum {
+                $NewType(self.change_to_cl_num())
             }
 
-            fn to_rust_num(self) -> <Self as NumChange>::RustNum {
+            fn change_to_rust_num(self) -> <Self as NumLevelChange>::RustNum {
                 self
             }
         }

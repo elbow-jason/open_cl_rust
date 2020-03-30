@@ -19,3 +19,6 @@ pub use as_ptr::*;
 
 pub mod as_slice;
 pub use as_slice::*;
+
+pub mod float16;
+pub use float16::*;

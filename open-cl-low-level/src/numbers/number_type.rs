@@ -302,6 +302,12 @@ pub enum TypeError {
         _0, 1
     )]
     InvalidValue(NumberType, String),
+
+    #[fail(
+        display = "InvalidFloat16Error - the value {:?} is not a valid f16 value due to {:?}",
+        _0, _1
+    )]
+    InvalidFloat16(String, &'static str),
 }
 
 #[inline]

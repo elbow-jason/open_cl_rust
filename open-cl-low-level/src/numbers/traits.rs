@@ -13,14 +13,19 @@ pub trait ClRustNum: Number + NumberTypedT {}
 
 pub trait ClRustPrimitiveNum: Number {}
 
-pub trait NumChange: Number {
-    type ClNum: ClNum;
-    type NewNum: ClNewNum;
-    type RustNum: ClRustNum;
+pub trait IntoClNum {
+    type Num: ClNum;
+    fn into_cl_num(self) -> Self::Num;
+}
 
-    fn to_cl_num(self) -> Self::ClNum;
-    fn to_new_num(self) -> Self::NewNum;
-    fn to_rust_num(self) -> Self::RustNum;
+pub trait IntoNewNum {
+    type Num: ClNewNum;
+    fn into_new_num(self) -> Self::Num;
+}
+
+pub trait IntoRustNum {
+    type Num: ClRustNum;
+    fn into_rust_num(self) -> Self::Num;
 }
 
 pub trait Zeroed {
