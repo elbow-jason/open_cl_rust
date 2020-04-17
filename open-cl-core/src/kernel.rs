@@ -159,7 +159,8 @@ impl<'a> KernelOpArg<'a> {
         if let KernelOpArg::Buffer(buffer) = self {
             Ok(buffer)
         } else {
-            Err(KernelError::KernelOpArgWasNotMem.into())
+            let err = Into::into(KernelError::KernelOpArgWasNotMem);
+            Err(err)
         }
     }
 
@@ -167,7 +168,8 @@ impl<'a> KernelOpArg<'a> {
         if let KernelOpArg::Num(num) = self {
             num.into_number::<T>()
         } else {
-            Err(KernelError::KernelOpArgWasNotMem.into())
+            let err = Into::into(KernelError::KernelOpArgWasNotMem);
+            Err(err)
         }
     }
 }
@@ -238,6 +240,7 @@ impl<'a> KernelOperation<'a> {
 
     #[inline]
     pub fn work(&self) -> Output<Work> {
-        self._work.clone().ok_or(KernelError::WorkIsRequired.into())
+        let err = Into::into(KernelError::WorkIsRequired);
+        self._work.clone().ok_or(err)
     }
 }

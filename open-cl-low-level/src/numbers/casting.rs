@@ -1,6 +1,9 @@
 // use std::convert::{TryFrom, TryInto};
 use std::fmt;
 
+// use super::float16;
+use super::F16;
+
 use num_traits::NumCast;
 
 use super::cl_number::*;
@@ -277,33 +280,30 @@ __try_from_all_cl_types!([
     cl_double, size_t
 ]);
 
-const F16_MAX: f32 = 65504.0;
-const F16_MIN: f32 = -65504.0;
+// const F16_MAX: f32 = 65504.0;
+// const F16_MIN: f32 = -65504.0;
+fn _f16_casting_failed<T>(val: &T) -> Error
+where
+    T: NumberTypedT + fmt::Debug,
+{
+    Error::from(NumCastError::casting_failed::<T, F16>(val))
+}
 
-impl<T> ClTryFrom<T> for f16
+impl<T> ClTryFrom<T> for F16
 where
     T: ClTryInto<f32> + NumberTypedT + fmt::Debug + Copy,
 {
-    fn try_from(val: T) -> Output<f16> {
-        let error_func = || Error::from(NumCastError::casting_failed::<T, f16>(&val));
-        let float: f32 = ClTryInto::try_into(val).map_err(|_| error_func())?;
-        if float > F16_MAX {
-            return error_func().as_output();
-        }
-
-        if float < F16_MIN {
-            return error_func().as_output();
-        }
-
-        Ok(f16::from_f32(float))
+    fn try_from(val: T) -> Output<F16> {
+        let float: f32 = ClTryInto::try_into(val).map_err(|_| _f16_casting_failed(&val))?;
+        F16::try_from_f32(float).map_err(|_| _f16_casting_failed(&float))
     }
 }
 
-macro_rules! __impl_try_from_f16 {
+macro_rules! __impl_try_from_F16 {
     ($( $t:ident ),*) => {
         $(
-            impl ClTryFrom<f16> for $t {
-                fn try_from(val: f16) -> Output<$t> {
+            impl ClTryFrom<F16> for $t {
+                fn try_from(val: F16) -> Output<$t> {
                     ClTryFrom::try_from(val.to_f32())
                 }
             }
@@ -311,7 +311,7 @@ macro_rules! __impl_try_from_f16 {
     };
 }
 
-__impl_try_from_f16!(
+__impl_try_from_F16!(
     cl_uchar, cl_char, cl_ushort, cl_short, cl_uint, cl_int, cl_ulong, cl_long, cl_float, cl_double
 );
 
@@ -356,20 +356,21 @@ mod tests {
 
 #[cfg(test)]
 mod primitive_tests {
-    use super::{ClTryFrom, NumCastError};
+    use super::{ClTryFrom, NumCastError, F16};
     use crate::numbers::cl_number::*;
+    use crate::numbers::float16;
     use crate::Output;
-    // use half::f16;
     // use libc::size_t;
 
-    macro_rules! __test_casting_f16 {
+    macro_rules! __test_casting_F16 {
         ($t:ty) => {
             paste::item! {
                 #[test]
-                fn [<cl_casting_works_from_f16_to_ $t>]() {
-                    let a = f16::from_f32(3.0);
-                    let b: f16 = ClTryFrom::try_from(a).unwrap_or_else(|e| {
-                        panic!("failed to cast from f16 {:?} to {:?}", e, stringify!($t));
+                #[allow(non_snake_case)]
+                fn [<cl_casting_works_from_F16_to_ $t>]() {
+                    let a = F16::from_f32(3.0);
+                    let b: F16 = ClTryFrom::try_from(a).unwrap_or_else(|e| {
+                        panic!("failed to cast from F16 {:?} to {:?}", e, stringify!($t));
                     });
                     assert_eq!(f32::from(b), 3.0);
                 }
@@ -378,13 +379,14 @@ mod primitive_tests {
     }
 
     macro_rules! __test_casting {
-        ($t1:ty, f16, $good_num:expr, $bad_num:expr) => {
+        ($t1:ty, F16, $good_num:expr, $bad_num:expr) => {
             paste::item! {
                 #[test]
-                fn [<cl_casting_works_from_ $t1 _to_f16>]() {
+                #[allow(non_snake_case)]
+                fn [<cl_casting_works_from_ $t1 _to_F16>]() {
                     let a: $t1 = 3.0 as $t1;
-                    let b: f16 = ClTryFrom::try_from(a).unwrap_or_else(|e| {
-                        panic!("failed to cast to f16 {:?}", e);
+                    let b: F16 = ClTryFrom::try_from(a).unwrap_or_else(|e| {
+                        panic!("failed to cast to F16 {:?}", e);
                     });
                     assert_eq!(f32::from(b), 3.0);
                 }
@@ -392,8 +394,8 @@ mod primitive_tests {
                 #[test]
                 fn [<cl_casting_fails_from_ $t1 _to_bool_when_out_of_range>]() {
                     let a: $t1 = $bad_num as $t1;
-                    let b: Output<f16> = ClTryFrom::try_from(a);
-                    let e = NumCastError::casting_failed::<$t1, f16>(&a);
+                    let b: Output<F16> = ClTryFrom::try_from(a);
+                    let e = NumCastError::casting_failed::<$t1, F16>(&a);
                     assert_eq!(b, Err(e));
                 }
             }
@@ -437,12 +439,13 @@ mod primitive_tests {
                 }
             }
         };
-        ($t1:ty, f16, $good_num:expr) => {
+        ($t1:ty, F16, $good_num:expr) => {
             paste::item! {
                 #[test]
-                fn [<cl_casting_works_from_ $t1 _to_f16>]() {
+                #[allow(non_snake_case)]
+                fn [<cl_casting_works_from_ $t1 _to_F16>]() {
                     let a: $t1 = $good_num as $t1;
-                    let b: f16 = ClTryFrom::try_from(a).unwrap_or_else(|e| {
+                    let b: F16 = ClTryFrom::try_from(a).unwrap_or_else(|e| {
                         panic!("{:?}", e);
                     });
                     assert_eq!(f32::from(b), f32::from(b));
@@ -475,8 +478,8 @@ mod primitive_tests {
     const CL_LONG_OOR: usize = cl_long::max_value() as usize + 1;
 
     const CL_HALF_OOR: isize = cl_half::max_value() as isize + 1;
-    fn f16_oor() -> f64 {
-        f16::MAX.to_f64() + 1.0f64
+    fn float16_oor() -> f64 {
+        float16::MAX.to_f64() + 1.0f64
     }
 
     __test_casting!(cl_uchar, cl_uchar, 1);
@@ -491,7 +494,7 @@ mod primitive_tests {
     __test_casting!(cl_uchar, cl_float, 1);
     __test_casting!(cl_uchar, cl_double, 1);
     __test_casting!(cl_uchar, size_t, 1);
-    __test_casting!(cl_uchar, f16, 3);
+    __test_casting!(cl_uchar, F16, 3);
     __test_casting!(cl_uchar, bool, 1, BOOL_OOR);
 
     __test_casting!(cl_char, cl_uchar, 1, -1);
@@ -504,7 +507,7 @@ mod primitive_tests {
     __test_casting!(cl_char, cl_long, 1);
     __test_casting!(cl_char, size_t, 1, -1);
     __test_casting!(cl_char, cl_half, 1);
-    __test_casting!(cl_char, f16, 3);
+    __test_casting!(cl_char, F16, 3);
     __test_casting!(cl_char, cl_float, 1);
     __test_casting!(cl_char, cl_double, 1);
     __test_casting!(cl_char, bool, 1, BOOL_OOR);
@@ -521,7 +524,7 @@ mod primitive_tests {
     __test_casting!(cl_ushort, cl_float, 1);
     __test_casting!(cl_ushort, cl_double, 1);
     __test_casting!(cl_ushort, size_t, 1);
-    __test_casting!(cl_ushort, f16, 3.0, f16_oor());
+    __test_casting!(cl_ushort, F16, 3.0, float16_oor());
 
     __test_casting!(cl_short, cl_uchar, 1, -1);
     __test_casting!(cl_short, cl_char, 1, CL_CHAR_OOR);
@@ -533,7 +536,7 @@ mod primitive_tests {
     __test_casting!(cl_short, cl_long, 1);
     __test_casting!(cl_short, size_t, 1, -1);
     __test_casting!(cl_short, cl_half, 1);
-    __test_casting!(cl_short, f16, 3.0);
+    __test_casting!(cl_short, F16, 3.0);
     __test_casting!(cl_short, cl_float, 1);
     __test_casting!(cl_short, cl_double, 1);
 
@@ -549,22 +552,23 @@ mod primitive_tests {
     __test_casting!(cl_half, cl_float, 1);
     __test_casting!(cl_half, cl_double, 1);
     __test_casting!(cl_half, size_t, 1);
-    __test_casting!(cl_half, f16, 3.0, f16_oor());
+    __test_casting!(cl_half, F16, 3.0, float16_oor());
 
-    __test_casting_f16!(cl_uchar);
-    __test_casting_f16!(cl_char);
-    __test_casting_f16!(cl_ushort);
-    __test_casting_f16!(cl_short);
-    __test_casting_f16!(cl_uint);
-    __test_casting_f16!(cl_int);
-    __test_casting_f16!(cl_ulong);
-    __test_casting_f16!(cl_long);
-    __test_casting_f16!(cl_half);
-    __test_casting_f16!(cl_float);
-    __test_casting_f16!(cl_double);
-    __test_casting_f16!(size_t);
-    __test_casting_f16!(f16);
+    __test_casting_F16!(cl_uchar);
+    __test_casting_F16!(cl_char);
+    __test_casting_F16!(cl_ushort);
+    __test_casting_F16!(cl_short);
+    __test_casting_F16!(cl_uint);
+    __test_casting_F16!(cl_int);
+    __test_casting_F16!(cl_ulong);
+    __test_casting_F16!(cl_long);
+    __test_casting_F16!(cl_half);
+    __test_casting_F16!(cl_float);
+    __test_casting_F16!(cl_double);
+    __test_casting_F16!(size_t);
+    __test_casting_F16!(f16);
 
+    // test out of range
     __test_casting!(cl_uint, cl_uchar, 1, CL_UCHAR_OOR);
     __test_casting!(cl_uint, cl_char, 1, CL_CHAR_OOR);
     __test_casting!(cl_uint, cl_ushort, 1, CL_USHORT_OOR);
@@ -577,7 +581,7 @@ mod primitive_tests {
     __test_casting!(cl_uint, cl_float, 1);
     __test_casting!(cl_uint, cl_double, 1);
     __test_casting!(cl_uint, size_t, 1);
-    __test_casting!(cl_uint, f16, 3.0, f16_oor());
+    __test_casting!(cl_uint, F16, 3.0, float16_oor());
 
     __test_casting!(cl_int, cl_uchar, 1, -1);
     __test_casting!(cl_int, cl_char, 1, CL_CHAR_OOR);
@@ -589,7 +593,7 @@ mod primitive_tests {
     __test_casting!(cl_int, cl_long, 1);
     __test_casting!(cl_int, size_t, 1, -1);
     __test_casting!(cl_int, cl_half, 1);
-    __test_casting!(cl_int, f16, 3.0, f16_oor());
+    __test_casting!(cl_int, F16, 3.0, float16_oor());
     __test_casting!(cl_int, cl_float, 1);
     __test_casting!(cl_int, cl_double, 1);
 
@@ -605,7 +609,7 @@ mod primitive_tests {
     __test_casting!(cl_ulong, cl_float, 1);
     __test_casting!(cl_ulong, cl_double, 1);
     __test_casting!(cl_ulong, size_t, 1);
-    __test_casting!(cl_ulong, f16, 3.0, f16_oor());
+    __test_casting!(cl_ulong, F16, 3.0, float16_oor());
 
     __test_casting!(cl_long, cl_uchar, 1, -1);
     __test_casting!(cl_long, cl_char, 1, CL_CHAR_OOR);
@@ -617,7 +621,7 @@ mod primitive_tests {
     __test_casting!(cl_long, cl_long, 1);
     __test_casting!(cl_long, size_t, 1, -1);
     __test_casting!(cl_long, cl_half, 1);
-    __test_casting!(cl_long, f16, 3.0, f16_oor());
+    __test_casting!(cl_long, F16, 3.0, float16_oor());
     __test_casting!(cl_long, cl_float, 1);
     __test_casting!(cl_long, cl_double, 1);
 }
@@ -625,7 +629,7 @@ mod primitive_tests {
 #[cfg(test)]
 mod vector_tests {
     use crate::numbers::cl_number::*;
-    use crate::{ClTryFrom, IntoClNum};
+    use crate::{ClFrom, ClTryFrom};
 
     macro_rules! __test_casting_once {
         ($t1:ident, $t2:ident, $good_data:expr, $expected:expr) => {
@@ -648,7 +652,7 @@ mod vector_tests {
                 $(
                     #[test]
                     fn [<cl_casting_vector_from_ $left_t $size _to_ $right_t $size>]() {
-                        let data1: [<$left_t $size>] = $left_data.into_cl_num();
+                        let data1: [<$left_t $size>] = ClFrom::cl_from($left_data);
                         let data2: [<$right_t $size>] = ClTryFrom::try_from(data1).unwrap_or_else(|e| {
                             panic!("{:?}", e);
                         });

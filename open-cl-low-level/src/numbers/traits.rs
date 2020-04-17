@@ -1,9 +1,12 @@
 // use crate::NumberTypedT;
 use super::number_type::NumberTypedT;
+use crate::KernelArg;
 use num_traits::cast::{FromPrimitive, NumCast, ToPrimitive};
 use std::fmt::Debug;
 
 pub trait Number: Sized + Clone + Copy + Send + Sync + 'static + Zeroed {}
+
+pub unsafe trait FFINumber: Number + KernelArg {}
 
 pub trait ClNum: Number + NumberTypedT {}
 
@@ -43,4 +46,20 @@ pub trait ClVector16<T: ClPrimitive>: Copy + ClNum {}
 
 pub trait InnerMutRef<T> {
     fn inner_mut_ref(&mut self) -> &mut T;
+}
+
+pub trait ClFrom<T>
+where
+    Self: Sized,
+    T: Sized,
+{
+    fn cl_from(val: T) -> Self;
+}
+
+pub trait ClInto<T>
+where
+    Self: Sized,
+    T: Sized,
+{
+    fn cl_into(self) -> T;
 }

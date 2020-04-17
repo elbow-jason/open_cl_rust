@@ -1,8 +1,7 @@
-use super::cl_number::*;
-
 use libc::c_void;
 
-use half::f16;
+use super::cl_number::*;
+use super::F16;
 
 pub trait AsPtr<T> {
     fn as_ptr(&self) -> *const T;
@@ -25,9 +24,18 @@ macro_rules! as_ptr {
     }
 }
 
+impl AsPtr<cl_half> for F16 {
+    fn as_ptr(&self) -> *const cl_half {
+        &self.0 as *const cl_half
+    }
+
+    fn as_mut_ptr(&mut self) -> *mut cl_half {
+        &mut self.0 as *mut cl_half
+    }
+}
+
 as_ptr!(c_void, size_t);
 as_ptr!(cl_double);
-as_ptr!(f16);
 as_ptr!(cl_char, cl_char16, cl_char2, cl_char4, cl_char8);
 as_ptr!(cl_float, cl_float16, cl_float2, cl_float4, cl_float8);
 as_ptr!(cl_int, cl_int16, cl_int2, cl_int4, cl_int8);

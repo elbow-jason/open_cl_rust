@@ -1,6 +1,5 @@
 extern crate open_cl_low_level;
 
-use half::f16;
 use open_cl_low_level::*;
 
 fn main() {
@@ -10,7 +9,7 @@ fn main() {
     println!("bytes casted to ints {:?}", ints);
     let floats: Vec<f32> = ClTryFrom::try_from(ints).unwrap();
     println!("ints casted to floats {:?}", floats);
-    let halves: Vec<f16> = ClTryFrom::try_from(floats).unwrap();
+    let halves: Vec<F16> = ClTryFrom::try_from(floats).unwrap();
     println!("floats casted to halves {:?}", halves);
     let ulongs: Vec<cl_ulong> = ClTryFrom::try_from(halves).unwrap();
     println!("halves casted to ulongs {:?}", ulongs);
