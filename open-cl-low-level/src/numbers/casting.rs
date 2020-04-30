@@ -79,7 +79,7 @@ where
 {
     fn try_from(val: T) -> Output<bool> {
         ClTryInto::try_into(val)
-            .and_then(|int| cast_cl_uint_to_bool(int))
+            .and_then(|int: cl_uint| cast_cl_uint_to_bool(int))
             .map_err(|_| {
                 let nce = NumCastError::casting_failed::<T, bool>(&val);
                 Error::from(nce)
@@ -294,8 +294,8 @@ where
     T: ClTryInto<f32> + NumberTypedT + fmt::Debug + Copy,
 {
     fn try_from(val: T) -> Output<F16> {
-        let float: f32 = ClTryInto::try_into(val).map_err(|_| _f16_casting_failed(&val))?;
-        F16::try_from_f32(float).map_err(|_| _f16_casting_failed(&float))
+        let float: f32 = ClTryInto::try_into(val).map_err(|_| _f16_casting_failed::<T>(&val))?;
+        F16::try_from_f32(float).map_err(|_| _f16_casting_failed(&val))
     }
 }
 
@@ -392,7 +392,8 @@ mod primitive_tests {
                 }
 
                 #[test]
-                fn [<cl_casting_fails_from_ $t1 _to_bool_when_out_of_range>]() {
+                #[allow(non_snake_case)]
+                fn [<cl_casting_fails_from_ $t1 _to_F16_when_out_of_range>]() {
                     let a: $t1 = $bad_num as $t1;
                     let b: Output<F16> = ClTryFrom::try_from(a);
                     let e = NumCastError::casting_failed::<$t1, F16>(&a);
@@ -478,6 +479,7 @@ mod primitive_tests {
     const CL_LONG_OOR: usize = cl_long::max_value() as usize + 1;
 
     const CL_HALF_OOR: isize = cl_half::max_value() as isize + 1;
+
     fn float16_oor() -> f64 {
         float16::MAX.to_f64() + 1.0f64
     }
