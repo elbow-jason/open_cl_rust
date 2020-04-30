@@ -20,6 +20,7 @@ impl F16 {
         }
         Ok(F16::from_f32(num))
     }
+
     pub fn from_f32(num: f32) -> F16 {
         F16(f16::from_f32(num).to_bits())
     }
