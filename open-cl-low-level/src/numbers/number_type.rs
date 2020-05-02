@@ -82,7 +82,7 @@ pub trait NumberTyped {
         self.number_type().type_name
     }
 
-    fn size_of() -> usize {
+    fn size_of(&self) -> usize {
         self.number_type().size_of
     }
 }

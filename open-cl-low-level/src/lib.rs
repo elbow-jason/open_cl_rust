@@ -23,9 +23,15 @@
 /// segmentation faults, shaky knees, sweaty palms, and self doubt...
 // extern crate proc_macro;
 
+// public, but not `pub use ffi::*;`. Users shouldn't be poking in there unless
+// they *REALLY* want it.
+pub mod ffi;
+
 pub mod numbers;
 pub use numbers::*;
 
+type Output<T> = anyhow::Result<T>;
+pub use thiserror::Error;
 
 // #[macro_use]
 // extern crate lazy_static;
@@ -41,7 +47,6 @@ pub use numbers::*;
 
 // extern crate num_complex;
 
-// pub extern crate open_cl_sys as ffi;
 
 // #[macro_use]
 // pub mod ll_testing;

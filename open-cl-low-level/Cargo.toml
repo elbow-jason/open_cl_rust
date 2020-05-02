@@ -13,9 +13,8 @@ repository =  "https://github.com/elbow-jason/open_cl_rust/tree/master/open-cl-l
 name = "open_cl_low_level"
 
 [dependencies]
-open-cl-sys = { version = "0.1.0", path = "../open-cl-sys" }
-
-ocl = "0.19.3"
+cl-sys = "0.4.2"
+ocl-core = "0.11.2"
 
 # implementers of std::error::Error are errors in the anyhow::Result
 # https://github.com/dtolnay/anyhow
@@ -47,11 +46,8 @@ colored = "1.9"
 # number stuff
 num = "0.2.1"
 
-# traits for numbers (duh?). Allows easier extenstion of numbers and generics.
-num-traits = "0.2.11"
-
-# rust support for complex numbers. Wowowow.
-num-complex = "0.2.4"
+# util for working with number types
+num-traits = "0.2"
 
 # logging
 log = "0.4"
