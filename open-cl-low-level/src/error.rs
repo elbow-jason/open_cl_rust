@@ -1,134 +1,134 @@
-// use crate::cl::ClObjectError;
+// // use crate::cl::ClObjectError;
+// // use crate::device::DeviceError;
+// // use crate::device_mem::DeviceMemError;
+// // use crate::event::EventError;
+
+// use crate::context_builder::ContextBuilderError;
 // use crate::device::DeviceError;
-// use crate::device_mem::DeviceMemError;
 // use crate::event::EventError;
+// use crate::kernel::KernelError;
+// // use crate::numbers::casting::NumCastError;
+// // use crate::numbers::TypeError;
+// use crate::platform::PlatformError;
+// use crate::program::ProgramError;
+// use crate::session::{SessionBuilderError, SessionError};
+// use crate::status_code::StatusCodeError;
+// use crate::work::WorkError;
 
-use crate::context_builder::ContextBuilderError;
-use crate::device::DeviceError;
-use crate::event::EventError;
-use crate::kernel::KernelError;
-use crate::numbers::casting::NumCastError;
-use crate::numbers::TypeError;
-use crate::platform::PlatformError;
-use crate::program::ProgramError;
-use crate::session::{SessionBuilderError, SessionError};
-use crate::status_code::StatusCodeError;
-use crate::work::WorkError;
+// #[derive(Debug, Fail, PartialEq, Clone, Eq)]
+// pub enum Error {
+//     #[fail(display = "{}", _0)]
+//     StatusCodeError(StatusCodeError),
 
-#[derive(Debug, Fail, PartialEq, Clone, Eq)]
-pub enum Error {
-    #[fail(display = "{}", _0)]
-    StatusCodeError(StatusCodeError),
+//     #[fail(display = "{}", _0)]
+//     PlatformError(PlatformError),
 
-    #[fail(display = "{}", _0)]
-    PlatformError(PlatformError),
+//     #[fail(display = "{}", _0)]
+//     DeviceError(DeviceError),
 
-    #[fail(display = "{}", _0)]
-    DeviceError(DeviceError),
+//     #[fail(display = "{}", _0)]
+//     ProgramError(ProgramError),
 
-    #[fail(display = "{}", _0)]
-    ProgramError(ProgramError),
+//     #[fail(display = "{}", _0)]
+//     KernelError(KernelError),
 
-    #[fail(display = "{}", _0)]
-    KernelError(KernelError),
+//     #[fail(display = "{}", _0)]
+//     EventError(EventError),
 
-    #[fail(display = "{}", _0)]
-    EventError(EventError),
+//     #[fail(display = "{}", _0)]
+//     ContextBuilderError(ContextBuilderError),
 
-    #[fail(display = "{}", _0)]
-    ContextBuilderError(ContextBuilderError),
+//     #[fail(display = "{}", _0)]
+//     SessionBuilderError(SessionBuilderError),
 
-    #[fail(display = "{}", _0)]
-    SessionBuilderError(SessionBuilderError),
+//     #[fail(display = "{}", _0)]
+//     SessionError(SessionError),
 
-    #[fail(display = "{}", _0)]
-    SessionError(SessionError),
+//     #[fail(display = "{}", _0)]
+//     WorkError(WorkError),
 
-    #[fail(display = "{}", _0)]
-    WorkError(WorkError),
+//     // #[fail(display = "{}", _0)]
+//     // TypeError(TypeError),
 
-    #[fail(display = "{}", _0)]
-    TypeError(TypeError),
+//     #[fail(display = "OpenCL returned a null pointer")]
+//     ClObjectCannotBeNull,
 
-    #[fail(display = "OpenCL returned a null pointer")]
-    ClObjectCannotBeNull,
+//     // #[fail(display = "{}", _0)]
+//     // NumCastError(NumCastError),
+// }
 
-    #[fail(display = "{}", _0)]
-    NumCastError(NumCastError),
-}
+// impl Error {
+//     pub fn panic(e: Error) {
+//         panic!("{:?}", e);
+//     }
 
-impl Error {
-    pub fn panic(e: Error) {
-        panic!("{:?}", e);
-    }
+//     pub fn as_output<T>(self) -> Result<T, Error> {
+//         Err(self)
+//     }
+// }
 
-    pub fn as_output<T>(self) -> Result<T, Error> {
-        Err(self)
-    }
-}
+// impl From<StatusCodeError> for Error {
+//     fn from(err: StatusCodeError) -> Error {
+//         Error::StatusCodeError(err)
+//     }
+// }
 
-impl From<StatusCodeError> for Error {
-    fn from(err: StatusCodeError) -> Error {
-        Error::StatusCodeError(err)
-    }
-}
+// impl From<PlatformError> for Error {
+//     fn from(err: PlatformError) -> Error {
+//         Error::PlatformError(err)
+//     }
+// }
 
-impl From<PlatformError> for Error {
-    fn from(err: PlatformError) -> Error {
-        Error::PlatformError(err)
-    }
-}
+// impl From<DeviceError> for Error {
+//     fn from(err: DeviceError) -> Error {
+//         Error::DeviceError(err)
+//     }
+// }
 
-impl From<DeviceError> for Error {
-    fn from(err: DeviceError) -> Error {
-        Error::DeviceError(err)
-    }
-}
+// impl From<ProgramError> for Error {
+//     fn from(e: ProgramError) -> Error {
+//         Error::ProgramError(e)
+//     }
+// }
 
-impl From<ProgramError> for Error {
-    fn from(e: ProgramError) -> Error {
-        Error::ProgramError(e)
-    }
-}
+// impl From<KernelError> for Error {
+//     fn from(e: KernelError) -> Error {
+//         Error::KernelError(e)
+//     }
+// }
 
-impl From<KernelError> for Error {
-    fn from(e: KernelError) -> Error {
-        Error::KernelError(e)
-    }
-}
+// impl From<ContextBuilderError> for Error {
+//     fn from(err: ContextBuilderError) -> Error {
+//         Error::ContextBuilderError(err)
+//     }
+// }
 
-impl From<ContextBuilderError> for Error {
-    fn from(err: ContextBuilderError) -> Error {
-        Error::ContextBuilderError(err)
-    }
-}
+// impl From<SessionBuilderError> for Error {
+//     fn from(err: SessionBuilderError) -> Error {
+//         Error::SessionBuilderError(err)
+//     }
+// }
 
-impl From<SessionBuilderError> for Error {
-    fn from(err: SessionBuilderError) -> Error {
-        Error::SessionBuilderError(err)
-    }
-}
+// impl From<SessionError> for Error {
+//     fn from(err: SessionError) -> Error {
+//         Error::SessionError(err)
+//     }
+// }
 
-impl From<SessionError> for Error {
-    fn from(err: SessionError) -> Error {
-        Error::SessionError(err)
-    }
-}
+// impl From<WorkError> for Error {
+//     fn from(err: WorkError) -> Error {
+//         Error::WorkError(err)
+//     }
+// }
 
-impl From<WorkError> for Error {
-    fn from(err: WorkError) -> Error {
-        Error::WorkError(err)
-    }
-}
+// impl From<TypeError> for Error {
+//     fn from(err: TypeError) -> Error {
+//         Error::TypeError(err)
+//     }
+// }
 
-impl From<TypeError> for Error {
-    fn from(err: TypeError) -> Error {
-        Error::TypeError(err)
-    }
-}
-
-impl From<NumCastError> for Error {
-    fn from(err: NumCastError) -> Error {
-        Error::NumCastError(err)
-    }
-}
+// impl From<NumCastError> for Error {
+//     fn from(err: NumCastError) -> Error {
+//         Error::NumCastError(err)
+//     }
+// }

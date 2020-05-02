@@ -1,21 +1,21 @@
 use crate::{
-    list_devices_by_type, list_platforms, ClContext, ClDeviceID, ClPlatformID, DeviceType, Error,
+    list_devices_by_type, list_platforms, ClContext, ClDeviceID, ClPlatformID, DeviceType,
     Output,
 };
 
-#[derive(Debug, Fail, PartialEq, Eq, Clone)]
+use thiserror::Error;
+
+#[derive(Error, Debug, Fail, PartialEq, Eq, Clone)]
 pub enum ContextBuilderError {
-    #[fail(display = "For context building devices and device type cannot both be specified")]
+    #[error("For context building devices and device type cannot both be specified")]
     CannotSpecifyDevicesAndDeviceType,
 
-    #[fail(display = "For context building devices and platforms cannot both be specified")]
+    #[error("For context building devices and platforms cannot both be specified")]
     CannotSpecifyDevicesAndPlatforms,
 }
 
-const DEVICES_AND_DEVICE_TYPE_ERROR: Error =
-    Error::ContextBuilderError(ContextBuilderError::CannotSpecifyDevicesAndDeviceType);
-const DEVICES_AND_PLATFORMS_ERROR: Error =
-    Error::ContextBuilderError(ContextBuilderError::CannotSpecifyDevicesAndPlatforms);
+use ContextBuilderError::*;
+
 
 pub struct ClContextBuilder<'a> {
     pub platforms: Option<&'a [ClPlatformID]>,
@@ -79,12 +79,12 @@ impl<'a> ClContextBuilder<'a> {
                 device_type: Some(_),
                 devices: Some(_),
                 ..
-            } => Err(DEVICES_AND_DEVICE_TYPE_ERROR),
+            } => Err(CannotSpecifyDevicesAndDeviceType),
             B {
                 devices: Some(_),
                 platforms: Some(_),
                 ..
-            } => Err(DEVICES_AND_PLATFORMS_ERROR),
+            } => Err(CannotSpecifyDevicesAndPlatforms),
         }
     }
 

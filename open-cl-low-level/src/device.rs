@@ -4,7 +4,7 @@ use crate::ffi::*;
 
 use crate::{
     ClPlatformID, ClPointer, DeviceAffinityDomain, DeviceExecCapabilities, DeviceInfo,
-    DeviceLocalMemType, DeviceMemCacheType, DeviceType, Error, Output, PlatformPtr,
+    DeviceLocalMemType, DeviceMemCacheType, DeviceType, Output, PlatformPtr,
     StatusCodeError, ObjectWrapper,
 };
 
@@ -19,13 +19,9 @@ use crate::cl_helpers::{cl_get_info5, cl_get_object, cl_get_object_count};
 /// device's cl_device_id is listed as 0xFFFF_FFFF.
 pub const UNUSABLE_DEVICE_ID: cl_device_id = 0xFFFF_FFFF as *mut usize as cl_device_id;
 
-pub const UNUSABLE_DEVICE_ERROR: Error = Error::DeviceError(DeviceError::UnusableDevice);
-
-pub const NO_PARENT_DEVICE_ERROR: Error = Error::DeviceError(DeviceError::NoParentDevice);
-
-pub fn device_usability_check(device_id: cl_device_id) -> Result<(), Error> {
+pub fn device_usability_check(device_id: cl_device_id) -> Output<()> {
     if device_id == UNUSABLE_DEVICE_ID {
-        Err(UNUSABLE_DEVICE_ERROR)
+        Err(DeviceError::UnusableDevice)
     } else {
         Ok(())
     }
@@ -57,8 +53,8 @@ pub fn list_devices_by_type(
                     .collect();
                 Ok(devices)
             }
-            Err(Error::StatusCodeError(StatusCodeError { status_code: -1 })) => Ok(vec![]),
-            Err(Error::StatusCodeError(StatusCodeError { status_code: -30 })) => Ok(vec![]),
+            Err(StatusCodeError{ status_code: -1 }) => Ok(vec![]),
+            Err(StatusCodeError{ status_code: -30 }) => Ok(vec![]),
             Err(e) => Err(e),
         }
     }
@@ -375,7 +371,7 @@ mod tests {
     fn unusable_device_id_results_in_an_unusable_device_error() {
         let unusable_device_id = 0xFFFF_FFFF as cl_device_id;
         let error = unsafe { ClDeviceID::new(unusable_device_id) };
-        assert_eq!(error, Err(UNUSABLE_DEVICE_ERROR));
+        assert_eq!(error, Err(DeviceError::UnusableDevice));
     }
 
     #[test]

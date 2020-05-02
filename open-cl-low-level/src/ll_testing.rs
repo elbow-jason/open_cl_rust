@@ -3,7 +3,7 @@ use crate::{
     ClProgram, DeviceType, MemConfig,
 };
 
-use crate::numbers::ClNum;
+use crate::numbers::Number;
 
 use std::{thread, time};
 
@@ -22,7 +22,7 @@ pub fn get_kernel(
     (context, devices, program, kernel)
 }
 
-pub fn get_mem<T: ClNum>(size: usize) -> (Vec<ClDeviceID>, ClContext, ClMem) {
+pub fn get_mem<T: Number>(size: usize) -> (Vec<ClDeviceID>, ClContext, ClMem) {
     let (context, devices) = get_context();
     let mem_config = MemConfig::default();
     let ll_mem =
@@ -30,7 +30,7 @@ pub fn get_mem<T: ClNum>(size: usize) -> (Vec<ClDeviceID>, ClContext, ClMem) {
     (devices, context, ll_mem)
 }
 
-pub fn mem_from_data_and_context<T: ClNum>(data: &[T], context: &ClContext) -> ClMem {
+pub fn mem_from_data_and_context<T: Number>(data: &[T], context: &ClContext) -> ClMem {
     unsafe { ClMem::create_with_config(context, data, MemConfig::for_data()).unwrap() }
 }
 

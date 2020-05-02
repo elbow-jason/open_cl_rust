@@ -2,11 +2,11 @@ use std::mem::ManuallyDrop;
 use std::time::Duration;
 
 use crate::{
-    build_output, ClCommandQueue, ClContext, ClPointer, CommandExecutionStatus, Error, EventInfo,
+    build_output, ClCommandQueue, ClContext, ClPointer, CommandExecutionStatus, EventInfo,
     ObjectWrapper, Output, ProfilingInfo, Waitlist,
 };
 
-use crate::numbers::ClNum;
+use crate::Number;
 
 use crate::ffi::{
     clGetEventInfo, clGetEventProfilingInfo, cl_command_queue, cl_context, cl_event, cl_event_info,
@@ -14,6 +14,8 @@ use crate::ffi::{
 };
 
 use crate::cl_helpers::cl_get_info5;
+
+use thiserror::Error;
 
 // NOTE: Fix cl_profiling_info arg // should be a bitflag or enum.
 pub unsafe fn cl_get_event_profiling_info(
@@ -63,12 +65,9 @@ unsafe impl EventPtr for &ClEvent {
 }
 
 /// An error related to an Event or WaitList.
-#[derive(Debug, Fail, PartialEq, Eq, Clone)]
+#[derive(Error, Debug, PartialEq, Eq, Clone)]
 pub enum EventError {
-    #[fail(display = "Encountered a null cl_event.")]
-    ClEventCannotBeNull,
-
-    #[fail(display = "Event was already consumed. {:?}", _0)]
+    #[error("Event was already consumed. {0}")]
     EventAlreadyConsumed(String),
 }
 
@@ -164,13 +163,13 @@ impl Profiling {
     }
 }
 
-pub struct BufferReadEvent<T: ClNum> {
+pub struct BufferReadEvent<T> where T: Number {
     event: ManuallyDrop<ClEvent>,
     host_buffer: ManuallyDrop<Option<Vec<T>>>,
     is_consumed: bool,
 }
 
-impl<T: ClNum> BufferReadEvent<T> {
+impl<T> BufferReadEvent<T> where T: Number {
     pub fn new(event: ClEvent, host_buffer: Option<Vec<T>>) -> BufferReadEvent<T> {
         BufferReadEvent {
             event: ManuallyDrop::new(event),
@@ -181,9 +180,9 @@ impl<T: ClNum> BufferReadEvent<T> {
 
     pub fn wait(&mut self) -> Output<Option<Vec<T>>> {
         if self.is_consumed {
-            return Err(Error::EventError(EventError::EventAlreadyConsumed(
+            return Err(EventError::EventAlreadyConsumed(
                 self.event.address(),
-            )));
+            ));
         }
         unsafe {
             self.event.wait()?;
@@ -200,7 +199,7 @@ impl<T: ClNum> BufferReadEvent<T> {
     }
 }
 
-impl<T: ClNum> Drop for BufferReadEvent<T> {
+impl<T> Drop for BufferReadEvent<T> where T: Number {
     fn drop(&mut self) {
         unsafe {
             self.event.wait().unwrap();

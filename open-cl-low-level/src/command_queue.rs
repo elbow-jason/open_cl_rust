@@ -5,7 +5,7 @@ use crate::ffi::{
 };
 
 use crate::cl_helpers::cl_get_info5;
-use crate::numbers::ClNum;
+use crate::Number;
 use crate::CommandQueueInfo as CQInfo;
 use crate::{
     build_output, BufferCreator, BufferReadEvent, ClContext, ClDeviceID, ClEvent, ClKernel, ClMem,
@@ -122,7 +122,7 @@ pub unsafe fn cl_enqueue_read_buffer<T>(
     command_queue_opts: CommandQueueOptions,
 ) -> Output<cl_event>
 where
-    T: ClNum,
+    T: Number,
 {
     let mut tracking_event = new_tracking_event();
     let waitlist = command_queue_opts.new_waitlist();
@@ -145,12 +145,12 @@ where
     build_output(tracking_event, err_code)
 }
 
-pub unsafe fn cl_enqueue_write_buffer<T: ClNum>(
+pub unsafe fn cl_enqueue_write_buffer<T>(
     queue: cl_command_queue,
     mem: cl_mem,
     buffer: &[T],
     command_queue_opts: CommandQueueOptions,
-) -> Output<cl_event> {
+)  -> Output<cl_event> where T: Number {
     let mut tracking_event = new_tracking_event();
 
     let waitlist = command_queue_opts.new_waitlist();
@@ -285,12 +285,12 @@ impl ObjectWrapper<cl_command_queue> {
 
     /// write_buffer is used to move data from the host buffer (buffer: &[T]) to
     /// the mutable OpenCL cl_mem pointer.
-    pub unsafe fn write_buffer<'a, T: ClNum, H: Into<VecOrSlice<'a, T>>>(
+    pub unsafe fn write_buffer<'a, T, H>(
         &mut self,
         mem: &mut ClMem,
         host_buffer: H,
         opts: Option<CommandQueueOptions>,
-    ) -> Output<ClEvent> {
+    ) -> Output<ClEvent> where T: Number, H: Into<VecOrSlice<'a, T>> {
         match host_buffer.into() {
             VecOrSlice::Slice(hb) => self.write_buffer_from_slice(mem, hb, opts),
             VecOrSlice::Vec(hb) => self.write_buffer_from_slice(mem, &hb[..], opts),
@@ -298,12 +298,12 @@ impl ObjectWrapper<cl_command_queue> {
     }
 
     /// Copies data to a ClMem buffer from a host slice of T.
-    unsafe fn write_buffer_from_slice<'a, T: ClNum>(
+    unsafe fn write_buffer_from_slice<'a, T>(
         &mut self,
         mem: &mut ClMem,
         host_buffer: &[T],
         opts: Option<CommandQueueOptions>,
-    ) -> Output<ClEvent> {
+    ) -> Output<ClEvent> where T: Number {
         let event = cl_enqueue_write_buffer(
             self.command_queue_ptr(),
             mem.mem_ptr(),
@@ -314,12 +314,12 @@ impl ObjectWrapper<cl_command_queue> {
     }
 
     /// Copies data from a ClMem<T> buffer to a &mut [T] or mut Vec<T>.
-    pub unsafe fn read_buffer<'a, T: ClNum, H: Into<MutVecOrSlice<'a, T>>>(
+    pub unsafe fn read_buffer<'a, T, H>(
         &mut self,
         mem: &ClMem,
         host_buffer: H,
         opts: Option<CommandQueueOptions>,
-    ) -> Output<BufferReadEvent<T>> {
+    ) -> Output<BufferReadEvent<T>> where T: Number, H: Into<MutVecOrSlice<'a, T>> {
         match host_buffer.into() {
             MutVecOrSlice::Slice(slc) => {
                 let event = self.read_buffer_into_slice(mem, slc, opts)?;
@@ -333,12 +333,12 @@ impl ObjectWrapper<cl_command_queue> {
     }
 
     /// Copies data from a ClMem<T> buffer to a &mut [T].
-    unsafe fn read_buffer_into_slice<T: ClNum>(
+    unsafe fn read_buffer_into_slice<T>(
         &mut self,
         mem: &ClMem,
         host_buffer: &mut [T],
         opts: Option<CommandQueueOptions>,
-    ) -> Output<ClEvent> {
+    ) -> Output<ClEvent>  where T: Number {
         assert_eq!(mem.len().unwrap(), host_buffer.len());
         let raw_event = cl_enqueue_read_buffer(
             self.command_queue_ptr(),

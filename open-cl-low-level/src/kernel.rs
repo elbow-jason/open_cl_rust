@@ -310,7 +310,7 @@ mod tests {
     };
     // use crate::ffi::{cl_uchar2, cl_uchar3};
     // use crate::numbers::ConvertTo;
-    use crate::numbers::ClUchar;
+    use crate::numbers::Uchar;
     // use crate::numbers::{ClUchar, ClUchar2, ClUchar3};
     use crate::{
         ll_testing, ClContext, ClKernel, ClProgram, KernelPtr, MemPtr, Session, SessionBuilder,
@@ -517,7 +517,7 @@ mod tests {
             i + 1;
         }";
         let (_context, _devices, _program, mut kernel) = ll_testing::get_kernel(src, KERNEL_NAME);
-        let mut arg1: cl_uchar = ClUchar(1u8).inner();
+        let mut arg1 = Uchar::new(1u8).unwrap();
         assert_eq!(1, std::mem::size_of::<cl_uchar>());
         let () = unsafe { kernel.set_arg(0, &mut arg1) }.unwrap();
     }

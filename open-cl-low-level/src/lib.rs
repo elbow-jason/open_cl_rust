@@ -21,89 +21,92 @@
 /// working with raw pointers, manually managed atomic reference counting,
 /// pointer object lifetime interdependency, dangling pointers, buffer overflows,
 /// segmentation faults, shaky knees, sweaty palms, and self doubt...
-extern crate proc_macro;
+// extern crate proc_macro;
 
-#[macro_use]
-extern crate lazy_static;
-#[macro_use]
-extern crate failure;
-#[macro_use]
-extern crate bitflags;
-
-#[allow(unused_imports)]
-#[cfg(test)]
-#[macro_use]
-extern crate float_cmp;
-
-extern crate num_complex;
-
-pub extern crate open_cl_sys as ffi;
-
-#[macro_use]
-pub mod ll_testing;
-#[macro_use]
-pub mod macros;
-#[macro_use]
 pub mod numbers;
-
-pub mod cl_bitflags;
-pub mod cl_enums;
-pub mod cl_helpers;
-pub mod cl_input;
-pub mod cl_object;
-pub mod cl_retain_release;
-pub mod traits;
-
-pub mod cl_pointer;
-pub mod error;
-pub mod object_wrapper;
-pub mod output;
-pub mod status_code;
-pub mod strings;
-pub mod utils;
-pub mod vec_or_slice;
-
-pub mod command_queue;
-pub mod context;
-pub mod context_builder;
-pub mod device;
-
-pub mod dims;
-pub mod event;
-pub mod kernel;
-pub mod mem;
-pub mod platform;
-pub mod program;
-pub mod session;
-pub mod waitlist;
-pub mod work;
-
-// pub use cl_number_type::*;
-pub use cl_object::{CheckValidClObject, ClObject};
-pub use cl_pointer::ClPointer;
-pub use cl_retain_release::RetainRelease;
-pub use error::Error;
-pub use object_wrapper::ObjectWrapper;
-pub use output::{build_output, Output};
-pub use status_code::StatusCodeError;
-pub use vec_or_slice::{MutVecOrSlice, VecOrSlice};
-
-pub use cl_bitflags::*;
-pub use cl_enums::*;
-pub use cl_input::*;
-pub use context::*;
-pub use context_builder::*;
-pub use device::*;
 pub use numbers::*;
-pub use platform::*;
-pub use traits::*;
 
-pub use command_queue::*;
-pub use dims::*;
-pub use event::*;
-pub use kernel::*;
-pub use mem::*;
-pub use program::*;
-pub use session::*;
-pub use waitlist::*;
-pub use work::*;
+
+// #[macro_use]
+// extern crate lazy_static;
+// #[macro_use]
+// extern crate failure;
+// #[macro_use]
+// extern crate bitflags;
+
+// #[allow(unused_imports)]
+// #[cfg(test)]
+// #[macro_use]
+// extern crate float_cmp;
+
+// extern crate num_complex;
+
+// pub extern crate open_cl_sys as ffi;
+
+// #[macro_use]
+// pub mod ll_testing;
+// #[macro_use]
+// pub mod macros;
+// #[macro_use]
+
+
+// pub mod cl_bitflags;
+// pub mod cl_enums;
+// pub mod cl_helpers;
+// pub mod cl_input;
+// pub mod cl_object;
+// pub mod cl_retain_release;
+// pub mod traits;
+
+// pub mod cl_pointer;
+// pub mod error;
+// pub mod object_wrapper;
+// pub mod output;
+// pub mod status_code;
+// pub mod strings;
+// pub mod utils;
+// pub mod vec_or_slice;
+
+// pub mod command_queue;
+// pub mod context;
+// pub mod context_builder;
+// pub mod device;
+
+// pub mod dims;
+// pub mod event;
+// pub mod kernel;
+// pub mod mem;
+// pub mod platform;
+// pub mod program;
+// pub mod session;
+// pub mod waitlist;
+// pub mod work;
+
+// // pub use cl_number_type::*;
+// pub use cl_object::{CheckValidClObject, ClObject};
+// pub use cl_pointer::ClPointer;
+// pub use cl_retain_release::RetainRelease;
+// pub use object_wrapper::ObjectWrapper;
+// pub use output::{build_output, Output};
+// pub use status_code::StatusCodeError;
+// pub use vec_or_slice::{MutVecOrSlice, VecOrSlice};
+
+// pub use cl_bitflags::*;
+// pub use cl_enums::*;
+// pub use cl_input::*;
+// pub use context::*;
+// pub use context_builder::*;
+// pub use device::*;
+
+// pub use platform::*;
+// pub use traits::*;
+
+// pub use command_queue::*;
+// pub use dims::*;
+// pub use event::*;
+// pub use kernel::*;
+// pub use mem::*;
+// pub use program::*;
+// pub use session::*;
+// pub use waitlist::*;
+// pub use work::*;

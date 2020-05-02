@@ -5,57 +5,60 @@
 /// command-queue or change the state of OpenCL objects such as command-queue
 /// objects, memory objects, program and kernel objects are not thread-safe.
 
-#[allow(unused_imports)]
-#[macro_use]
-extern crate log;
+mod empty;
+pub use empty::*;
 
-// #[macro_use] extern crate lazy_static;
+// #[allow(unused_imports)]
+// #[macro_use]
+// extern crate log;
 
-// #[macro_use] extern crate bitflags;
+// // #[macro_use] extern crate lazy_static;
 
-#[macro_use]
-extern crate failure;
+// // #[macro_use] extern crate bitflags;
 
-#[cfg(test)]
-#[macro_use]
-mod testing;
+// #[macro_use]
+// extern crate failure;
 
-// macros are in there keep it before dependent modules. order matters.
-#[macro_use]
-mod macros;
+// #[cfg(test)]
+// #[macro_use]
+// mod testing;
 
-// pub mod utils;
+// // macros are in there keep it before dependent modules. order matters.
+// #[macro_use]
+// mod macros;
 
-pub extern crate open_cl_low_level;
-pub extern crate open_cl_sys as ffi;
+// // pub mod utils;
 
-pub use open_cl_low_level as ll;
+// pub extern crate open_cl_low_level;
+// pub extern crate open_cl_sys as ffi;
 
-extern crate num;
+// pub use open_cl_low_level as ll;
 
-pub mod buffer;
-pub mod command_queue;
-pub mod context;
-pub mod device;
-pub mod kernel;
-pub mod platform;
-pub mod program;
-pub mod session;
+// extern crate num;
 
-#[cfg(test)]
-mod tests;
+// pub mod buffer;
+// pub mod command_queue;
+// pub mod context;
+// pub mod device;
+// pub mod kernel;
+// pub mod platform;
+// pub mod program;
+// pub mod session;
 
-pub use buffer::Buffer;
-pub use command_queue::CommandQueue;
-pub use context::Context;
-pub use device::Device;
-pub use kernel::{Kernel, KernelOpArg, KernelOperation, NumArg, ToKernelOpArg};
-pub use platform::Platform;
-pub use program::{Program, UnbuiltProgram};
-pub use session::Session;
+// #[cfg(test)]
+// mod tests;
 
-pub use ll::{
-    BufferCreator, ClNum, CommandQueueOptions, CommandQueueProperties, DeviceType, Error,
-    HostAccess, KernelAccess, MemConfig, MemLocation, MutVecOrSlice, NumberType, NumberTyped,
-    NumberTypedT, Output, VecOrSlice, Waitlist, Work,
-};
+// pub use buffer::Buffer;
+// pub use command_queue::CommandQueue;
+// pub use context::Context;
+// pub use device::Device;
+// pub use kernel::{Kernel, KernelOpArg, KernelOperation, NumArg, ToKernelOpArg};
+// pub use platform::Platform;
+// pub use program::{Program, UnbuiltProgram};
+// pub use session::Session;
+
+// pub use ll::{
+//     BufferCreator, ClNum, CommandQueueOptions, CommandQueueProperties, DeviceType, Error,
+//     HostAccess, KernelAccess, MemConfig, MemLocation, MutVecOrSlice, NumberType, NumberTyped,
+//     NumberTypedT, Output, VecOrSlice, Waitlist, Work,
+// };

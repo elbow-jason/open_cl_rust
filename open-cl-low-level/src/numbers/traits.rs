@@ -31,10 +31,6 @@ pub trait IntoRustNum {
     fn into_rust_num(self) -> Self::Num;
 }
 
-pub trait Zeroed {
-    fn zeroed() -> Self;
-}
-
 pub trait ClPrimitive: NumCast + ToPrimitive + FromPrimitive + Copy + ClNum + Debug {}
 
 // pub trait ClVector<T: ClPrimitive>: Copy + ClNum {}

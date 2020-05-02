@@ -2,25 +2,20 @@ use super::float16::F16;
 use super::traits::{ClFrom, ClInto};
 use super::traits::{ClNewNum, ClNum, ClPrimitive, ClRustNum, ClRustPrimitiveNum};
 use super::traits::{ClVector16, ClVector2, ClVector3, ClVector4, ClVector8};
-use super::traits::{FFINumber, Number, Zeroed};
-use crate::ffi::*;
+use super::traits::{FFINumber, Number};
+
 use crate::kernel::KernelArg;
 use crate::{ClNewType, ClType, NumberType, NumberTypedT, RustType};
 use libc::size_t;
 use std::fmt;
 
-impl<T> ClType for T where T: ClNum {}
-impl<T> RustType for T where T: ClRustNum {}
-impl<T> ClNewType for T where T: ClNewNum {}
+// impl<T> ClType for T where T: ClNum {}
+// impl<T> RustType for T where T: ClRustNum {}
+// impl<T> ClNewType for T where T: ClNewNum {}
 
 // impl<T> FFINumber for T where T: ClNum + KernelArg {}
-unsafe impl<T> FFINumber for T where T: ClNewNum + KernelArg {}
+// unsafe impl<T> FFINumber for T where T: ClNewNum + KernelArg {}
 
-macro_rules! zeroed_vector {
-    ($t:ty) => {
-        unsafe { std::mem::zeroed::<$t>() }
-    };
-}
 
 impl<S, T> ClInto<T> for S
 where
@@ -40,35 +35,6 @@ where
 //     }
 // }
 
-macro_rules! __impl_zeroed_vector {
-    ($t:ty) => {
-        impl Zeroed for $t {
-            fn zeroed() -> $t {
-                zeroed_vector!($t)
-            }
-        }
-    };
-}
-
-macro_rules! __impl_zeroed_newtype_vector {
-    ($NewType:ty, $t:ty) => {
-        impl Zeroed for $t {
-            fn zeroed() -> $t {
-                $NewType(unsafe { std::mem::zeroed::<$t>() })
-            }
-        }
-    };
-}
-
-macro_rules! __impl_zeroed {
-    ($t:ty => $zero:expr) => {
-        impl Zeroed for $t {
-            fn zeroed() -> $t {
-                $zero
-            }
-        }
-    };
-}
 
 macro_rules! __number_typed_t {
     ($num_tag:ident, [ $( $t:ty ),* ]) => {
@@ -95,14 +61,6 @@ macro_rules! __impl_primitive_froms {
                 $new_type(num)
             }
         }
-    };
-}
-
-macro_rules! __impl_newtype {
-    ($new_type:ident, $cl_type:ty) => {
-        #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
-        #[repr(transparent)]
-        pub struct $new_type(pub $cl_type);
     };
 }
 

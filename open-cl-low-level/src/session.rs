@@ -2,20 +2,23 @@ use std::convert::TryInto;
 use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
 
-use crate::numbers::{ClNum, NumberTyped};
+use crate::numbers::{Number, NumberTyped};
 use crate::vec_or_slice::{MutVecOrSlice, VecOrSlice};
 use crate::{
     cl_enqueue_nd_range_kernel, list_devices_by_type, list_platforms, utils, BufferCreator,
     BufferReadEvent, BuiltClContext, ClCommandQueue, ClContext, ClContextBuilder, ClDeviceID,
     ClEvent, ClKernel, ClMem, ClPlatformID, ClProgram, CommandQueueOptions, CommandQueueProperties,
-    CommandQueuePtr, DeviceType, Error, KernelOperation, KernelPtr, MemConfig, Output, Waitlist,
+    CommandQueuePtr, DeviceType, KernelOperation, KernelPtr, MemConfig, Output, Waitlist,
     Work,
 };
 
+use anyhow::Result;
+use thiserror::Error;
+
 /// An error related to Session Building.
-#[derive(Debug, Fail, PartialEq, Eq, Clone)]
+#[derive(Error, Debug, PartialEq, Eq, Clone)]
 pub enum SessionError {
-    #[fail(display = "The given queue index {} was out of range", _0)]
+    #[error("The given queue index {0} was out of range")]
     QueueIndexOutOfRange(usize),
 }
 
@@ -41,7 +44,7 @@ impl Session {
             let mut program = ClProgram::create_with_source(&context, src)?;
             program.build(devices.as_slice())?;
             let props = CommandQueueProperties::default();
-            let maybe_queues: Result<Vec<ClCommandQueue>, Error> = devices
+            let maybe_queues: Result<Vec<ClCommandQueue>> = devices
                 .iter()
                 .map(|dev| ClCommandQueue::create(&context, dev, Some(props)))
                 .collect();
@@ -131,7 +134,7 @@ impl Session {
     /// # Safety
     /// This function can cause undefined behavior if the OpenCL context object that
     /// is passed is not in a valid state (null, released, etc.)
-    pub unsafe fn create_mem<T: ClNum, B: BufferCreator<T>>(
+    pub unsafe fn create_mem<T: Number, B: BufferCreator<T>>(
         &self,
         buffer_creator: B,
     ) -> Output<ClMem> {
@@ -145,7 +148,7 @@ impl Session {
     /// # Safety
     /// This function can cause undefined behavior if the OpenCL context object that
     /// is passed is not in a valid state (null, released, etc.)
-    pub unsafe fn create_mem_with_config<T: ClNum, B: BufferCreator<T>>(
+    pub unsafe fn create_mem_with_config<T: Number, B: BufferCreator<T>>(
         &self,
         buffer_creator: B,
         mem_config: MemConfig,
@@ -169,7 +172,7 @@ impl Session {
     /// ClMem is valid, if the ClCommandQueue's dependencies are valid, if the ClCommandQueue's object
     /// itself still valid, if the device's size and type exactly match the host buffer's size and type,
     /// if the waitlist's events are in a valid state and the list goes on...
-    pub unsafe fn write_buffer<'a, T: ClNum, H: Into<VecOrSlice<'a, T>>>(
+    pub unsafe fn write_buffer<'a, T: Number, H: Into<VecOrSlice<'a, T>>>(
         &mut self,
         queue_index: usize,
         mem: &mut ClMem,
@@ -190,7 +193,7 @@ impl Session {
     /// ClMem is valid, if the ClCommandQueue's dependencies are valid, if the ClCommandQueue's object
     /// itself still valid, if the device's size and type exactly match the host buffer's size and type,
     /// if the waitlist's events are in a valid state and the list goes on...
-    pub unsafe fn read_buffer<'a, T: ClNum, H: Into<MutVecOrSlice<'a, T>>>(
+    pub unsafe fn read_buffer<'a, T: Number, H: Into<MutVecOrSlice<'a, T>>>(
         &mut self,
         queue_index: usize,
         mem: &mut ClMem,
@@ -295,37 +298,25 @@ impl<'a> SessionQueue<'a> {
 }
 
 /// An error related to Session Building.
-#[derive(Debug, Fail, PartialEq, Eq, Clone)]
+#[derive(Error, Debug, PartialEq, Eq, Clone)]
 pub enum SessionBuilderError {
-    #[fail(display = "Given ClMem has no associated cl_mem object")]
+    #[error("Given ClMem has no associated cl_mem object")]
     NoAssociatedMemObject,
 
-    #[fail(
-        display = "For session building platforms AND devices cannot be specifed together; they are mutually exclusive."
-    )]
+    #[error("For session building platforms AND devices cannot be specifed together; they are mutually exclusive.")]
     CannotSpecifyPlatformsAndDevices,
 
-    #[fail(
-        display = "For session building program src AND binaries cannot be specifed together; they are mutually exclusive."
-    )]
+    #[error("For session building program src AND binaries cannot be specifed together; they are mutually exclusive.")]
     CannotSpecifyProgramSrcAndProgramBinaries,
 
-    #[fail(
-        display = "For session building either program src or program binaries must be specified."
-    )]
+    #[error("For session building either program src or program binaries must be specified.")]
     MustSpecifyProgramSrcOrProgramBinaries,
 
-    #[fail(
-        display = "Building a session with program binaries requires exactly 1 device: Got {:?} devices",
-        _0
-    )]
+    #[error("Building a session with program binaries requires exactly 1 device: Got {0} devices")]
     BinaryProgramRequiresExactlyOneDevice(usize),
 }
 
-const CANNOT_SPECIFY_SRC_AND_BINARIES: Error =
-    Error::SessionBuilderError(SessionBuilderError::CannotSpecifyProgramSrcAndProgramBinaries);
-const MUST_SPECIFY_SRC_OR_BINARIES: Error =
-    Error::SessionBuilderError(SessionBuilderError::MustSpecifyProgramSrcOrProgramBinaries);
+use SessionBuilderError::*;
 
 #[derive(Default)]
 pub struct SessionBuilder<'a> {
@@ -387,12 +378,12 @@ impl<'a> SessionBuilder<'a> {
                 program_src: Some(_),
                 program_binaries: Some(_),
                 ..
-            } => return Err(CANNOT_SPECIFY_SRC_AND_BINARIES),
+            } => return Err(CannotSpecifyProgramSrcAndProgramBinaries),
             Self {
                 program_src: None,
                 program_binaries: None,
                 ..
-            } => return Err(MUST_SPECIFY_SRC_OR_BINARIES),
+            } => return Err(MustSpecifyProgramSrcOrProgramBinaries),
             _ => Ok(()),
         }
     }
@@ -447,14 +438,13 @@ impl<'a> SessionBuilder<'a> {
                 },
                 n_devices,
             ) => {
-                let e = SessionBuilderError::BinaryProgramRequiresExactlyOneDevice(n_devices);
-                Err(Error::SessionBuilderError(e))
+                Err(BinaryProgramRequiresExactlyOneDevice(n_devices))
             }
             _ => unreachable!(),
         }?;
 
         let props = CommandQueueProperties::default();
-        let maybe_queues: Result<Vec<ClCommandQueue>, Error> = devices
+        let maybe_queues: Result<Vec<ClCommandQueue>> = devices
             .iter()
             .map(|dev| ClCommandQueue::create(&context, dev, Some(props)))
             .collect();

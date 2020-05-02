@@ -1,19 +1,18 @@
-// use std::marker::PhantomData;
-use crate::{Dims, Error, Output};
+use crate::{Dims, Output};
 
-#[derive(Debug, Fail, Clone, Eq, PartialEq)]
+use thiserror::Error;
+
+#[derive(Error, Debug, Clone, Eq, PartialEq)]
 pub enum WorkError {
-    #[fail(display = "Work does not allow a zero value for any of its specified dimenions")]
+    #[error("Work does not allow a zero value for any of its specified dimenions")]
     DimLengthCannotBeZero,
 
-    #[fail(display = "Work dimensions must be 1, 2, or 3.")]
+    #[error("Work dimensions must be 1, 2, or 3.")]
     InvalidDimsCount,
 
-    #[fail(display = "Work size dimensions cannot have any zero values")]
+    #[error("Work size dimensions cannot have any zero values")]
     InvalidWorkSize,
 }
-
-const INVALID_WORK_SIZE: Error = Error::WorkError(WorkError::InvalidWorkSize);
 
 /// WorkSize is the general, non-zero sized 3D array.
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -33,7 +32,7 @@ impl NonZeroVolume3DArray {
             Dims::Three(x, y, z) => [*x, *y, *z],
         };
         match work_size {
-            [0, _, _] | [_, 0, _] | [_, _, 0] => Err(INVALID_WORK_SIZE),
+            [0, _, _] | [_, 0, _] | [_, _, 0] => Err(WorkError::InvalidWorkSize),
             w => Ok(NonZeroVolume3DArray(w)),
         }
     }

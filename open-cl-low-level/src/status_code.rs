@@ -1,6 +1,7 @@
 use std::fmt;
+use thiserror::Error;
 
-#[derive(Clone, Copy, Eq, PartialEq, Hash)]
+#[derive(Error, Clone, Copy, Eq, PartialEq, Hash, Debug)]
 pub struct StatusCodeError {
     pub status_code: i32,
 }

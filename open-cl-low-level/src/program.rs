@@ -6,25 +6,30 @@ use crate::ffi::{
     clGetProgramInfo, cl_context, cl_device_id, cl_program, cl_program_build_info, cl_program_info,
 };
 use crate::{
-    build_output, strings, ClContext, ClDeviceID, ClPointer, ContextPtr, DevicePtr, Error,
+    build_output, strings, ClContext, ClDeviceID, ClPointer, ContextPtr, DevicePtr,
     Output, ProgramBuildInfo, ProgramInfo, ObjectWrapper
 };
 
-pub const DEVICE_LIST_CANNOT_BE_EMPTY: Error =
-    Error::ProgramError(ProgramError::CannotBuildProgramWithEmptyDevicesList);
+use thiserror::Error;
+
+
+    // fail(display = 
+
 
 /// An error related to Program.
-#[derive(Debug, Fail, PartialEq, Eq, Clone)]
+#[derive(Error, Debug, PartialEq, Eq, Clone)]
 pub enum ProgramError {
-    #[fail(display = "The given source code was not a valid CString")]
-    CStringInvalidSourceCode,
+    #[error("The given source code was not a valid CString")]
+    InvalidSourceCode,
 
-    #[fail(display = "The given program binary was not a valid CString")]
-    CStringInvalidProgramBinary,
-
-    #[fail(display = "Cannot build a program with an empty list of devices")]
-    CannotBuildProgramWithEmptyDevicesList,
+    #[error("The given program binary was not a valid CString")]
+    InvalidProgramBinary,
+    
+    #[error("Cannot build a program with an empty list of devices")]
+    EmptyDevicesList,
 }
+
+use ProgramError::*;
 
 /// A low-level helper function for calling the OpenCL FFI function clBuildProgram.
 ///
@@ -64,7 +69,7 @@ pub unsafe fn cl_get_program_build_log(
 /// If the context or device is in an invalid state this function will cause undefined
 /// behavior.
 pub unsafe fn cl_create_program_with_source(context: cl_context, src: &str) -> Output<cl_program> {
-    let src = strings::to_c_string(src).ok_or_else(|| ProgramError::CStringInvalidSourceCode)?;
+    let src = strings::to_c_string(src).ok_or_else(|| InvalidSourceCode)?;
     let mut src_list = vec![src.as_ptr()];
 
     let mut err_code = 0;
@@ -153,7 +158,7 @@ impl ClProgram {
         D: DevicePtr,
     {
         if devices.is_empty() {
-            return Err(DEVICE_LIST_CANNOT_BE_EMPTY);
+            return Err(EmptyDevicesList);
         }
         unsafe {
             let device_ptrs: Vec<cl_device_id> = devices.iter().map(|d| d.device_ptr()).collect();
