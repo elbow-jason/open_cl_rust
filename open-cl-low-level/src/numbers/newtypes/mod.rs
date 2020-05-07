@@ -72,19 +72,20 @@ impl Scalar for Double {}
 impl Scalar for SizeT {}
 impl Scalar for Half {}
 
-// impl SignedScalar for Char {}
-// impl SignedScalar for Short {}
-// impl SignedScalar for Int {}
-// impl SignedScalar for Long {}
+impl SignedScalar for Char {}
+impl SignedScalar for Short {}
+impl SignedScalar for Int {}
+impl SignedScalar for Long {}
 
-// impl UnsignedScalar for Uchar {}
-// impl UnsignedScalar for Ushort {}
-// impl UnsignedScalar for Uint {}
-// impl UnsignedScalar for Ulong {}
-// impl UnsignedScalar for SizeT {}
+impl UnsignedScalar for Uchar {}
+impl UnsignedScalar for Ushort {}
+impl UnsignedScalar for Uint {}
+impl UnsignedScalar for Ulong {}
+impl UnsignedScalar for SizeT {}
 
-// impl FloatScalar for Float {}
-// impl FloatScalar for Double {}
+impl FloatScalar for Half {}
+impl FloatScalar for Float {}
+impl FloatScalar for Double {}
 
 #[cfg(test)]
 mod tests;

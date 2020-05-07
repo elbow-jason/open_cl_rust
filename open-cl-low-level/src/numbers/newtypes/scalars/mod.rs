@@ -280,6 +280,8 @@ macro_rules! impl_ops {
             }
         }
 
+        // i8 >> numbers::newtypes::scalars::Char
+
         impl One for $name {
             #[inline(always)]
             fn one() -> $name {
@@ -301,12 +303,19 @@ macro_rules! impl_ops {
 }
 
 macro_rules! impl_int_ops {
-    ($name:ident) => {
+    ($name:ident, $inner:ty) => {
         impl std::ops::Shl<$name> for $name {
             type Output = $name;
             #[inline(always)]
             fn shl(self, other: $name) -> Self::Output {
                 $name(self.0 << other.0)
+            }
+        }
+
+        impl std::ops::Shr<$name> for $inner {
+            type Output = $inner;
+            fn shr(self, other: $name) -> $inner {
+                self >> other.0
             }
         }
     };
@@ -382,7 +391,7 @@ macro_rules! define_signed_newtypes {
       __defstruct!(signed, $new_type, $cl_type);
       __defimpl!($new_type, $cl_type);
       impl_ops!($new_type, $cl_type);
-      impl_int_ops!($new_type);
+      impl_int_ops!($new_type, $cl_type);
       impl_to_primitive!($new_type);
       impl_num_cast!($new_type);
     )*
@@ -395,7 +404,7 @@ macro_rules! define_unsigned_newtypes {
       __defstruct!(unsigned, $new_type, $cl_type);
       __defimpl!($new_type, $cl_type);
       impl_ops!($new_type, $cl_type);
-      impl_int_ops!($new_type);
+      impl_int_ops!($new_type, $cl_type);
       impl_to_primitive!($new_type);
       impl_num_cast!($new_type);
     )*
