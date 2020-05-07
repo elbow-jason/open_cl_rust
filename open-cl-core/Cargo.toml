@@ -37,8 +37,8 @@ default = [
 ]
 
 
-[[example]]
-name = "simple_add"
-path = "examples/simple_add/main.rs"
+# [[example]]
+# name = "simple_add"
+# path = "examples/simple_add/main.rs"
 
 

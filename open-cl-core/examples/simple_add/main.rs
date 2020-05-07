@@ -1,9 +1,9 @@
-extern crate opencl_core;
+extern crate open_cl_core;
 
 use std::fmt;
 
-use opencl_core::ll::{DevicePtr, ProgramPtr};
-use opencl_core::{
+use open_cl_core::ll::{DevicePtr, ProgramPtr};
+use open_cl_core::{
     Buffer, CommandQueue, Context, Device, Kernel, Platform, Program, UnbuiltProgram, Work,
 };
 

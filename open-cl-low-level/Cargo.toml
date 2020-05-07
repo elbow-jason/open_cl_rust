@@ -66,6 +66,8 @@ half_lib = { package = "half", version = "1.4.1" }
 # because rust does not implement float comparison like this is 1985 or something...
 float-cmp = "0.6.0"
 
+derive_more = "0.99.5"
+
 [features]
 # v1.0.0 will not be supported. It's not thread-safe and I dont' want to even
 # see the can opener for that can of worms.
@@ -75,14 +77,14 @@ default = [
     "opencl_version_1_2_0",
 ]
 
-[[example]]
-name = "ll_simple_add"
-path = "examples/ll_simple_add/main.rs"
+# [[example]]
+# name = "ll_simple_add"
+# path = "examples/ll_simple_add/main.rs"
 
-[[example]]
-name = "applying_number_type"
-path = "examples/applying_number_type/main.rs"
+# [[example]]
+# name = "applying_number_type"
+# path = "examples/applying_number_type/main.rs"
 
-[[example]]
-name = "casting_example"
-path = "examples/casting_example/main.rs"
+# [[example]]
+# name = "casting_example"
+# path = "examples/casting_example/main.rs"

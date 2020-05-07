@@ -253,7 +253,7 @@ impl Session {
 /// All the contained OpenCL objects Session are Send so Session is Send. However,
 /// The low level Session has ZERO Synchronization for mutable objects Program and
 /// CommandQueue. Therefore the low level Session is not Sync. If a Sync Session is
-/// required, the Session of opencl_core is Sync by synchronizing mutations of it's
+/// required, the Session of open_cl_core is Sync by synchronizing mutations of it's
 /// objects via RwLocks.
 unsafe impl Send for Session {}
 // unsafe impl Sync for Session {}

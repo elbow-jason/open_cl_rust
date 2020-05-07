@@ -1,3 +1,8 @@
+#![allow(incomplete_features)]
+#![feature(const_generics)]
+#![feature(associated_type_defaults)]
+#![feature(proc_macro_hygiene)]
+
 /// The opencl-low-level crate is the lowest level crate of opencl that provides
 /// functions that take common rust data structures (slice, vec, non-cl
 /// primitives) as arguments for OpenCL's FFI.
@@ -25,13 +30,21 @@
 
 // public, but not `pub use ffi::*;`. Users shouldn't be poking in there unless
 // they *REALLY* want it.
+
+#[macro_use]
+extern crate derive_more;
+
 pub mod ffi;
 
 pub mod numbers;
 pub use numbers::*;
 
-type Output<T> = anyhow::Result<T>;
+pub type Output<T> = anyhow::Result<T>;
+pub type Result<T> = anyhow::Result<T>;
+
 pub use thiserror::Error;
+
+
 
 // #[macro_use]
 // extern crate lazy_static;
