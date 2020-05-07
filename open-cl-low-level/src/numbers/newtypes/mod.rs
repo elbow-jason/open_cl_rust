@@ -8,45 +8,54 @@ pub use scalars::*;
 // pub use vectors::*;
 // The only entrypoint into the entire app for cl_* primitives.
 
+use num_traits::cast::{NumCast, ToPrimitive};
+use num_traits::{One, Zero};
 use std::fmt::{Debug, Display};
+use std::iter::{Product, Sum};
 use std::ops::*;
-use num_traits::{Zero, One};
-use std::iter::{Sum, Product};
-use num_traits::cast::{ToPrimitive, NumCast};
-
 
 pub trait Scalar:
-Copy + Clone + Default + Sized +
-PartialEq + PartialEq<Self> + PartialOrd +
-Send + Sync + 'static +
-Debug + Display + 
-Zero<Output=Self> +
-One<Output=Self> +
-Add<Self, Output=Self> +
-Sub<Self, Output=Self> +
-Mul<Self, Output=Self> +
-Div<Self, Output=Self> +
-Rem<Self, Output=Self> +
-AddAssign<Self> +
-SubAssign<Self> +
-MulAssign<Self> +
-DivAssign<Self> +
-RemAssign<Self> +
-NumCast + {}
-
+    Copy
+    + Clone
+    + Default
+    + Sized
+    + PartialEq
+    + PartialEq<Self>
+    + PartialOrd
+    + Send
+    + Sync
+    + 'static
+    + Debug
+    + Display
+    + Zero<Output = Self>
+    + One<Output = Self>
+    + Add<Self, Output = Self>
+    + Sub<Self, Output = Self>
+    + Mul<Self, Output = Self>
+    + Div<Self, Output = Self>
+    + Rem<Self, Output = Self>
+    + AddAssign<Self>
+    + SubAssign<Self>
+    + MulAssign<Self>
+    + DivAssign<Self>
+    + RemAssign<Self>
+    + NumCast
+{
+}
 
 pub trait SignedScalar:
-  Scalar +
-  Neg<Output=Self> +
-  Shr<Self, Output=Self> +
-  Shl<Self, Output=Self> +
-  Not<Output=Self> {}
+    Scalar
+    + Neg<Output = Self>
+    + Shr<Self, Output = Self>
+    + Shl<Self, Output = Self>
+    + Not<Output = Self>
+{
+}
 
 pub trait UnsignedScalar:
-  Scalar +
-  Shr<Self, Output=Self> +
-  Shl<Self, Output=Self> +
-  Not<Output=Self> {}
+    Scalar + Shr<Self, Output = Self> + Shl<Self, Output = Self> + Not<Output = Self>
+{
+}
 
 pub trait FloatScalar: Scalar {}
 
@@ -62,7 +71,6 @@ impl Scalar for Float {}
 impl Scalar for Double {}
 impl Scalar for SizeT {}
 impl Scalar for Half {}
-
 
 // impl SignedScalar for Char {}
 // impl SignedScalar for Short {}

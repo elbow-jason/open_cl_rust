@@ -6,7 +6,6 @@ pub mod arrays;
 
 pub mod vectors;
 
-
 // pub mod primitives;
 
 // // #[macro_use]
@@ -24,7 +23,6 @@ pub mod vectors;
 
 // pub mod casting;
 // pub use casting::*;
-
 
 // pub mod as_slice;
 // pub use as_slice::*;
@@ -49,5 +47,3 @@ pub mod vectors;
 //         NumberType::new::<$new_type>()
 //       }
 //     }
-
-

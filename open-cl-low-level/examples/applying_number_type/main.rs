@@ -18,5 +18,4 @@ fn main() {
     // assert_eq!(t, NumberType::ClChar);
 
     // println!("finished apply_number_type example.");
-
 }

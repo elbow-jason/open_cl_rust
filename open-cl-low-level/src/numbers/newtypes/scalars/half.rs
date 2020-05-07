@@ -1,14 +1,13 @@
-
 // "half" package aliased to "half_lib" in the Cargo.toml.
 use half_lib::f16;
 
-use thiserror::Error;
 use std::fmt;
+use thiserror::Error;
 
-use num_traits::{Zero, One, ToPrimitive, NumCast};
+use num_traits::{NumCast, One, ToPrimitive, Zero};
 
-use std::ops::*;
 use std::cmp::Ordering;
+use std::ops::*;
 
 use crate::ffi::cl_half;
 use crate::Output;
@@ -216,7 +215,6 @@ impl Ord for Half {
     }
 }
 
-
 // impl Zeroed for Half {
 //     fn zeroed() -> Half {
 //         Half(0u16)
@@ -243,22 +241,59 @@ impl fmt::Display for Half {
 
 impl ToPrimitive for Half {
     fn to_i64(&self) -> Option<i64> {
-      self.into_f32().to_i64()
+        self.into_f32().to_i64()
     }
-  
+
+    fn to_i32(&self) -> Option<i32> {
+        self.into_f32().to_i32()
+    }
+
+    fn to_i16(&self) -> Option<i16> {
+        self.into_f32().to_i16()
+    }
+
+    fn to_i8(&self) -> Option<i8> {
+        self.into_f32().to_i8()
+    }
+
     fn to_u64(&self) -> Option<u64> {
         self.into_f32().to_u64()
+    }
+
+    fn to_u32(&self) -> Option<u32> {
+        self.into_f32().to_u32()
+    }
+
+    fn to_u16(&self) -> Option<u16> {
+        self.into_f32().to_u16()
+    }
+
+    fn to_u8(&self) -> Option<u8> {
+        self.into_f32().to_u8()
     }
 
     fn to_f32(&self) -> Option<f32> {
         Some(self.into_f32())
     }
-  }
+
+    fn to_f64(&self) -> Option<f64> {
+        Some(self.into_f64())
+    }
+}
+
+impl NumCast for Half {
+    #[inline]
+    fn from<T: ToPrimitive>(val: T) -> Option<Half> {
+        Half::try_from_f32(val.to_f32()?).ok()
+    }
+}
 
 #[cfg(test)]
 mod half_tests {
-    use super::{Half};
-    use num_traits::{Zero, One};
+    use super::Half;
+    use crate::numbers::newtypes::scalars::ScalarNum;
+    use crate::numbers::newtypes::Char;
+    use num_traits::{NumCast, One, Zero};
 
     #[test]
     fn test_debug_works() {
@@ -286,31 +321,60 @@ mod half_tests {
 
     #[test]
     fn test_add_impl() {
-        let one: Half = Half::from(1.0);
-        let three: Half = Half::from(3.0);
+        let one: Half = From::from(1.0);
+        let three: Half = From::from(3.0);
         let four = one + three;
-        assert_eq!(four, Half::from(4.0));
+        assert_eq!(four, From::from(4.0));
     }
 
     #[test]
     fn test_sub_impl() {
-        let one: Half = Half::from(1.0);
-        let three: Half = Half::from(3.0);
+        let one: Half = From::from(1.0);
+        let three: Half = From::from(3.0);
         let neg_two = one - three;
-        assert_eq!(neg_two, Half::from(-2.0));
+        assert_eq!(neg_two, From::from(-2.0));
     }
-
 
     #[test]
     fn test_mul_impl() {
-        let one: Half = Half::from(1.0);
-        let three: Half = Half::from(3.0);
+        let one: Half = From::from(1.0);
+        let three: Half = From::from(3.0);
         let nine = three * three;
         let one_again = one * one;
-        assert_eq!(nine, Half::from(9.0));
+        assert_eq!(nine, From::from(9.0));
         assert_eq!(one_again, one);
     }
 
+    #[test]
+    fn test_num_cast_impl() {
+        let h01: Half = NumCast::from(10i8).unwrap();
+        let h02: Half = NumCast::from(10u8).unwrap();
+        let h03: Half = NumCast::from(10i16).unwrap();
+        let h04: Half = NumCast::from(10u16).unwrap();
+        let h05: Half = NumCast::from(10i32).unwrap();
+        let h06: Half = NumCast::from(10u32).unwrap();
+        let h07: Half = NumCast::from(10.0f32).unwrap();
+        let h08: Half = NumCast::from(10i64).unwrap();
+        let h09: Half = NumCast::from(10u64).unwrap();
+        let h10: Half = NumCast::from(10.0f64).unwrap();
+        let half_ten = Half::from_f32(10.0f32);
+        let h11: Half = NumCast::from(half_ten).unwrap();
+        let h12: Half = NumCast::from(Char::new(10i8).unwrap()).unwrap();
+
+        let ten: Half = Half::from_f32(10.0);
+        assert_eq!(h01, ten);
+        assert_eq!(h02, ten);
+        assert_eq!(h03, ten);
+        assert_eq!(h04, ten);
+        assert_eq!(h05, ten);
+        assert_eq!(h06, ten);
+        assert_eq!(h07, ten);
+        assert_eq!(h08, ten);
+        assert_eq!(h09, ten);
+        assert_eq!(h10, ten);
+        assert_eq!(h11, ten);
+        assert_eq!(h12, ten);
+    }
 
     // #[test]
     // fn try_from_succeeds_with_valid_values() {

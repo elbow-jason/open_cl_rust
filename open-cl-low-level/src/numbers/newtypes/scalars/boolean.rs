@@ -1,7 +1,7 @@
-use thiserror::Error;
+use num_traits::{One, Zero};
 use std::fmt;
-use num_traits::{Zero, One};
 use std::ops::*;
+use thiserror::Error;
 
 use crate::ffi::cl_uint;
 use crate::Output;
@@ -36,7 +36,7 @@ impl Bool {
         match self.0 {
             0 => false,
             1 => true,
-            v => panic!(InvalidValue(v))
+            v => panic!(InvalidValue(v)),
         }
     }
 
@@ -56,7 +56,7 @@ impl Add for Bool {
             (1, 0) => Bool(1),
             (0, 1) => Bool(1),
             (1, 1) => Bool(0),
-            (_, _) => unreachable!()
+            (_, _) => unreachable!(),
         }
     }
 }
@@ -67,7 +67,7 @@ impl Mul for Bool {
         match self.0 * other.0 {
             0 => Bool(0),
             1 => Bool(1),
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 }
@@ -86,7 +86,6 @@ impl One for Bool {
         Bool(1)
     }
 }
-
 
 impl From<cl_bool> for Bool {
     fn from(val: cl_bool) -> Bool {
@@ -137,8 +136,8 @@ impl fmt::Display for Bool {
 
 #[cfg(test)]
 mod bool_tests {
-    use super::{Bool, TRUE, FALSE};
-    use num_traits::{Zero, One};
+    use super::{Bool, FALSE, TRUE};
+    use num_traits::{One, Zero};
 
     #[test]
     fn test_debug_works() {
@@ -160,13 +159,11 @@ mod bool_tests {
         assert_eq!(one, Bool(1));
     }
 
-
     #[test]
     fn try_from_u32_works_with_1() {
         let val: Bool = Bool::try_from_u32(1).unwrap();
         assert_eq!(Bool(1), val);
     }
-
 
     #[test]
     fn try_from_u32_works_with_0() {
@@ -178,7 +175,7 @@ mod bool_tests {
     fn try_from_u32_works_with_u32_greater_than_1() {
         match Bool::try_from_u32(2) {
             Err(_) => (),
-            Ok(Bool(_)) => panic!("Bool::try_from_u32(2) did not return an Err as expected")
+            Ok(Bool(_)) => panic!("Bool::try_from_u32(2) did not return an Err as expected"),
         }
     }
 
@@ -188,7 +185,6 @@ mod bool_tests {
     //     let result: Result<Half, Error> = ClTryFrom::<f32>::try_from(big_float);
     //     assert!(result.is_err());
     // }
-
 
     // fn Half_min_is_expected_value() {}
 }

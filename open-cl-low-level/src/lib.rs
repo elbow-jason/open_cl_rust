@@ -44,8 +44,6 @@ pub type Result<T> = anyhow::Result<T>;
 
 pub use thiserror::Error;
 
-
-
 // #[macro_use]
 // extern crate lazy_static;
 // #[macro_use]
@@ -60,13 +58,11 @@ pub use thiserror::Error;
 
 // extern crate num_complex;
 
-
 // #[macro_use]
 // pub mod ll_testing;
 // #[macro_use]
 // pub mod macros;
 // #[macro_use]
-
 
 // pub mod cl_bitflags;
 // pub mod cl_enums;

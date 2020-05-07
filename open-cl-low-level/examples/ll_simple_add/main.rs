@@ -5,8 +5,8 @@
 // use open_cl_low_level::*;
 
 fn main() {
-//     run_procedural();
-//     run_with_session();
+    //     run_procedural();
+    //     run_with_session();
 }
 
 // fn run_procedural() {

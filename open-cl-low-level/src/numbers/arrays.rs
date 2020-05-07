@@ -1,36 +1,67 @@
 use std::fmt;
 use std::ops::*;
 
-use num_traits::{Zero, One};
-use num_traits::cast::{ToPrimitive, NumCast};
+use num_traits::cast::{NumCast, ToPrimitive};
+use num_traits::{One, Zero};
 
 // use super::newtypes::{NumberNewType, Uchar};
 
 use super::cl_primitives::{
-  ClPrimitiveNumber,
-  cl_uchar, cl_char, cl_ushort, cl_short, cl_uint, cl_int, cl_ulong, cl_long, cl_float, cl_double
+    cl_char, cl_double, cl_float, cl_int, cl_long, cl_short, cl_uchar, cl_uint, cl_ulong,
+    cl_ushort, ClPrimitiveNumber,
 };
 
 use std::mem::zeroed;
 
-
 macro_rules! get_index {
-  (0, $vector:expr) => { $vector.0 };
-  (1, $vector:expr) => { $vector.1 };
-  (2, $vector:expr) => { $vector.2 };
-  (3, $vector:expr) => { $vector.3 };
-  (4, $vector:expr) => { $vector.4 };
-  (5, $vector:expr) => { $vector.5 };
-  (6, $vector:expr) => { $vector.6 };
-  (7, $vector:expr) => { $vector.7 };
-  (8, $vector:expr) => { $vector.8 };
-  (9, $vector:expr) => { $vector.9 };
-  (10, $vector:expr) => { $vector.10 };
-  (11, $vector:expr) => { $vector.11 };
-  (12, $vector:expr) => { $vector.12 };
-  (13, $vector:expr) => { $vector.13 };
-  (14, $vector:expr) => { $vector.14 };
-  (15, $vector:expr) => { $vector.15 };
+    (0, $vector:expr) => {
+        $vector.0
+    };
+    (1, $vector:expr) => {
+        $vector.1
+    };
+    (2, $vector:expr) => {
+        $vector.2
+    };
+    (3, $vector:expr) => {
+        $vector.3
+    };
+    (4, $vector:expr) => {
+        $vector.4
+    };
+    (5, $vector:expr) => {
+        $vector.5
+    };
+    (6, $vector:expr) => {
+        $vector.6
+    };
+    (7, $vector:expr) => {
+        $vector.7
+    };
+    (8, $vector:expr) => {
+        $vector.8
+    };
+    (9, $vector:expr) => {
+        $vector.9
+    };
+    (10, $vector:expr) => {
+        $vector.10
+    };
+    (11, $vector:expr) => {
+        $vector.11
+    };
+    (12, $vector:expr) => {
+        $vector.12
+    };
+    (13, $vector:expr) => {
+        $vector.13
+    };
+    (14, $vector:expr) => {
+        $vector.14
+    };
+    (15, $vector:expr) => {
+        $vector.15
+    };
 }
 
 #[derive(Clone, Copy, Hash)]
@@ -52,20 +83,13 @@ pub struct ClVector8<T: ClPrimitiveNumber>(T, T, T, T, T, T, T, T);
 
 #[derive(Clone, Copy, Hash)]
 #[repr(C)]
-pub struct ClVector16<T: ClPrimitiveNumber>(
-  T, T, T, T,
-  T, T, T, T,
-  T, T, T, T,
-  T, T, T, T
-);
-
+pub struct ClVector16<T: ClPrimitiveNumber>(T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T);
 
 pub trait ClVector<T: ClPrimitiveNumber, const N: usize> {
-  fn new(val: [T; N]) -> Self;
-  fn into_array(self) -> [T; N];
-  fn as_array(&self) -> [T; N];
+    fn new(val: [T; N]) -> Self;
+    fn into_array(self) -> [T; N];
+    fn as_array(&self) -> [T; N];
 }
-
 
 macro_rules! def_array {
   // { name: $name:ident, size: 3 } => { def_array!($name,  4, [0, 1, 2], [0, 1, 2, 3]); };
@@ -75,7 +99,7 @@ macro_rules! def_array {
   { name: $name:ident, size: 8 } => { def_array!($name, 8, [0, 1, 2, 3, 4, 5, 6, 7]); };
   { name: $name:ident, size: 16 } => { def_array!($name, 16, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]); };
 
-  // $keep_i copies the given index 
+  // $keep_i copies the given index
   // ($name:ident, $outer_size:expr, $inner_size:expr, [$( $outer_i:expr ),+]) => {
   //   def_array!($name, $outer_size, $inner_size, [$( $outer_i ),+], [$( $outer_i ),+]);
   // };
@@ -233,27 +257,27 @@ macro_rules! impl_cl_vector {
 }
 
 macro_rules! impl_debug {
-  ($name:ident, [ $( $i:expr ),+ ]) => {
-    impl<T: ClPrimitiveNumber> fmt::Debug for $name<T> {
-      fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}({:?})", stringify!($name), self.as_array())
-      }
-    }
-  }
+    ($name:ident, [ $( $i:expr ),+ ]) => {
+        impl<T: ClPrimitiveNumber> fmt::Debug for $name<T> {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                write!(f, "{}({:?})", stringify!($name), self.as_array())
+            }
+        }
+    };
 }
 
 macro_rules! impl_zero {
-  ($name:ident, [ $( $i:expr ),+ ]) => {
-    impl<T: ClPrimitiveNumber> Zero for $name<T> {
-      fn zero() -> $name<T> {
-        unsafe { zeroed() }
-      }
+    ($name:ident, [ $( $i:expr ),+ ]) => {
+        impl<T: ClPrimitiveNumber> Zero for $name<T> {
+            fn zero() -> $name<T> {
+                unsafe { zeroed() }
+            }
 
-      fn is_zero(&self) -> bool {
-        *self == Self::zero()
-      }
-    }
-  }
+            fn is_zero(&self) -> bool {
+                *self == Self::zero()
+            }
+        }
+    };
 }
 
 macro_rules! impl_one {
@@ -271,7 +295,6 @@ macro_rules! impl_one {
   }
 }
 
-
 macro_rules! impl_cmp {
   ($name:ident, [$( $i:expr ),+]) => {
 
@@ -286,14 +309,17 @@ macro_rules! impl_cmp {
 }
 
 macro_rules! impl_shl_assign {
-  ($name:ident) => {
-    impl<T: ClPrimitiveNumber + Shl> ShlAssign<T> for $name<T> where Self: Shl<T, Output=Self> {
-      #[inline(always)]
-      fn shl_assign(&mut self, rhs: T) {
-          *self = *self << rhs;
-      }
-    }
-  }
+    ($name:ident) => {
+        impl<T: ClPrimitiveNumber + Shl> ShlAssign<T> for $name<T>
+        where
+            Self: Shl<T, Output = Self>,
+        {
+            #[inline(always)]
+            fn shl_assign(&mut self, rhs: T) {
+                *self = *self << rhs;
+            }
+        }
+    };
 }
 
 macro_rules! impl_shl_signed {
@@ -374,70 +400,72 @@ macro_rules! impl_shr_unsigned {
 }
 
 macro_rules! impl_shr_assign {
-  ($name:ident) => {
-    impl<T: ClPrimitiveNumber + Shr> ShrAssign<T> for $name<T> where Self: Shr<T, Output=Self> {
-
-      #[inline(always)]
-      fn shr_assign(&mut self, shift_by: T) {
-          *self = *self >> shift_by;
-      }
-    }
-  }
+    ($name:ident) => {
+        impl<T: ClPrimitiveNumber + Shr> ShrAssign<T> for $name<T>
+        where
+            Self: Shr<T, Output = Self>,
+        {
+            #[inline(always)]
+            fn shr_assign(&mut self, shift_by: T) {
+                *self = *self >> shift_by;
+            }
+        }
+    };
 }
 
 macro_rules! rust_array_conv {
-  ($name:ident, $n:expr) => {
-    impl<T: ClPrimitiveNumber> From<[T; $n]> for $name<T> {
-      fn from(val: [T; $n]) -> $name<T> {
-        $name::new(val)
-      }
-    }
+    ($name:ident, $n:expr) => {
+        impl<T: ClPrimitiveNumber> From<[T; $n]> for $name<T> {
+            fn from(val: [T; $n]) -> $name<T> {
+                $name::new(val)
+            }
+        }
 
-    impl<T: ClPrimitiveNumber> From<$name<T>> for [T; $n] {
-      fn from(val: $name<T>) -> [T; $n] {
-        val.into()
-      }
-    }
-  }
+        impl<T: ClPrimitiveNumber> From<$name<T>> for [T; $n] {
+            fn from(val: $name<T>) -> [T; $n] {
+                val.into()
+            }
+        }
+    };
 }
 
 macro_rules! impl_assigns_ops {
-  ($name:ident) => {
-    impl<T: ClPrimitiveNumber> AddAssign for $name<T> {
-      #[inline(always)]
-      fn add_assign(&mut self, other: $name<T>) {
-          *self = *self + other;
-      }
-    }
+    ($name:ident) => {
+        impl<T: ClPrimitiveNumber> AddAssign for $name<T> {
+            #[inline(always)]
+            fn add_assign(&mut self, other: $name<T>) {
+                *self = *self + other;
+            }
+        }
 
-    impl<T: ClPrimitiveNumber> SubAssign for $name<T> {
-      #[inline(always)]
-      fn sub_assign(&mut self, other: $name<T>) {
-        *self = *self - other;
-      }
-    }
-    
-    impl<T: ClPrimitiveNumber> MulAssign for $name<T> {
-      #[inline(always)]
-      fn mul_assign(&mut self, other: $name<T>) {
-        *self = *self * other;
-      }
-    }
+        impl<T: ClPrimitiveNumber> SubAssign for $name<T> {
+            #[inline(always)]
+            fn sub_assign(&mut self, other: $name<T>) {
+                *self = *self - other;
+            }
+        }
 
-    impl<T: ClPrimitiveNumber> RemAssign for $name<T> {
-      #[inline(always)]
-      fn rem_assign(&mut self, other: $name<T>) {
-        *self = *self % other;
-      }
-    }
+        impl<T: ClPrimitiveNumber> MulAssign for $name<T> {
+            #[inline(always)]
+            fn mul_assign(&mut self, other: $name<T>) {
+                *self = *self * other;
+            }
+        }
 
-    impl<T: ClPrimitiveNumber> DivAssign for $name<T> {
-      #[inline(always)]
-      fn div_assign(&mut self, other: $name<T>) {
-        *self = *self / other;
-      }
-    }
-  }
+        impl<T: ClPrimitiveNumber> RemAssign for $name<T> {
+            #[inline(always)]
+            fn rem_assign(&mut self, other: $name<T>) {
+                *self = *self % other;
+            }
+        }
+
+        impl<T: ClPrimitiveNumber> DivAssign for $name<T> {
+            #[inline(always)]
+            fn div_assign(&mut self, other: $name<T>) {
+                *self = *self / other;
+            }
+        }
+    };
 }
 
 macro_rules! impl_not {
@@ -454,8 +482,8 @@ macro_rules! impl_not {
 }
 
 pub trait ArrayCast<T> {
-  fn cast(&self) -> Option<T>;
-  fn cast_into(self) -> Option<T>;
+    fn cast(&self) -> Option<T>;
+    fn cast_into(self) -> Option<T>;
 }
 
 macro_rules! impl_array_cast {
@@ -471,7 +499,6 @@ macro_rules! impl_array_cast {
   }
 }
 
-
 def_array! { name: ClVector2, size: 2 }
 def_array! { name: ClVector4, size: 4 }
 def_array! { name: ClVector8, size: 8 }
@@ -481,16 +508,15 @@ def_array! { name: ClVector16, size: 16 }
 
 #[cfg(test)]
 mod arrays_tests {
-  // use std::ops::*;
-  use super::*;
-  // use num_traits::*;
+    // use std::ops::*;
+    use super::*;
+    // use num_traits::*;
 
-  #[test]
-  fn test_add_works_for_array_cl_uchar_cl_array_2() {
-    let arr1 = ClVector2(2u8, 1u8);
-    let arr2 = ClVector2(2u8, 3u8);
-    let arr3 = arr1 + arr2;
-    assert_eq!(arr3, ClVector2::new([4u8; 2]))
-  }
+    #[test]
+    fn test_add_works_for_array_cl_uchar_cl_array_2() {
+        let arr1 = ClVector2(2u8, 1u8);
+        let arr2 = ClVector2(2u8, 3u8);
+        let arr3 = arr1 + arr2;
+        assert_eq!(arr3, ClVector2::new([4u8; 2]))
+    }
 }
-

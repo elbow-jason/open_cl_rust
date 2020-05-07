@@ -1,4 +1,3 @@
-
 // use super::cl_primitives::{
 //   ClPrimitiveNumber, cl_uchar, cl_char, cl_ushort, cl_short, cl_uint, cl_int, cl_ulong, cl_long, cl_float, cl_double};
 // use std::fmt::Debug;
