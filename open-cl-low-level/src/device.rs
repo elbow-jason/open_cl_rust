@@ -3,17 +3,12 @@ use std::fmt::Debug;
 
 use crate::{
     DeviceAffinityDomain, DeviceExecCapabilities, DeviceInfo, DeviceLocalMemType,
-    DeviceMemCacheType, DeviceType, Output, Platform, StatusCodeError,
+    DeviceMemCacheType, DeviceType, Output,
 };
 
 use thiserror::Error;
 
-use libc::c_void;
-
-use crate::cl::{cl_device_id, cl_platform_id, functions, ClObject, ObjectWrapper};
-use crate::cl_pointer::ClPointer;
-
-// use crate::cl_helpers::{cl_get_info5, cl_get_object, cl_get_object_count};
+use crate::cl::{cl_device_id, functions, ClObject, ObjectWrapper};
 
 use crate::ffi::{
     cl_device_affinity_domain, cl_device_exec_capabilities, cl_device_local_mem_type,
@@ -261,17 +256,7 @@ unsafe impl Sync for Device {}
 
 #[cfg(test)]
 mod tests {
-    use crate::cl::{cl_device_id, ClObject};
-    // use crate::ffi::*;
-    use crate::*;
-    use libc::c_void;
-
-    // #[test]
-    // fn unusable_device_id_results_in_an_unusable_device_error() {
-    //     let unusable_device_id = cl_device_id::new(0xFFFF_FFFF as *mut c_void);
-    //     let error = unsafe { Device::new(unusable_device_id) };
-    //     assert_eq!(error, Err(DeviceError::UnusableDevice));
-    // }
+    use crate::{ll_testing, DevicePtr, DeviceType, Platform};
 
     #[test]
     fn lists_all_devices() {
