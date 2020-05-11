@@ -44,53 +44,56 @@ pub type Result<T> = anyhow::Result<T>;
 
 pub use thiserror::Error;
 
-// #[macro_use]
-// extern crate lazy_static;
-// #[macro_use]
-// extern crate failure;
-// #[macro_use]
-// extern crate bitflags;
+#[macro_use]
+extern crate lazy_static;
 
-// #[allow(unused_imports)]
-// #[cfg(test)]
-// #[macro_use]
-// extern crate float_cmp;
+#[macro_use]
+extern crate bitflags;
 
-// extern crate num_complex;
+#[macro_use]
+mod ll_testing;
 
-// #[macro_use]
-// pub mod ll_testing;
-// #[macro_use]
-// pub mod macros;
-// #[macro_use]
+#[macro_use]
+pub mod macros;
 
-// pub mod cl_bitflags;
-// pub mod cl_enums;
+pub mod cl_bitflags;
+pub use cl_bitflags::*;
+
+pub mod cl_enums;
+pub use cl_enums::*;
+
 // pub mod cl_helpers;
+
+pub mod status_code;
+pub use status_code::StatusCodeError;
+
+pub mod platform;
+pub use platform::*;
+
+pub mod device;
+pub use device::*;
+
+pub mod context;
+pub use context::*;
+
+mod cl;
+mod cl_pointer;
+mod strings;
+mod utils;
+
 // pub mod cl_input;
-// pub mod cl_object;
-// pub mod cl_retain_release;
+
 // pub mod traits;
 
-// pub mod cl_pointer;
-// pub mod error;
-// pub mod object_wrapper;
-// pub mod output;
-// pub mod status_code;
-// pub mod strings;
-// pub mod utils;
 // pub mod vec_or_slice;
 
 // pub mod command_queue;
-// pub mod context;
-// pub mod context_builder;
-// pub mod device;
 
 // pub mod dims;
 // pub mod event;
 // pub mod kernel;
 // pub mod mem;
-// pub mod platform;
+
 // pub mod program;
 // pub mod session;
 // pub mod waitlist;
@@ -102,17 +105,11 @@ pub use thiserror::Error;
 // pub use cl_retain_release::RetainRelease;
 // pub use object_wrapper::ObjectWrapper;
 // pub use output::{build_output, Output};
-// pub use status_code::StatusCodeError;
+
 // pub use vec_or_slice::{MutVecOrSlice, VecOrSlice};
 
-// pub use cl_bitflags::*;
-// pub use cl_enums::*;
 // pub use cl_input::*;
-// pub use context::*;
-// pub use context_builder::*;
-// pub use device::*;
 
-// pub use platform::*;
 // pub use traits::*;
 
 // pub use command_queue::*;

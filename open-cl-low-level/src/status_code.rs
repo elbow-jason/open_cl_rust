@@ -1,7 +1,9 @@
 use std::fmt;
 use thiserror::Error;
 
-#[derive(Error, Clone, Copy, Eq, PartialEq, Hash, Debug)]
+use crate::Output;
+
+#[derive(Error, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct StatusCodeError {
     pub status_code: i32,
 }
@@ -11,6 +13,14 @@ impl StatusCodeError {
         match code {
             0 => None,
             status_code => Some(StatusCodeError { status_code }),
+        }
+    }
+
+    #[inline(always)]
+    pub fn check(code: i32) -> Output<()> {
+        match code {
+            0 => Ok(()),
+            status_code => Err(StatusCodeError { status_code })?,
         }
     }
 

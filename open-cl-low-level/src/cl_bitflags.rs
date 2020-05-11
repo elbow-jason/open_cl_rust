@@ -1,70 +1,19 @@
-use ffi::*;
+use crate::ffi::{cl_command_queue_properties, cl_mem_flags};
+
+pub use ocl_core::{DeviceAffinityDomain, DeviceExecCapabilities, DeviceFpConfig, DeviceType};
 
 bitflags! {
-    pub struct DeviceType: cl_device_type {
-        const DEFAULT = 1;
-        const CPU = 2;
-        const GPU = 4;
-        const ACCELERATOR = 8;
-        const CUSTOM = 16;
-        const ALL = 0xFFFF_FFFF;
+    pub struct CommandQueueProperties: cl_command_queue_properties {
+        const OUT_OF_ORDER_EXEC_MODE_ENABLE = 1;
+        const PROFILING_ENABLE = 1 << 1;
+        const ON_DEVICE = 1 << 2;
+        const ON_DEVICE_DEFAULT = 1 << 3;
     }
 }
 
-impl From<DeviceType> for cl_device_type {
-    fn from(d: DeviceType) -> cl_device_type {
-        d.bits()
-    }
-}
-
-// https://github.com/KhronosGroup/OpenCL-Headers/blob/master/CL/cl.h#L389-L401
-bitflags! {
-    pub struct DeviceFpConfig: cl_device_fp_config {
-        const DENORM = 1;
-        const INF_NAN = 2;
-        const ROUND_TO_NEAREST = 4;
-        const ROUND_TO_ZERO = 8;
-        const ROUND_TO_INF = 16;
-        const FMA = 32;
-        const SOFT_FLOAT = 64;
-        const CORRECTLY_ROUNDED_DIVIDE_SQRT = 128;
-    }
-}
-
-impl From<DeviceFpConfig> for cl_device_fp_config {
-    fn from(d: DeviceFpConfig) -> cl_device_fp_config {
-        d.bits()
-    }
-}
-
-bitflags! {
-    pub struct DeviceExecCapabilities: cl_device_exec_capabilities {
-        const KERNEL = 1;
-        const NATIVE_KERNEL = 2;
-    }
-}
-
-impl From<DeviceExecCapabilities> for cl_device_exec_capabilities {
-    fn from(d: DeviceExecCapabilities) -> cl_device_exec_capabilities {
-        d.bits()
-    }
-}
-
-bitflags! {
-    pub struct DeviceAffinityDomain: cl_device_affinity_domain {
-        const NONE_SUPPORTED = 0;
-        const NUMA = 1;
-        const L4_CACHE = 2;
-        const L3_CACHE = 4;
-        const L2_CACHE = 8;
-        const L1_CACHE = 16;
-        const NEXT_PARTITIONABLE = 32;
-    }
-}
-
-impl From<DeviceAffinityDomain> for cl_device_affinity_domain {
-    fn from(d: DeviceAffinityDomain) -> cl_device_affinity_domain {
-        d.bits()
+impl Default for CommandQueueProperties {
+    fn default() -> CommandQueueProperties {
+        CommandQueueProperties::PROFILING_ENABLE
     }
 }
 
@@ -170,23 +119,51 @@ impl From<MemFlags> for cl_mem_flags {
     }
 }
 
-bitflags! {
-    pub struct CommandQueueProperties: cl_command_queue_properties {
-        const OUT_OF_ORDER_EXEC_MODE_ENABLE = 1;
-        const PROFILING_ENABLE = 1 << 1;
-        const ON_DEVICE = 1 << 2;
-        const ON_DEVICE_DEFAULT = 1 << 3;
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+    // use crate::ffi::*;
+    #[test]
+    fn test_command_queue_properties_implements_default() {
+        let q: CommandQueueProperties = Default::default();
+        assert_eq!(q, CommandQueueProperties::PROFILING_ENABLE);
+    }
+
+    #[test]
+    fn test_command_queue_properties_can_be_assembled_from_bits() {
+        let p: cl_command_queue_properties = CommandQueueProperties::PROFILING_ENABLE.bits();
+        let q: CommandQueueProperties = CommandQueueProperties::from_bits(p).unwrap();
+        assert_eq!(q, CommandQueueProperties::PROFILING_ENABLE);
     }
 }
 
-impl Default for CommandQueueProperties {
-    fn default() -> CommandQueueProperties {
-        CommandQueueProperties::PROFILING_ENABLE
-    }
-}
+// impl From<CommandQueueProperties> for cl_command_queue_properties {
+//     fn from(d: CommandQueueProperties) -> cl_command_queue_properties {
+//         d.bits()
+//     }
+// }
 
-impl From<CommandQueueProperties> for cl_command_queue_properties {
-    fn from(d: CommandQueueProperties) -> cl_command_queue_properties {
-        d.bits()
-    }
-}
+// impl From<DeviceType> for cl_device_type {
+//     fn from(d: DeviceType) -> cl_device_type {
+//         d.bits()
+//     }
+// }
+
+// impl From<DeviceFpConfig> for cl_device_fp_config {
+//     fn from(d: DeviceFpConfig) -> cl_device_fp_config {
+//         d.bits()
+//     }
+// }
+
+// impl From<DeviceExecCapabilities> for cl_device_exec_capabilities {
+//     fn from(d: DeviceExecCapabilities) -> cl_device_exec_capabilities {
+//         d.bits()
+//     }
+// }
+
+// impl From<DeviceAffinityDomain> for cl_device_affinity_domain {
+//     fn from(d: DeviceAffinityDomain) -> cl_device_affinity_domain {
+//         d.bits()
+//     }
+// }

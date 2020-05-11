@@ -1,4 +1,4 @@
-/// Platform has 3 basic functions (other than holding a cl object handle).
+/// Platform serves 3 basic purposes:
 ///
 /// Platform is the interface for listing platforms.
 ///
@@ -8,136 +8,125 @@
 ///
 /// NOTE: ClPlatformID is tested!
 use std::default::Default;
-use std::sync::Mutex;
 
+use crate::cl::functions;
+
+use crate::cl::{cl_platform_id, ClObject, ObjectWrapper};
 use crate::cl_enums::PlatformInfo;
-use crate::cl_helpers::cl_get_info5;
-use crate::ffi::{clGetPlatformIDs, clGetPlatformInfo, cl_platform_id, cl_platform_info, cl_uint};
-use crate::{build_output, utils, ClPointer, Error, Output, ObjectWrapper};
-
-lazy_static! {
-    static ref PLATFORM_ACCESS: Mutex<()> = Mutex::new(());
-}
-
-/// Gets the cl_platform_ids of the host machine
-pub fn cl_get_platform_ids() -> Output<ClPointer<cl_platform_id>> {
-    let platform_lock = PLATFORM_ACCESS.lock();
-    // transactional access to the platform Mutex requires one lock.
-    let mut num_platforms: cl_uint = 0;
-    let e1 = unsafe { clGetPlatformIDs(0, std::ptr::null_mut(), &mut num_platforms) };
-    let mut ids: Vec<cl_platform_id> =
-        utils::vec_filled_with(0 as cl_platform_id, num_platforms as usize);
-    build_output((), e1)?;
-    let e2 = unsafe { clGetPlatformIDs(num_platforms, ids.as_mut_ptr(), &mut num_platforms) };
-    build_output((), e2)?;
-    std::mem::drop(platform_lock);
-    Ok(unsafe { ClPointer::from_vec(ids) })
-}
-
-/// Gets platform info for a given cl_platform_id and the given cl_platform_info flag via the
-/// OpenCL FFI call to clGetPlatformInfo.alloc
-///
-/// # Safety
-/// Use of an invalid cl_platform_id is undefined behavior. A mismatch between the
-/// types that the info flag is supposed to result in and the T of the Output<ClPointer<T>> is
-/// undefined behavior. Be careful. There be dragons.
-pub unsafe fn cl_get_platform_info<T: Copy>(
-    platform: cl_platform_id,
-    info_flag: cl_platform_info,
-) -> Output<ClPointer<T>> {
-    cl_get_info5(platform, info_flag, clGetPlatformInfo)
-}
+use crate::ffi::cl_platform_info;
+use crate::{Device, DeviceType};
+use crate::{Error, Output};
 
 /// An error related to Platform.
-#[derive(Debug, Fail, PartialEq, Eq, Clone)]
+#[derive(Error, Debug, PartialEq, Eq, Clone)]
 pub enum PlatformError {
-    #[fail(display = "No platforms found!")]
+    #[error("No platforms found!")]
     NoPlatforms,
 
-    #[fail(display = "The platform has no useable devices!")]
+    #[error("The platform has no useable devices!")]
     NoUsableDevices,
 
-    #[fail(display = "The given platform had no default device!")]
+    #[error("The given platform had no default device!")]
     NoDefaultDevice,
 }
 
-pub type ClPlatformID = ObjectWrapper<cl_platform_id>;
+#[repr(transparent)]
+pub struct Platform(ObjectWrapper<cl_platform_id>);
 
-pub trait PlatformPtr {
-    fn platform_ptr(&self) -> cl_platform_id;
+impl Platform {
+    unsafe fn new(p: cl_platform_id) -> Platform {
+        Platform(ObjectWrapper::new(p))
+    }
+
+    unsafe fn cl_object(&self) -> cl_platform_id {
+        self.0.cl_object()
+    }
 }
 
 // pub struct ClPlatformID {
 //     object: cl_platform_id,
 // }
 
-impl PlatformPtr for cl_platform_id {
-    fn platform_ptr(&self) -> cl_platform_id {
-        *self
-    }
-}
+// impl PlatformPtr for cl_platform_id {
+//     fn platform_ptr(&self) -> cl_platform_id {
+//         *self
+//     }
+// }
 
-impl PlatformPtr for ClPlatformID {
-    fn platform_ptr(&self) -> cl_platform_id {
-        unsafe { self.cl_object() }
-    }
-}
+// impl PlatformPtr for ClPlatformID {
+//     fn platform_ptr(&self) -> cl_platform_id {
+//         unsafe { self.cl_object() }
+//     }
+// }
 
-impl PlatformPtr for &ClPlatformID {
-    fn platform_ptr(&self) -> cl_platform_id {
-        unsafe { self.cl_object() }
-    }
-}
+// impl PlatformPtr for &ClPlatformID {
+//     fn platform_ptr(&self) -> cl_platform_id {
+//         unsafe { self.cl_object() }
+//     }
+// }
 
-pub fn list_platforms() -> Output<Vec<ClPlatformID>> {
-    let mut plats = Vec::new();
-    unsafe {
-        let cl_ptr = cl_get_platform_ids()?;
-        for object in cl_ptr.into_vec().into_iter() {
-            let plat = ClPlatformID::new(object)?;
-            plats.push(plat);
-        }
-    }
-    Ok(plats)
-}
-
-pub fn default_platform() -> Output<ClPlatformID> {
-    let mut platforms = list_platforms()?;
+pub fn default_platform() -> Output<Platform> {
+    let mut platforms = Platform::list_all()?;
 
     if platforms.is_empty() {
-        return Err(Error::from(PlatformError::NoPlatforms));
+        return Err(PlatformError::NoPlatforms)?;
     }
     Ok(platforms.remove(0))
 }
 
-pub fn platform_info<P: PlatformPtr, I: Into<cl_platform_info>>(
-    platform: P,
-    info_code: I,
-) -> Output<String> {
-    unsafe {
-        cl_get_platform_info(platform.platform_ptr(), info_code.into()).map(|ret| ret.into_string())
+impl Platform {
+    pub fn list_all() -> Output<Vec<Platform>> {
+        unsafe {
+            let platform_ids = functions::list_platform_ids()?;
+            let mut plats = Vec::with_capacity(platform_ids.len());
+            for id in platform_ids.into_iter() {
+                // this program should not continue if the FFI returns null pointers.
+                id.check().unwrap();
+                plats.push(Platform::new(id));
+            }
+            Ok(plats)
+        }
     }
-}
 
-pub fn platform_name<P: PlatformPtr>(platform: P) -> Output<String> {
-    platform_info(platform, PlatformInfo::Name)
-}
+    pub fn list_devices(&self) -> Output<Vec<Device>> {
+        self.list_devices_by_type(DeviceType::ALL)
+    }
 
-pub fn platform_version<P: PlatformPtr>(platform: P) -> Output<String> {
-    platform_info(platform, PlatformInfo::Version)
-}
+    pub fn list_devices_by_type(&self, device_type: DeviceType) -> Output<Vec<Device>> {
+        let device_ids = unsafe { functions::list_devices(self.cl_object(), device_type.bits()) }?;
+        let mut devices = Vec::with_capacity(device_ids.len());
+        for device_id in device_ids.into_iter() {
+            match device_id.check() {
+                Ok(()) => devices.push(unsafe { Device::new(device_id) }),
+                Err(_) => (),
+            }
+        }
+        Ok(devices)
+    }
 
-pub fn platform_profile<P: PlatformPtr>(platform: P) -> Output<String> {
-    platform_info(platform, PlatformInfo::Profile)
-}
+    pub fn info<I: Into<cl_platform_info>>(&self, info_code: I) -> Output<String> {
+        unsafe { functions::get_platform_info(self.cl_object(), info_code.into()) }
+    }
+    pub fn name(&self) -> Output<String> {
+        self.info(PlatformInfo::Name)
+    }
 
-pub fn platform_vendor<P: PlatformPtr>(platform: P) -> Output<String> {
-    platform_info(platform, PlatformInfo::Vendor)
-}
+    pub fn version(&self) -> Output<String> {
+        self.info(PlatformInfo::Version)
+    }
 
-pub fn platform_extensions<P: PlatformPtr>(platform: P) -> Output<Vec<String>> {
-    platform_info(platform, PlatformInfo::Extensions)
-        .map(|exts| exts.split(' ').map(|ext| ext.to_string()).collect())
+    pub fn profile(&self) -> Output<String> {
+        self.info(PlatformInfo::Profile)
+    }
+
+    pub fn vendor(&self) -> Output<String> {
+        self.info(PlatformInfo::Vendor)
+    }
+
+    pub fn extensions(&self) -> Output<Vec<String>> {
+        self.info(PlatformInfo::Extensions)
+            .map(|exts| exts.split(' ').map(|ext| ext.to_string()).collect())
+    }
 }
 
 // v2.1
@@ -145,11 +134,11 @@ pub fn platform_extensions<P: PlatformPtr>(platform: P) -> Output<Vec<String>> {
 //     self.get_info(PlatformInfo::HostTimerResolution)
 // }
 
-unsafe impl Send for ClPlatformID {}
-unsafe impl Sync for ClPlatformID {}
+unsafe impl Send for Platform {}
+unsafe impl Sync for Platform {}
 
-impl Default for ClPlatformID {
-    fn default() -> ClPlatformID {
+impl Default for Platform {
+    fn default() -> Platform {
         default_platform().unwrap()
     }
 }
@@ -157,56 +146,60 @@ impl Default for ClPlatformID {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ClPointer;
     // use crate::device::{Device, DeviceType, DevicePtr};
-
+    use crate::cl::functions;
     #[test]
     fn test_cl_get_platforms() {
-        let cl_pointer: ClPointer<cl_platform_id> = cl_get_platform_ids()
-            .unwrap_or_else(|e| panic!("cl_get_platforms failed with {:?}", e));
-
-        let platforms: Vec<cl_platform_id> = unsafe { cl_pointer.into_vec() };
-        assert!(platforms.len() > 0);
-
-        for p in platforms {
-            assert!(p.is_null() == false);
+        let platform_ids: Vec<cl_platform_id> = unsafe { functions::list_platform_ids().unwrap() };
+        assert!(platform_ids.len() > 0);
+        for id in platform_ids.into_iter() {
+            id.check().unwrap();
         }
     }
 
     #[test]
     fn platform_func_default_works() {
-        let _platform: ClPlatformID = ClPlatformID::default();
+        let _platform: Platform = Platform::default();
     }
 
     #[test]
     fn platform_func_all_works() {
-        let platforms: Vec<ClPlatformID> = list_platforms().expect("list_platforms() failed");
+        let platforms: Vec<Platform> = Platform::list_all().expect("list_platforms() failed");
         assert!(platforms.len() > 0);
     }
 
     #[test]
     fn platform_has_functions_getting_for_info() {
-        let platform = ClPlatformID::default();
+        let platform = Platform::default();
         let empty_string = "".to_string();
 
-        let name = platform_name(&platform).expect("failed to get platform info for name");
+        let name = platform
+            .name()
+            .expect("failed to get platform info for name");
 
         assert!(name != empty_string);
 
-        let version = platform_version(&platform).expect("failed to get platform info for version");
+        let version = platform
+            .version()
+            .expect("failed to get platform info for version");
 
         assert!(version != empty_string);
 
-        let profile = platform_profile(&platform).expect("failed to get platform info for profile");
+        let profile = platform
+            .profile()
+            .expect("failed to get platform info for profile");
 
         assert!(profile != empty_string);
 
-        let vendor = platform_vendor(&platform).expect("failed to get platform info for vendor");
+        let vendor = platform
+            .vendor()
+            .expect("failed to get platform info for vendor");
 
         assert!(vendor != empty_string);
 
-        let extensions =
-            platform_extensions(&platform).expect("failed to get platform info for extensions");
+        let extensions = platform
+            .extensions()
+            .expect("failed to get platform info for extensions");
 
         for ext in extensions.into_iter() {
             assert!(ext != empty_string);
