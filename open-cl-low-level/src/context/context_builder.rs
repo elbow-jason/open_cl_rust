@@ -1,5 +1,5 @@
-use crate::{Context, Device, DeviceType, Output, Platform};
-
+use crate::cl::DeviceType;
+use crate::{Context, Device, Output, Platform};
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq, Eq, Clone)]

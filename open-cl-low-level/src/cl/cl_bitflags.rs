@@ -1,4 +1,4 @@
-use crate::ffi::{cl_command_queue_properties, cl_mem_flags};
+use crate::cl::{cl_command_queue_properties, cl_mem_flags};
 
 pub use ocl_core::{DeviceAffinityDomain, DeviceExecCapabilities, DeviceFpConfig, DeviceType};
 

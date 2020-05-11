@@ -1,12 +1,18 @@
 use std::sync::Mutex;
 
-use crate::ffi::{
-    clCreateContext, clGetContextInfo, clGetDeviceIDs, clGetDeviceInfo, clGetPlatformIDs,
-    clGetPlatformInfo, cl_context_info, cl_device_info, cl_device_type, cl_platform_info, cl_uint,
-};
 use crate::{Output, StatusCodeError};
 
+// ffi functions
+use crate::cl::{
+    clCreateContext, clGetContextInfo, clGetDeviceIDs, clGetDeviceInfo, clGetPlatformIDs,
+    clGetPlatformInfo,
+};
+// ffi object types
 use crate::cl::{cl_context, cl_device_id, cl_platform_id, ClObject};
+
+// ffi data types
+use crate::cl::{cl_context_info, cl_device_info, cl_device_type, cl_platform_info, cl_uint};
+
 use crate::strings;
 use libc::{c_void, size_t};
 

@@ -3,7 +3,7 @@ use crate::cl::cl_object::{
     cl_program, ClObject,
 };
 
-use crate::ffi::{
+use crate::cl::{
     clReleaseCommandQueue, clReleaseContext, clReleaseDevice, clReleaseEvent, clReleaseKernel,
     clReleaseMemObject, clReleaseProgram, clRetainCommandQueue, clRetainContext, clRetainDevice,
     clRetainEvent, clRetainKernel, clRetainMemObject, clRetainProgram,

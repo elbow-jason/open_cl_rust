@@ -1,16 +1,15 @@
 use std::fmt;
 use std::fmt::Debug;
 
-use crate::{
+use crate::cl::{
     DeviceAffinityDomain, DeviceExecCapabilities, DeviceInfo, DeviceLocalMemType,
-    DeviceMemCacheType, DeviceType, Output,
+    DeviceMemCacheType, DeviceType,
 };
-
-use thiserror::Error;
+use crate::{Error, Output};
 
 use crate::cl::{cl_device_id, functions, ClObject, ObjectWrapper};
 
-use crate::ffi::{
+use crate::cl::{
     cl_device_affinity_domain, cl_device_exec_capabilities, cl_device_local_mem_type,
     cl_device_mem_cache_type, cl_device_type,
 };
@@ -256,7 +255,8 @@ unsafe impl Sync for Device {}
 
 #[cfg(test)]
 mod tests {
-    use crate::{ll_testing, DevicePtr, DeviceType, Platform};
+    use crate::cl::DeviceType;
+    use crate::{ll_testing, DevicePtr, Platform};
 
     #[test]
     fn lists_all_devices() {

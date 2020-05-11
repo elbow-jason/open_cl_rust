@@ -9,7 +9,7 @@ use crate::numbers::{NumCastFrom, NumberOps, One, ToPrimitive, Zero};
 use std::cmp::Ordering;
 use std::ops::*;
 
-use crate::ffi::cl_half;
+use crate::cl::cl_half;
 use crate::Output;
 
 // use super::number::Number;

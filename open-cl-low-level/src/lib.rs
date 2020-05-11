@@ -34,13 +34,10 @@
 #[macro_use]
 extern crate derive_more;
 
-pub mod ffi;
-
 pub mod numbers;
 pub use numbers::*;
 
 pub type Output<T> = anyhow::Result<T>;
-pub type Result<T> = anyhow::Result<T>;
 
 pub use thiserror::Error;
 
@@ -56,14 +53,6 @@ mod ll_testing;
 #[macro_use]
 pub mod macros;
 
-pub mod cl_bitflags;
-pub use cl_bitflags::*;
-
-pub mod cl_enums;
-pub use cl_enums::*;
-
-// pub mod cl_helpers;
-
 pub mod status_code;
 pub use status_code::StatusCodeError;
 
@@ -76,8 +65,10 @@ pub use device::*;
 pub mod context;
 pub use context::*;
 
+pub mod program;
+pub use program::*;
+
 mod cl;
-mod cl_pointer;
 mod strings;
 mod utils;
 
@@ -94,7 +85,6 @@ mod utils;
 // pub mod kernel;
 // pub mod mem;
 
-// pub mod program;
 // pub mod session;
 // pub mod waitlist;
 // pub mod work;
@@ -117,7 +107,7 @@ mod utils;
 // pub use event::*;
 // pub use kernel::*;
 // pub use mem::*;
-// pub use program::*;
+
 // pub use session::*;
 // pub use waitlist::*;
 // pub use work::*;

@@ -10,12 +10,10 @@
 use std::default::Default;
 
 use crate::cl::functions;
-
 use crate::cl::{cl_platform_id, ClObject, ObjectWrapper};
-use crate::cl_enums::PlatformInfo;
-use crate::ffi::cl_platform_info;
-use crate::{Device, DeviceType};
-use crate::{Error, Output};
+use crate::cl::{cl_platform_info, DeviceType, PlatformInfo};
+
+use crate::{Device, Error, Output};
 
 /// An error related to Platform.
 #[derive(Error, Debug, PartialEq, Eq, Clone)]

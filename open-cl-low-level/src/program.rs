@@ -1,20 +1,17 @@
 use std::convert::TryInto;
 
-use crate::cl_helpers::{cl_get_info5, cl_get_info6};
-use crate::ffi::{
+// use crate::cl_helpers::{cl_get_info5, cl_get_info6};
+use crate::cl::{
     clBuildProgram, clCreateProgramWithBinary, clCreateProgramWithSource, clGetProgramBuildInfo,
-    clGetProgramInfo, cl_context, cl_device_id, cl_program, cl_program_build_info, cl_program_info,
+    clGetProgramInfo, cl_program_build_info, cl_program_info,
 };
-use crate::{
-    build_output, strings, ClContext, ClDeviceID, ClPointer, ContextPtr, DevicePtr,
-    Output, ProgramBuildInfo, ProgramInfo, ObjectWrapper
-};
+use crate::cl::{cl_context, cl_device_id, cl_program, ObjectWrapper};
+use crate::cl::{ProgramBuildInfo, ProgramInfo};
+use crate::{strings, Context, ContextPtr, Device, DevicePtr, Output};
 
 use thiserror::Error;
 
-
-    // fail(display = 
-
+// fail(display =
 
 /// An error related to Program.
 #[derive(Error, Debug, PartialEq, Eq, Clone)]
@@ -24,7 +21,6 @@ pub enum ProgramError {
 
     #[error("The given program binary was not a valid CString")]
     InvalidProgramBinary,
-    
     #[error("Cannot build a program with an empty list of devices")]
     EmptyDevicesList,
 }

@@ -3,7 +3,7 @@ use std::fmt;
 use std::ops::*;
 use thiserror::Error;
 
-use crate::ffi::cl_uint;
+use crate::cl::cl_uint;
 use crate::Output;
 
 #[allow(non_camel_case_types)]
