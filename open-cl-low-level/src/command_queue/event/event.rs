@@ -1,46 +1,17 @@
 use std::mem::ManuallyDrop;
 use std::time::Duration;
 
-use crate::{
-    build_output, ClCommandQueue, ClContext, ClPointer, CommandExecutionStatus, EventInfo,
-    ObjectWrapper, Output, ProfilingInfo, Waitlist,
-};
+use crate::cl::{cl_event, CommandExecutionStatus, EventInfo, ObjectWrapper, ProfilingInfo};
 
-use crate::Number;
+use super::{functions, Waitlist};
 
-use crate::ffi::{
-    clGetEventInfo, clGetEventProfilingInfo, cl_command_queue, cl_context, cl_event, cl_event_info,
-    cl_profiling_info, cl_ulong,
-};
+use crate::{CommandQueue, Context, Number, Output};
 
-use crate::cl_helpers::cl_get_info5;
+// use crate::cl_helpers::cl_get_info5;
 
 use thiserror::Error;
 
-// NOTE: Fix cl_profiling_info arg // should be a bitflag or enum.
-pub unsafe fn cl_get_event_profiling_info(
-    event: cl_event,
-    info_flag: cl_profiling_info,
-) -> Output<u64> {
-    let mut time: cl_ulong = 0;
-    let err_code = clGetEventProfilingInfo(
-        event,
-        info_flag,
-        std::mem::size_of::<cl_ulong>() as libc::size_t,
-        (&mut time as *mut u64) as *mut libc::c_void,
-        std::ptr::null_mut(),
-    );
-    build_output(time as u64, err_code)
-}
-
-pub unsafe fn cl_get_event_info<T: Copy>(
-    event: cl_event,
-    info_flag: cl_event_info,
-) -> Output<ClPointer<T>> {
-    cl_get_info5(event, info_flag, clGetEventInfo)
-}
-
-pub type ClEvent = ObjectWrapper<cl_event>;
+pub type Event = ObjectWrapper<cl_event>;
 
 pub unsafe trait EventPtr: Sized {
     unsafe fn event_ptr(&self) -> cl_event;
@@ -52,13 +23,13 @@ unsafe impl EventPtr for cl_event {
     }
 }
 
-unsafe impl EventPtr for ClEvent {
+unsafe impl EventPtr for Event {
     unsafe fn event_ptr(&self) -> cl_event {
         self.cl_object()
     }
 }
 
-unsafe impl EventPtr for &ClEvent {
+unsafe impl EventPtr for &Event {
     unsafe fn event_ptr(&self) -> cl_event {
         self.cl_object()
     }
@@ -71,9 +42,9 @@ pub enum EventError {
     EventAlreadyConsumed(String),
 }
 
-impl ClEvent {
+impl Event {
     pub fn time(&self, info: ProfilingInfo) -> Output<u64> {
-        unsafe { cl_get_event_profiling_info(self.event_ptr(), info.into()) }
+        unsafe { functions::cl_get_event_profiling_info(self.event_ptr(), info.into()) }
     }
 
     pub fn queue_time(&self) -> Output<u64> {
@@ -101,41 +72,21 @@ impl ClEvent {
         }
     }
 
-    pub unsafe fn info<T: Copy>(&self, flag: EventInfo) -> Output<ClPointer<T>> {
-        cl_get_event_info::<T>(self.event_ptr(), flag.into())
+    pub unsafe fn reference_count(&self) -> Output<u32> {
+        functions::get_event_info_u32(self.event_ptr(), EventInfo::ReferenceCount.into())
     }
 
-    pub fn reference_count(&self) -> Output<u32> {
-        unsafe {
-            self.info(EventInfo::ReferenceCount)
-                .map(|ret| ret.into_one())
-        }
+    pub unsafe fn command_queue(&self) -> Output<CommandQueue> {
+        functions::get_event_info_command_queue(self.event_ptr())
+            .map(|cq| CommandQueue::retain_new(cq))
     }
 
-    pub unsafe fn cl_command_queue(&self) -> Output<cl_command_queue> {
-        self.info(EventInfo::CommandQueue)
-            .map(|cl_ptr| cl_ptr.into_one())
+    pub unsafe fn context(&self) -> Output<Context> {
+        functions::get_event_info_context(self.event_ptr()).map(|c| Context::retain_new(c))
     }
 
-    pub unsafe fn command_queue(&self) -> Output<ClCommandQueue> {
-        self.cl_command_queue()
-            .and_then(|cq| ClCommandQueue::retain_new(cq))
-    }
-
-    pub unsafe fn cl_context(&self) -> Output<cl_context> {
-        self.info(EventInfo::Context)
-            .map(|cl_ptr| cl_ptr.into_one())
-    }
-
-    pub unsafe fn context(&self) -> Output<ClContext> {
-        self.cl_context().and_then(|ctx| ClContext::retain_new(ctx))
-    }
-
-    pub fn command_execution_status(&self) -> Output<CommandExecutionStatus> {
-        unsafe {
-            self.info(EventInfo::CommandExecutionStatus)
-                .map(|ret| ret.into_one())
-        }
+    pub unsafe fn command_execution_status(&self) -> Output<CommandExecutionStatus> {
+        functions::get_command_execution_status(self.event_ptr()).map(From::from)
     }
 }
 
@@ -163,14 +114,20 @@ impl Profiling {
     }
 }
 
-pub struct BufferReadEvent<T> where T: Number {
-    event: ManuallyDrop<ClEvent>,
+pub struct BufferReadEvent<T>
+where
+    T: Number,
+{
+    event: ManuallyDrop<Event>,
     host_buffer: ManuallyDrop<Option<Vec<T>>>,
     is_consumed: bool,
 }
 
-impl<T> BufferReadEvent<T> where T: Number {
-    pub fn new(event: ClEvent, host_buffer: Option<Vec<T>>) -> BufferReadEvent<T> {
+impl<T> BufferReadEvent<T>
+where
+    T: Number,
+{
+    pub fn new(event: Event, host_buffer: Option<Vec<T>>) -> BufferReadEvent<T> {
         BufferReadEvent {
             event: ManuallyDrop::new(event),
             host_buffer: ManuallyDrop::new(host_buffer),
@@ -180,9 +137,7 @@ impl<T> BufferReadEvent<T> where T: Number {
 
     pub fn wait(&mut self) -> Output<Option<Vec<T>>> {
         if self.is_consumed {
-            return Err(EventError::EventAlreadyConsumed(
-                self.event.address(),
-            ));
+            return Err(EventError::EventAlreadyConsumed(self.event.address()))?;
         }
         unsafe {
             self.event.wait()?;
@@ -199,7 +154,10 @@ impl<T> BufferReadEvent<T> where T: Number {
     }
 }
 
-impl<T> Drop for BufferReadEvent<T> where T: Number {
+impl<T> Drop for BufferReadEvent<T>
+where
+    T: Number,
+{
     fn drop(&mut self) {
         unsafe {
             self.event.wait().unwrap();
@@ -217,29 +175,30 @@ impl<T> Drop for BufferReadEvent<T> where T: Number {
 ///
 /// Don't do it. You'll segfault.
 pub struct CompleteEvent {
-    event: ClEvent,
+    event: Event,
     _unconstructable: (),
 }
 
 impl CompleteEvent {
-    pub fn new(event: ClEvent) -> CompleteEvent {
+    pub fn new(event: Event) -> CompleteEvent {
         CompleteEvent {
             event,
             _unconstructable: (),
         }
     }
 
-    pub unsafe fn inner(&self) -> &ClEvent {
+    pub unsafe fn inner(&self) -> &Event {
         &self.event
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::cl::CommandExecutionStatus;
     use crate::{
-        BufferCreator, ClCommandQueue, ClContext, ClEvent, ClKernel, ClMem, CommandExecutionStatus,
-        Session, SessionBuilder, Work,
+        BufferBuilder, CommandQueue, Context, Event, Kernel, Mem, Session, SessionBuilder, Work,
     };
+
     use std::time::Duration;
 
     const SRC: &'static str = "
@@ -248,16 +207,17 @@ mod tests {
     }
     ";
 
-    fn get_event() -> (Session, ClEvent) {
+    fn get_event() -> (Session, Event) {
         unsafe {
             let mut session: Session = SessionBuilder::new().with_program_src(SRC).build().unwrap();
             let mut kernel =
-                ClKernel::create(session.program(), "add_one").expect("Failed to Kernel::create/2");
+                Kernel::create(session.program(), "add_one").expect("Failed to Kernel::create/2");
             let input_data: Vec<u64> = vec![1, 2, 3];
             let data = &input_data[..];
             let mem_cfg = data.mem_config();
-            let mut mem_buffer: ClMem = ClMem::create_with_config(session.context(), data, mem_cfg)
-                .unwrap_or_else(|e| panic!("Failed to ClMem::create_with_config() {:?}", e));
+            let mut mem_buffer: Mem =
+                Mem::create_with_config::<u64, &[u64]>(session.context(), data, mem_cfg)
+                    .unwrap_or_else(|e| panic!("Failed to Mem::create_with_config() {:?}", e));
             let () = kernel
                 .set_arg(0, &mut mem_buffer)
                 .expect("Failed to set_arg(0, &mem_buffer)");
@@ -306,39 +266,35 @@ mod tests {
     #[test]
     fn event_method_reference_count_works() {
         let (_sess, event) = get_event();
-        let output = event
-            .reference_count()
-            .expect("Failed to call event.reference_count()");
+        let output =
+            unsafe { event.reference_count() }.expect("Failed to call event.reference_count()");
         assert_eq!(output, 1);
     }
 
     #[test]
     fn event_method_command_queue_works() {
         let (_sess, event) = get_event();
-        let _output: ClCommandQueue =
+        let _output: CommandQueue =
             unsafe { event.command_queue() }.expect("Failed to call event.command_queue()");
     }
 
     #[test]
     fn event_method_context_works() {
         let (_sess, event) = get_event();
-        let _output: ClContext =
-            unsafe { event.context() }.expect("Failed to call event.context()");
+        let _output: Context = unsafe { event.context() }.expect("Failed to call event.context()");
     }
 
     #[test]
     fn event_method_command_execution_status_works() {
         let (_sess, event) = get_event();
-        let _output: CommandExecutionStatus = event
-            .command_execution_status()
+        let _output: CommandExecutionStatus = unsafe { event.command_execution_status() }
             .expect("Failed to call event.command_exection_status()");
     }
 
     #[test]
     fn event_profiling_works() {
         let (_sess, event) = get_event();
-        let exec_status: CommandExecutionStatus = event
-            .command_execution_status()
+        let exec_status: CommandExecutionStatus = unsafe { event.command_execution_status() }
             .expect("Failed to call event.command_exection_status()");
         assert_eq!(exec_status, CommandExecutionStatus::Complete);
         let prof = event.profiling();

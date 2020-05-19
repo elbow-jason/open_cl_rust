@@ -45,7 +45,7 @@ macro_rules! impl_retain_release {
                 /// This function atomically decrements the OpenCL reference count. Mismanagement
                 /// of an object's OpenCL ARC can lead to undefined behavior.
                 unsafe fn retain(&self) {
-                    $crate::StatusCodeError::check([<clRetain $pascal>](self.as_ptr() as *mut c_void))
+                    $crate::cl::StatusCodeError::check([<clRetain $pascal>](self.as_ptr() as *mut c_void))
                         .unwrap_or_else(|e| {
                             panic!("Failed to retain cl_{} {:?} due to {:?}", stringify!($snake), self, e);
                         })
@@ -58,7 +58,7 @@ macro_rules! impl_retain_release {
                 /// This function atomically decrements the OpenCL reference count. Mismanagement
                 /// of an object's OpenCL ARC can lead to undefined behavior.
                 unsafe fn release(&mut self) {
-                    $crate::StatusCodeError::check([<clRelease $pascal>](self.as_mut_ptr()))
+                    $crate::cl::StatusCodeError::check([<clRelease $pascal>](self.as_mut_ptr()))
                         .unwrap_or_else(|e| {
                             panic!("Failed to release cl_{} {:?} due to {:?}", stringify!($snake), self, e);
                         })

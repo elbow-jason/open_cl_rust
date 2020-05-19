@@ -22,9 +22,13 @@ macro_rules! impl_number {
             impl Number for [<$scalar $n>] {
                 type Scalar = $scalar;
                 type Outer = [$scalar; $n];
+
+                #[inline(always)]
                 fn new(val: [$scalar; $n]) -> [<$scalar $n>] {
                    [<$scalar $n>]([<ClVector $n>]::new(val))
                 }
+
+                #[inline(always)]
                 fn into_outer(self) -> [$scalar; $n] {
                     self.0.into_array()
                 }
@@ -229,3 +233,57 @@ macro_rules! impl_vector {
 }
 
 impl_vector!(Char, Double, Float, Int, Long, Short, Uchar, Uint, Ulong, Ushort);
+
+macro_rules! impl_from_rust_array {
+    ($scalar:ident, $rust_t:ident) => {
+        impl_from_rust_array!($scalar, $rust_t, 2);
+        impl_from_rust_array!($scalar, $rust_t, 4);
+        impl_from_rust_array!($scalar, $rust_t, 8);
+        impl_from_rust_array!($scalar, $rust_t, 16);
+    };
+    ($scalar:ident, $rust_t:ident, 2) => {
+        impl_from_rust_array!($scalar, $rust_t, 2, [0, 1]);
+    };
+
+    ($scalar:ident, $rust_t:ident, 4) => {
+        impl_from_rust_array!($scalar, $rust_t, 4, [0, 1, 2, 3]);
+    };
+
+    ($scalar:ident, $rust_t:ident, 8) => {
+        impl_from_rust_array!($scalar, $rust_t, 8, [0, 1, 2, 3, 4, 5, 6, 7]);
+    };
+
+    ($scalar:ident, $rust_t:ident, 16) => {
+        impl_from_rust_array!(
+            $scalar,
+            $rust_t,
+            16,
+            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+        );
+    };
+
+    ($scalar:ident, $rust_t:ident, $n:expr, [ $( $index:expr ),+ ]) => {
+        paste::item! {
+            impl From<[$rust_t; $n]> for [<$scalar $n>] {
+                fn from(val: [$rust_t; $n]) -> [<$scalar $n>] {
+                    [<$scalar $n>]::new([
+                        $(
+                            $scalar::new(val[$index])
+                        ),+
+                    ])
+                }
+            }
+        }
+    };
+}
+
+impl_from_rust_array!(Char, i8);
+impl_from_rust_array!(Uchar, u8);
+impl_from_rust_array!(Short, i16);
+impl_from_rust_array!(Ushort, u16);
+impl_from_rust_array!(Int, i32);
+impl_from_rust_array!(Uint, u32);
+impl_from_rust_array!(Long, i64);
+impl_from_rust_array!(Ulong, u64);
+impl_from_rust_array!(Float, f32);
+impl_from_rust_array!(Double, f64);

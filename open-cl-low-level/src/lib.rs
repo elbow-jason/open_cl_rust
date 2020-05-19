@@ -48,13 +48,11 @@ extern crate lazy_static;
 extern crate bitflags;
 
 #[macro_use]
+#[cfg(test)]
 mod ll_testing;
 
 #[macro_use]
-pub mod macros;
-
-pub mod status_code;
-pub use status_code::StatusCodeError;
+mod cl;
 
 pub mod platform;
 pub use platform::*;
@@ -68,46 +66,19 @@ pub use context::*;
 pub mod program;
 pub use program::*;
 
-mod cl;
-mod strings;
-mod utils;
+mod dims;
+pub use dims::*;
 
-// pub mod cl_input;
+pub mod mem;
+pub use mem::*;
 
-// pub mod traits;
+pub mod kernel;
+pub use kernel::*;
 
-// pub mod vec_or_slice;
+pub mod command_queue;
+pub use command_queue::*;
 
-// pub mod command_queue;
+mod vec_or_slice;
 
-// pub mod dims;
-// pub mod event;
-// pub mod kernel;
-// pub mod mem;
-
-// pub mod session;
-// pub mod waitlist;
-// pub mod work;
-
-// // pub use cl_number_type::*;
-// pub use cl_object::{CheckValidClObject, ClObject};
-// pub use cl_pointer::ClPointer;
-// pub use cl_retain_release::RetainRelease;
-// pub use object_wrapper::ObjectWrapper;
-// pub use output::{build_output, Output};
-
-// pub use vec_or_slice::{MutVecOrSlice, VecOrSlice};
-
-// pub use cl_input::*;
-
-// pub use traits::*;
-
-// pub use command_queue::*;
-// pub use dims::*;
-// pub use event::*;
-// pub use kernel::*;
-// pub use mem::*;
-
-// pub use session::*;
-// pub use waitlist::*;
-// pub use work::*;
+pub mod session;
+pub use session::*;

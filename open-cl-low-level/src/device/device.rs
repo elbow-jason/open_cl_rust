@@ -1,36 +1,19 @@
 use std::fmt;
 use std::fmt::Debug;
 
-use crate::cl::{
-    DeviceAffinityDomain, DeviceExecCapabilities, DeviceInfo, DeviceLocalMemType,
-    DeviceMemCacheType, DeviceType,
-};
 use crate::{Error, Output};
 
-use crate::cl::{cl_device_id, functions, ClObject, ObjectWrapper};
+use super::functions;
 
 use crate::cl::{
     cl_device_affinity_domain, cl_device_exec_capabilities, cl_device_local_mem_type,
     cl_device_mem_cache_type, cl_device_type,
 };
-
-// // NOTE: fix cl_device_type
-// pub fn cl_get_device_count(platform: &cl_platform_id, device_type: cl_device_type) -> Output<u32> {
-//     unsafe {
-//         // cl_get_object_count::<*mut c_void, cl_device_type, cl_device_id>(
-//         //     platform.as_ptr() as *mut c_void,
-//         //     device_type,
-//         let status = clGetDeviceIDs(platform, device_type, )
-//         // )
-//     }
-// }
-
-// pub unsafe fn cl_get_device_info<T>(device: cl_device_id, flag: DeviceInfo) -> Output<ClPointer<T>>
-// where
-//     T: Copy,
-// {
-//     device.check()?;
-// }
+use crate::cl::{cl_device_id, ClObject, ObjectWrapper};
+use crate::cl::{
+    DeviceAffinityDomain, DeviceExecCapabilities, DeviceInfo, DeviceLocalMemType,
+    DeviceMemCacheType, DeviceType,
+};
 
 /// An error related to a Device.
 #[derive(Error, Debug, PartialEq, Eq, Clone)]
@@ -45,17 +28,7 @@ pub enum DeviceError {
     InvalidInfoValue,
 }
 
-#[derive(Debug)]
-pub struct Device(ObjectWrapper<cl_device_id>);
-
-impl Device {
-    pub unsafe fn new(val: cl_device_id) -> Device {
-        Device(ObjectWrapper::new(val))
-    }
-    pub unsafe fn retain_new(val: cl_device_id) -> Device {
-        Device(ObjectWrapper::retain_new(val))
-    }
-}
+pub type Device = ObjectWrapper<cl_device_id>;
 
 pub trait DevicePtr {
     unsafe fn device_ptr(&self) -> cl_device_id;
@@ -67,7 +40,7 @@ pub trait DevicePtr {
 
 impl DevicePtr for Device {
     unsafe fn device_ptr(&self) -> cl_device_id {
-        self.0.cl_object()
+        self.cl_object()
     }
 }
 
@@ -256,7 +229,7 @@ unsafe impl Sync for Device {}
 #[cfg(test)]
 mod tests {
     use crate::cl::DeviceType;
-    use crate::{ll_testing, DevicePtr, Platform};
+    use crate::{ll_testing, Platform};
 
     #[test]
     fn lists_all_devices() {

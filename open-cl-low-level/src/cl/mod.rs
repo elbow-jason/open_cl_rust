@@ -1,3 +1,8 @@
+pub mod strings;
+
+pub mod status_code;
+pub use status_code::StatusCodeError;
+
 mod cl_bitflags;
 pub use cl_bitflags::*;
 
@@ -16,4 +21,6 @@ pub use object_wrapper::ObjectWrapper;
 mod ffi;
 pub use ffi::*;
 
+#[macro_use]
 pub mod functions;
+pub use functions::*;

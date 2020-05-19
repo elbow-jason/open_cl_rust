@@ -77,14 +77,14 @@ default = [
     "opencl_version_1_2_0",
 ]
 
-# [[example]]
-# name = "ll_simple_add"
-# path = "examples/ll_simple_add/main.rs"
+[[example]]
+name = "ll_simple_add"
+path = "examples/ll_simple_add/main.rs"
 
 # [[example]]
 # name = "applying_number_type"
 # path = "examples/applying_number_type/main.rs"
 
-# [[example]]
-# name = "casting_example"
-# path = "examples/casting_example/main.rs"
+[[example]]
+name = "casting_example"
+path = "examples/casting_example/main.rs"

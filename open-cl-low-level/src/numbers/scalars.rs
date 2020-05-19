@@ -208,6 +208,7 @@ macro_rules! __defimpl {
                 val.0
             }
         }
+
         impl Default for $new_type {
             #[inline(always)]
             fn default() -> $new_type {

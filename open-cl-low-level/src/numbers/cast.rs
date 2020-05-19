@@ -15,3 +15,19 @@ where
         NumCastFrom::num_cast_from(self)
     }
 }
+
+impl<T, U> NumCastFrom<Vec<T>> for Vec<U>
+where
+    U: NumCastFrom<T>,
+{
+    fn num_cast_from(val: Vec<T>) -> Option<Vec<U>> {
+        let mut output: Vec<U> = Vec::with_capacity(val.len());
+        for item in val.into_iter() {
+            match NumCastFrom::num_cast_from(item) {
+                Some(casted) => output.push(casted),
+                None => return None,
+            }
+        }
+        Some(output)
+    }
+}

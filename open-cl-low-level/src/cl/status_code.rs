@@ -9,13 +9,6 @@ pub struct StatusCodeError {
 }
 
 impl StatusCodeError {
-    pub fn new(code: i32) -> Option<StatusCodeError> {
-        match code {
-            0 => None,
-            status_code => Some(StatusCodeError { status_code }),
-        }
-    }
-
     #[inline(always)]
     pub fn check(code: i32) -> Output<()> {
         match code {

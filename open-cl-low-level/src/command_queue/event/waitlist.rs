@@ -1,31 +1,27 @@
+use super::{functions, Event, EventPtr};
+use crate::cl::cl_event;
+use crate::Output;
+use libc::c_void;
 use std::convert::TryInto;
 
-use crate::ffi::{clWaitForEvents, cl_event};
-use crate::{
-    build_output,
-    ClEvent,
-    EventPtr, // Error, EventPtr, cl_release_event,
-    Output,
-};
-
-/// The low-level function for synchronously waiting events (blocks the calling thread).
-///
-/// # Safety
-/// Due to call to OpenCL's FFI with raw pointer (or slice of raw pointers) this call will cause
-/// undefined behavior if any of the events is not in correct state, if the context of the events
-/// has been freed, if any of the events is a null pointer, if the queue the event was created with
-/// is freed, and a plethora of other conditions.
-pub unsafe fn cl_wait_for_events<'a>(wl: &'a [cl_event]) -> Output<()> {
-    build_output((), clWaitForEvents(wl.waitlist_len(), wl.waitlist_ptr()))
-}
-
-/// The low level trait for synchronously waiting for events.
+/// The low level trait for synchronously waiting for events. This trait is used to produce the required
+/// size and pointer arguments to the FFI of OpenCL allowing for the synchronously waiting of a given
+/// event before execution is allowed to proceed.
 ///
 /// # Safety
 /// Due to multiple dangerous memory safety concerns with using events this
 /// trait and it's functions are all unsafe. Mismanagement of the reference count,
 /// lifetime, context, or resuse of an event is undefined behavior.
+///
+/// Due to this trait and it's only function involving the use of raw pointers this trait is unsafe.
+/// Passing an event that has already been waited to OpenC is undefined behavior.
 pub unsafe trait Waitlist: Sized {
+    /// Returns the length of the waitlist.
+    unsafe fn waitlist_len(&self) -> u32;
+
+    /// Returns the raw pointer to the waitlist.
+    unsafe fn waitlist_ptr(&self) -> *const *mut c_void;
+
     /// Copies the waitlist's (self) events into the passed mutable vector.
     ///
     /// # Safety
@@ -58,41 +54,22 @@ pub unsafe trait Waitlist: Sized {
     unsafe fn wait(self) -> Output<()> {
         let mut waitlist = Vec::new();
         self.fill_waitlist(&mut waitlist);
-        cl_wait_for_events(&waitlist[..])
-    }
-}
-
-/// This trait is used to produce the required size and pointer arguments to the FFI of OpenCL
-/// allowing for the synchronously waiting of a given event before execution is allowed to proceed.
-///
-/// # Safety
-/// Due to this trait and it's only function involving the use of raw pointers this trait is unsafe.
-/// Passing an event that has already been waited to OpenC is undefined behavior.
-pub unsafe trait WaitlistSizeAndPtr<'a>: Sized {
-    /// This function returns a const pointer to a cl_event.
-    ///
-    /// # Safety
-    /// Due to thisfunction involving the use of raw pointers this trait is unsafe.
-    /// Passing an event that has already been waited to OpenC is undefined behavior.
-    unsafe fn waitlist_len(&self) -> u32;
-    unsafe fn waitlist_ptr(&self) -> *const cl_event;
-
-}
-
-unsafe impl<'a> WaitlistSizeAndPtr<'a> for &'a [cl_event] {
-    unsafe fn waitlist_len(&self) -> u32 {
-        self.len().try_into().unwrap()
-    }
-
-    unsafe fn waitlist_ptr(&self) -> *const cl_event {
-        match self.len() {
-            0 => std::ptr::null() as *const cl_event,
-            _ => *self as *const _ as *const cl_event,
-        }
+        functions::wait_for_events(&waitlist[..])
     }
 }
 
 unsafe impl Waitlist for &[cl_event] {
+    unsafe fn waitlist_len(&self) -> u32 {
+        self.len().try_into().unwrap()
+    }
+
+    unsafe fn waitlist_ptr(&self) -> *const *mut c_void {
+        match self.len() {
+            0 => std::ptr::null() as *const *mut c_void,
+            _ => *self as *const _ as *const *mut c_void,
+        }
+    }
+
     unsafe fn fill_waitlist(&self, wait_list: &mut Vec<cl_event>) {
         wait_list.extend_from_slice(self);
     }
@@ -102,7 +79,7 @@ unsafe impl Waitlist for &[cl_event] {
     }
 }
 
-unsafe impl Waitlist for &[ClEvent] {
+unsafe impl Waitlist for &[Event] {
     unsafe fn fill_waitlist(&self, wait_list: &mut Vec<cl_event>) {
         let waitlist = self.new_waitlist();
         wait_list.extend(waitlist);
@@ -111,9 +88,29 @@ unsafe impl Waitlist for &[ClEvent] {
     unsafe fn new_waitlist(&self) -> Vec<cl_event> {
         self.iter().map(|evt| evt.event_ptr()).collect()
     }
+
+    unsafe fn waitlist_len(&self) -> u32 {
+        self.len().try_into().unwrap()
+    }
+
+    unsafe fn waitlist_ptr(&self) -> *const *mut c_void {
+        match self.len() {
+            0 => std::ptr::null() as *const *mut c_void,
+            _ => *self as *const _ as *const *mut c_void,
+        }
+    }
 }
 
-unsafe impl Waitlist for &ClEvent {
+unsafe impl Waitlist for &Event {
+    unsafe fn waitlist_len(&self) -> u32 {
+        1u32
+    }
+
+    unsafe fn waitlist_ptr(&self) -> *const *mut c_void {
+        // repr(transparent) provides the ability to do this.
+        *self as *const _ as *const *mut c_void
+    }
+
     unsafe fn fill_waitlist(&self, wait_list: &mut Vec<cl_event>) {
         wait_list.push(self.event_ptr());
     }
@@ -135,6 +132,21 @@ unsafe impl<W: Waitlist> Waitlist for Option<W> {
         match self {
             None => vec![],
             Some(event) => event.new_waitlist(),
+        }
+    }
+
+    unsafe fn waitlist_len(&self) -> u32 {
+        match self {
+            Some(wl) => wl.waitlist_len(),
+            None => 0u32,
+        }
+    }
+
+    unsafe fn waitlist_ptr(&self) -> *const *mut c_void {
+        // repr(transparent) provides the ability to do this.
+        match self {
+            Some(wl) => wl.waitlist_ptr(),
+            None => std::ptr::null() as *const *mut c_void,
         }
     }
 }

@@ -32,7 +32,7 @@ impl NonZeroVolume3DArray {
             Dims::Three(x, y, z) => [*x, *y, *z],
         };
         match work_size {
-            [0, _, _] | [_, 0, _] | [_, _, 0] => Err(WorkError::InvalidWorkSize),
+            [0, _, _] | [_, 0, _] | [_, _, 0] => Err(WorkError::InvalidWorkSize)?,
             w => Ok(NonZeroVolume3DArray(w)),
         }
     }

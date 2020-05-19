@@ -1,19 +1,15 @@
+use super::{utils, KernelOperation};
+use crate::cl::{CommandQueueProperties, DeviceType};
+use crate::numbers::{Number, NumberTyped, NumberTypedT};
+use crate::vec_or_slice::{MutVecOrSlice, VecOrSlice};
+use crate::{
+    BufferBuilder, BufferReadEvent, BuiltContext, CommandQueue, CommandQueueOptions, Context,
+    ContextBuilder, Device, Error, Event, Kernel, Mem, MemConfig, Output, Platform, Program,
+    Waitlist, Work,
+};
 use std::convert::TryInto;
 use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
-
-use crate::numbers::{Number, NumberTyped};
-use crate::vec_or_slice::{MutVecOrSlice, VecOrSlice};
-use crate::{
-    cl_enqueue_nd_range_kernel, list_devices_by_type, list_platforms, utils, BufferCreator,
-    BufferReadEvent, BuiltClContext, ClCommandQueue, ClContext, ClContextBuilder, ClDeviceID,
-    ClEvent, ClKernel, ClMem, ClPlatformID, ClProgram, CommandQueueOptions, CommandQueueProperties,
-    CommandQueuePtr, DeviceType, KernelOperation, KernelPtr, MemConfig, Output, Waitlist,
-    Work,
-};
-
-use anyhow::Result;
-use thiserror::Error;
 
 /// An error related to Session Building.
 #[derive(Error, Debug, PartialEq, Eq, Clone)]
@@ -27,26 +23,26 @@ pub enum SessionError {
 /// pointers in the wrong order can lead to undefined behavior.
 #[derive(Debug)]
 pub struct Session {
-    devices: ManuallyDrop<Vec<ClDeviceID>>,
-    context: ManuallyDrop<ClContext>,
-    program: ManuallyDrop<ClProgram>,
-    queues: ManuallyDrop<Vec<ClCommandQueue>>,
+    devices: ManuallyDrop<Vec<Device>>,
+    context: ManuallyDrop<Context>,
+    program: ManuallyDrop<Program>,
+    queues: ManuallyDrop<Vec<CommandQueue>>,
 }
 
 impl Session {
     pub fn create_with_devices<'a, D>(devices: D, src: &str) -> Output<Session>
     where
-        D: Into<VecOrSlice<'a, ClDeviceID>>,
+        D: Into<VecOrSlice<'a, Device>>,
     {
         unsafe {
             let devices = devices.into();
-            let context = ClContext::create(devices.as_slice())?;
-            let mut program = ClProgram::create_with_source(&context, src)?;
+            let context = Context::create(devices.as_slice())?;
+            let mut program = Program::create_with_src(&context, src)?;
             program.build(devices.as_slice())?;
             let props = CommandQueueProperties::default();
-            let maybe_queues: Result<Vec<ClCommandQueue>> = devices
+            let maybe_queues: Output<Vec<CommandQueue>> = devices
                 .iter()
-                .map(|dev| ClCommandQueue::create(&context, dev, Some(props)))
+                .map(|dev| CommandQueue::create(&context, dev, Some(props)))
                 .collect();
 
             let queues = maybe_queues?;
@@ -69,10 +65,10 @@ impl Session {
     /// one program (build on each of the devices)
     /// one or more queues (each queue belongs to exactly one of the devices)
     pub fn create(src: &str) -> Output<Session> {
-        let platforms = list_platforms()?;
+        let platforms = Platform::list_all()?;
         let mut devices = Vec::new();
         for platform in platforms.iter() {
-            let platform_devices = list_devices_by_type(platform, DeviceType::ALL)?;
+            let platform_devices = platform.list_devices()?;
             devices.extend(platform_devices);
         }
         Session::create_with_devices(devices, src)
@@ -85,79 +81,74 @@ impl Session {
     /// undefined behavior. The Session has a carefully implemented drop that ensures
     /// the an Object is dropped before it's dependencies. If any of the dependencies of an object are ever dropped
     /// in the incorrect order or any dependency of an object is dropped and the object is then used the result is undefined behavior.
-    pub unsafe fn decompose(
-        mut self,
-    ) -> (Vec<ClDeviceID>, ClContext, ClProgram, Vec<ClCommandQueue>) {
-        let devices: Vec<ClDeviceID> = utils::take_manually_drop(&mut self.devices);
-        let context: ClContext = utils::take_manually_drop(&mut self.context);
-        let program: ClProgram = utils::take_manually_drop(&mut self.program);
-        let queues: Vec<ClCommandQueue> = utils::take_manually_drop(&mut self.queues);
+    pub unsafe fn decompose(mut self) -> (Vec<Device>, Context, Program, Vec<CommandQueue>) {
+        let devices: Vec<Device> = utils::take_manually_drop(&mut self.devices);
+        let context: Context = utils::take_manually_drop(&mut self.context);
+        let program: Program = utils::take_manually_drop(&mut self.program);
+        let queues: Vec<CommandQueue> = utils::take_manually_drop(&mut self.queues);
         std::mem::forget(self);
         (devices, context, program, queues)
     }
 
-    /// A slice of the ClDeviceIDs of this Session.
-    pub fn devices(&self) -> &[ClDeviceID] {
+    /// A slice of the Devices of this Session.
+    pub fn devices(&self) -> &[Device] {
         &(*self.devices)[..]
     }
 
-    /// A reference to the ClContext of this Session.
-    pub fn context(&self) -> &ClContext {
+    /// A reference to the Context of this Session.
+    pub fn context(&self) -> &Context {
         &(*self.context)
     }
 
-    /// A reference to the ClProgram of this Session.
-    pub fn program(&self) -> &ClProgram {
+    /// A reference to the Program of this Session.
+    pub fn program(&self) -> &Program {
         &(*self.program)
     }
 
-    /// A slice of the ClCommandQueues of this Session.
-    pub fn queues(&self) -> &[ClCommandQueue] {
+    /// A slice of the CommandQueues of this Session.
+    pub fn queues(&self) -> &[CommandQueue] {
         &(*self.queues)[..]
     }
 
-    /// Creates a ClKernel from the session's program.
+    /// Creates a Kernel from the session's program.
     ///
     /// # Safety
     /// Note: This function may, in fact, be safe. However, creating a kernel with a
     /// program object that is in an invalid state can lead to undefined behavior.
-    /// Using the ClKernel after the session has been released can lead to undefined behavior.
-    /// Using the ClKernel outside it's own context/program can lead to undefined behavior.
-    pub unsafe fn create_kernel(&self, kernel_name: &str) -> Output<ClKernel> {
-        ClKernel::create(self.program(), kernel_name)
+    /// Using the Kernel after the session has been released can lead to undefined behavior.
+    /// Using the Kernel outside it's own context/program can lead to undefined behavior.
+    pub unsafe fn create_kernel(&self, kernel_name: &str) -> Output<Kernel> {
+        Kernel::create(self.program(), kernel_name)
     }
 
-    /// Creates a ClMem object in the given context, with the given buffer creator
-    /// (either a length or some data). This function uses the BufferCreator's implementation
+    /// Creates a Mem object in the given context, with the given buffer creator
+    /// (either a length or some data). This function uses the BufferBuilder's implementation
     /// to retrieve the appropriate MemConfig.
     ///
     /// # Safety
     /// This function can cause undefined behavior if the OpenCL context object that
     /// is passed is not in a valid state (null, released, etc.)
-    pub unsafe fn create_mem<T: Number, B: BufferCreator<T>>(
-        &self,
-        buffer_creator: B,
-    ) -> Output<ClMem> {
+    pub unsafe fn create_mem<T: Number, B: BufferBuilder>(&self, buffer_creator: B) -> Output<Mem> {
         let cfg = buffer_creator.mem_config();
-        ClMem::create_with_config(self.context(), buffer_creator, cfg)
+        Mem::create_with_config::<T, B>(self.context(), buffer_creator, cfg)
     }
 
-    /// Creates a ClMem object in the given context, with the given buffer creator
+    /// Creates a Mem object in the given context, with the given buffer creator
     /// (either a length or some data) and a given MemConfig.
     ///
     /// # Safety
     /// This function can cause undefined behavior if the OpenCL context object that
     /// is passed is not in a valid state (null, released, etc.)
-    pub unsafe fn create_mem_with_config<T: Number, B: BufferCreator<T>>(
+    pub unsafe fn create_mem_with_config<T: Number, B: BufferBuilder>(
         &self,
         buffer_creator: B,
         mem_config: MemConfig,
-    ) -> Output<ClMem> {
-        ClMem::create_with_config(self.context(), buffer_creator, mem_config)
+    ) -> Output<Mem> {
+        Mem::create_with_config::<T, B>(self.context(), buffer_creator, mem_config)
     }
 
     #[inline]
-    fn get_queue_by_index(&mut self, index: usize) -> Output<&mut ClCommandQueue> {
+    fn get_queue_by_index(&mut self, index: usize) -> Output<&mut CommandQueue> {
         self.queues
             .get_mut(index)
             .ok_or_else(|| SessionError::QueueIndexOutOfRange(index).into())
@@ -168,19 +159,19 @@ impl Session {
     /// operation.
     ///
     /// # Safety
-    /// This function call is safe only if the ClMem object's dependencies are still valid, if the
-    /// ClMem is valid, if the ClCommandQueue's dependencies are valid, if the ClCommandQueue's object
+    /// This function call is safe only if the Mem object's dependencies are still valid, if the
+    /// Mem is valid, if the CommandQueue's dependencies are valid, if the CommandQueue's object
     /// itself still valid, if the device's size and type exactly match the host buffer's size and type,
     /// if the waitlist's events are in a valid state and the list goes on...
-    pub unsafe fn write_buffer<'a, T: Number, H: Into<VecOrSlice<'a, T>>>(
+    pub unsafe fn write_buffer<'a, T: Number + NumberTypedT, H: Into<VecOrSlice<'a, T>>>(
         &mut self,
         queue_index: usize,
-        mem: &mut ClMem,
+        mem: &mut Mem,
         host_buffer: H,
         opts: Option<CommandQueueOptions>,
-    ) -> Output<ClEvent> {
+    ) -> Output<Event> {
         mem.number_type().match_or_panic(T::number_type());
-        let queue: &mut ClCommandQueue = self.get_queue_by_index(queue_index)?;
+        let queue: &mut CommandQueue = self.get_queue_by_index(queue_index)?;
         queue.write_buffer(mem, host_buffer, opts)
     }
 
@@ -189,43 +180,36 @@ impl Session {
     /// be passed as mutable; I don't trust OpenCL.
     ///
     /// # Safety
-    /// This function call is safe only if the ClMem object's dependencies are still valid, if the
-    /// ClMem is valid, if the ClCommandQueue's dependencies are valid, if the ClCommandQueue's object
+    /// This function call is safe only if the Mem object's dependencies are still valid, if the
+    /// Mem is valid, if the CommandQueue's dependencies are valid, if the CommandQueue's object
     /// itself still valid, if the device's size and type exactly match the host buffer's size and type,
     /// if the waitlist's events are in a valid state and the list goes on...
     pub unsafe fn read_buffer<'a, T: Number, H: Into<MutVecOrSlice<'a, T>>>(
         &mut self,
         queue_index: usize,
-        mem: &mut ClMem,
+        mem: &mut Mem,
         host_buffer: H,
         opts: Option<CommandQueueOptions>,
     ) -> Output<BufferReadEvent<T>> {
-        let queue: &mut ClCommandQueue = self.get_queue_by_index(queue_index)?;
+        let queue: &mut CommandQueue = self.get_queue_by_index(queue_index)?;
         queue.read_buffer(mem, host_buffer, opts)
     }
 
     /// This function enqueues a CLKernel into a command queue
     ///
     /// # Safety
-    /// If the ClKernel is not in a usable state or any of the Kernel's dependent object
-    /// has been release, or the kernel belongs to a different session, or the ClKernel's
+    /// If the Kernel is not in a usable state or any of the Kernel's dependent object
+    /// has been release, or the kernel belongs to a different session, or the Kernel's
     /// pointer is a null pointer, then calling this function will cause undefined behavior.
     pub unsafe fn enqueue_kernel(
         &mut self,
         queue_index: usize,
-        kernel: &mut ClKernel,
+        kernel: &mut Kernel,
         work: &Work,
         opts: Option<CommandQueueOptions>,
-    ) -> Output<ClEvent> {
-        let queue: &mut ClCommandQueue = self.get_queue_by_index(queue_index)?;
-        let cq_opts: CommandQueueOptions = opts.into();
-        let event = cl_enqueue_nd_range_kernel(
-            queue.command_queue_ptr(),
-            kernel.kernel_ptr(),
-            work,
-            &cq_opts.waitlist[..],
-        )?;
-        ClEvent::new(event)
+    ) -> Output<Event> {
+        let queue: &mut CommandQueue = self.get_queue_by_index(queue_index)?;
+        queue.enqueue_kernel(kernel, work, opts)
     }
 
     pub fn execute_sync_kernel_operation(
@@ -235,9 +219,9 @@ impl Session {
     ) -> Output<()> {
         unsafe {
             let mut kernel = self.create_kernel(kernel_op.name())?;
-            let queue: &mut ClCommandQueue = self.get_queue_by_index(queue_index)?;
-            for (arg_index, (arg_size, arg_ptr)) in kernel_op.mut_args().iter_mut().enumerate() {
-                kernel.set_arg_raw(arg_index.try_into().unwrap(), *arg_size, *arg_ptr)?;
+            let queue: &mut CommandQueue = self.get_queue_by_index(queue_index)?;
+            for (arg_index, arg) in kernel_op.mut_args().iter_mut().enumerate() {
+                kernel.set_arg(arg_index.try_into().unwrap(), arg)?;
             }
             let work = kernel_op.work()?;
             let event = queue.enqueue_kernel(&mut kernel, &work, kernel_op.command_queue_opts())?;
@@ -266,8 +250,8 @@ unsafe impl Send for Session {}
 
 // preserve the ordering of these fields
 // The drop order must be:
-// 1) program
-// 2) command_queue
+// 1) command_queue
+// 2) program
 // 3) context
 // 4) device
 // Else... SEGFAULT :(
@@ -284,7 +268,7 @@ impl Drop for Session {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SessionQueue<'a> {
-    phantom: PhantomData<&'a ClCommandQueue>,
+    phantom: PhantomData<&'a CommandQueue>,
     index: usize,
 }
 
@@ -300,7 +284,7 @@ impl<'a> SessionQueue<'a> {
 /// An error related to Session Building.
 #[derive(Error, Debug, PartialEq, Eq, Clone)]
 pub enum SessionBuilderError {
-    #[error("Given ClMem has no associated cl_mem object")]
+    #[error("Given Mem has no associated cl_mem object")]
     NoAssociatedMemObject,
 
     #[error("For session building platforms AND devices cannot be specifed together; they are mutually exclusive.")]
@@ -323,8 +307,8 @@ pub struct SessionBuilder<'a> {
     pub program_src: Option<&'a str>,
     pub program_binaries: Option<&'a [u8]>,
     pub device_type: Option<DeviceType>,
-    pub platforms: Option<&'a [ClPlatformID]>,
-    pub devices: Option<&'a [ClDeviceID]>,
+    pub platforms: Option<&'a [Platform]>,
+    pub devices: Option<&'a [Device]>,
     pub command_queue_properties: Option<CommandQueueProperties>,
 }
 
@@ -350,12 +334,12 @@ impl<'a> SessionBuilder<'a> {
         self
     }
 
-    pub fn with_platforms(mut self, platforms: &'a [ClPlatformID]) -> SessionBuilder<'a> {
+    pub fn with_platforms(mut self, platforms: &'a [Platform]) -> SessionBuilder<'a> {
         self.platforms = Some(platforms);
         self
     }
 
-    pub fn with_devices(mut self, devices: &'a [ClDeviceID]) -> SessionBuilder<'a> {
+    pub fn with_devices(mut self, devices: &'a [Device]) -> SessionBuilder<'a> {
         self.devices = Some(devices);
         self
     }
@@ -378,12 +362,12 @@ impl<'a> SessionBuilder<'a> {
                 program_src: Some(_),
                 program_binaries: Some(_),
                 ..
-            } => return Err(CannotSpecifyProgramSrcAndProgramBinaries),
+            } => return Err(CannotSpecifyProgramSrcAndProgramBinaries)?,
             Self {
                 program_src: None,
                 program_binaries: None,
                 ..
-            } => return Err(MustSpecifyProgramSrcOrProgramBinaries),
+            } => return Err(MustSpecifyProgramSrcOrProgramBinaries)?,
             _ => Ok(()),
         }
     }
@@ -397,17 +381,17 @@ impl<'a> SessionBuilder<'a> {
     /// marked as unsafe.
     pub unsafe fn build(self) -> Output<Session> {
         self.check_for_error_state()?;
-        let context_builder = ClContextBuilder {
+        let context_builder = ContextBuilder {
             devices: self.devices,
             device_type: self.device_type,
             platforms: self.platforms,
         };
         let built_context = context_builder.build()?;
-        let (context, devices): (ClContext, Vec<ClDeviceID>) = match built_context {
-            BuiltClContext::Context(ctx) => (ctx, self.devices.unwrap().to_vec()),
-            BuiltClContext::ContextWithDevices(ctx, owned_devices) => (ctx, owned_devices),
+        let (context, devices): (Context, Vec<Device>) = match built_context {
+            BuiltContext::Context(ctx) => (ctx, self.devices.unwrap().to_vec()),
+            BuiltContext::ContextWithDevices(ctx, owned_devices) => (ctx, owned_devices),
         };
-        let program: ClProgram = match (&self, devices.len()) {
+        let program: Program = match (&self, devices.len()) {
             (
                 Self {
                     program_src: Some(src),
@@ -415,7 +399,7 @@ impl<'a> SessionBuilder<'a> {
                 },
                 _,
             ) => {
-                let mut prog: ClProgram = ClProgram::create_with_source(&context, src)?;
+                let mut prog: Program = Program::create_with_src(&context, src)?;
                 prog.build(&devices[..])?;
                 Ok(prog)
             }
@@ -426,8 +410,7 @@ impl<'a> SessionBuilder<'a> {
                 },
                 1,
             ) => {
-                let mut prog: ClProgram =
-                    ClProgram::create_with_binary(&context, &devices[0], *bins)?;
+                let mut prog: Program = Program::create_with_binary(&context, &devices[0], *bins)?;
                 prog.build(&devices[..])?;
                 Ok(prog)
             }
@@ -437,16 +420,14 @@ impl<'a> SessionBuilder<'a> {
                     ..
                 },
                 n_devices,
-            ) => {
-                Err(BinaryProgramRequiresExactlyOneDevice(n_devices))
-            }
+            ) => Err(BinaryProgramRequiresExactlyOneDevice(n_devices)),
             _ => unreachable!(),
         }?;
 
         let props = CommandQueueProperties::default();
-        let maybe_queues: Result<Vec<ClCommandQueue>> = devices
+        let maybe_queues: Output<Vec<CommandQueue>> = devices
             .iter()
-            .map(|dev| ClCommandQueue::create(&context, dev, Some(props)))
+            .map(|dev| CommandQueue::create(&context, dev, Some(props)))
             .collect();
         let queues = maybe_queues?;
 
@@ -477,7 +458,7 @@ mod tests {
         let mut session = get_session(SRC);
         let data: Vec<i32> = vec![1, 2, 3, 4, 5];
         let dims = data.len();
-        let mut buff = unsafe { session.create_mem(&data[..]) }.unwrap();
+        let mut buff = unsafe { session.create_mem::<i32, &[i32]>(&data[..]) }.unwrap();
         let kernel_op = KernelOperation::new("test")
             .with_dims(dims)
             .add_arg(&mut buff);

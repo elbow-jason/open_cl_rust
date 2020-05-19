@@ -1,26 +1,19 @@
-use std::sync::Mutex;
+// // ffi object types
+// use crate::cl::{cl_command_queue, cl_context, cl_device_id, cl_platform_id, cl_program, ClObject};
 
-use crate::{Output, StatusCodeError};
+// // ffi data types
+// use crate::cl::{
+//     cl_command_queue_properties, cl_context_info, cl_device_info, cl_device_type, cl_platform_info,
+//     cl_program_build_info, cl_program_info, cl_uint, ContextInfo, ProgramInfo,
+// };
 
-// ffi functions
-use crate::cl::{
-    clCreateContext, clGetContextInfo, clGetDeviceIDs, clGetDeviceInfo, clGetPlatformIDs,
-    clGetPlatformInfo,
-};
-// ffi object types
-use crate::cl::{cl_context, cl_device_id, cl_platform_id, ClObject};
-
-// ffi data types
-use crate::cl::{cl_context_info, cl_device_info, cl_device_type, cl_platform_info, cl_uint};
-
-use crate::strings;
-use libc::{c_void, size_t};
+// use libc::{c_void, size_t};
 
 macro_rules! _object_count {
     ($func:ident, $parent:ident, $flag:ident) => {{
         let mut output_size: u32 = 0;
         let err_code = $func(
-            $parent.as_ptr() as *mut c_void,
+            $parent.as_ptr() as *mut libc::c_void,
             $flag,
             0 as u32,
             std::ptr::null_mut(),
@@ -38,10 +31,10 @@ macro_rules! _get_objects {
         } else {
             let mut output = vec![$output_t::null_ptr(); $count as usize];
             let status = $func(
-                $parent.as_ptr() as *mut c_void,
+                $parent.as_ptr() as *mut libc::c_void,
                 $flag,
                 $count,
-                output.as_mut_ptr() as *mut *mut c_void,
+                output.as_mut_ptr() as *mut *mut libc::c_void,
                 std::ptr::null_mut(),
             );
             StatusCodeError::check(status)?;
@@ -66,99 +59,254 @@ macro_rules! _get_objects {
 //     }
 // }
 
-const SIZE_OF_USIZE: usize = std::mem::size_of::<usize>();
-const SIZE_OF_U64: usize = std::mem::size_of::<u64>();
-
-macro_rules! _empty_data {
-    (String, $n_bytes:expr) => {
-        vec![0u8; $n_bytes]
+macro_rules! zero_for {
+    (String) => {
+        0u8
+    };
+    (bool) => {
+        0u32
+    };
+    (usize) => {
+        0usize
+    };
+    (u64) => {
+        0u64
+    };
+    (cl_device_id) => {
+        $crate::cl::ClObject::null_ptr(cl_device_id)
     };
 
-    (Vec_usize, $n_bytes:expr) => {{
-        assert_eq!($n_bytes % SIZE_OF_USIZE, 0);
-        vec![0usize; $n_bytes / SIZE_OF_USIZE]
-    }};
-    (Vec_u64, $n_bytes:expr) => {{
-        assert_eq!($n_bytes % SIZE_OF_U64, 0);
-        vec![0u64; $n_bytes / SIZE_OF_U64]
+    (cl_context) => {
+        $crate::cl::ClObject::null_ptr(cl_context)
+    };
+
+    (cl_context_properties) => {
+        0 as cl_context_properties
+    };
+}
+
+macro_rules! _empty_data {
+    (One, String, $count:expr) => {
+        vec![0u8; $count]
+    };
+
+    (One, bool, $n_bytes:expr) => {{
+        assert_eq!($n_bytes, 4);
+        zero_for!(bool)
     }};
 
-    (bool, $n_bytes:expr) => {{
-        assert_eq!($n_bytes, 4);
+    (One, u32, $n_bytes:expr) => {{
+        assert_eq!($n_bytes, std::mem::size_of::<u32>());
         0u32
     }};
-    (Vec_device, $n_bytes:expr) => {{
-        assert_eq!($n_bytes, SIZE_OF_USIZE);
-        debug_assert!(std::mem::size_of::<cl_device_id>() == std::mem::size_of::<usize>());
-        vec![cl_device_id::null_ptr(); $n_bytes / SIZE_OF_USIZE]
+
+    (One, u64, $n_bytes:expr) => {{
+        assert_eq!($n_bytes, std::mem::size_of::<u64>());
+        0u64
     }};
-    ($t:ident, $n_bytes:expr) => {{
-        assert_eq!($n_bytes, std::mem::size_of::<$t>());
-        0 as $t
+
+    (One, usize, $n_bytes:expr) => {{
+        assert_eq!($n_bytes, std::mem::size_of::<usize>());
+        0usize
+    }};
+
+    (One, cl_context, $n_bytes:expr) => {{
+        assert_eq!($n_bytes, std::mem::size_of::<cl_context>());
+        cl_context::null_ptr()
+    }};
+
+    (One, cl_program, $n_bytes:expr) => {{
+        assert_eq!($n_bytes, std::mem::size_of::<cl_program>());
+        cl_program::null_ptr()
+    }};
+
+    (One, cl_device_id, $n_bytes:expr) => {{
+        assert_eq!($n_bytes, std::mem::size_of::<cl_device_id>());
+        cl_device_id::null_ptr()
+    }};
+
+    (One, cl_command_queue, $n_bytes:expr) => {{
+        assert_eq!($n_bytes, std::mem::size_of::<cl_command_queue>());
+        cl_command_queue::null_ptr()
+    }};
+
+    (One, cl_mem_flags, $n_bytes:expr) => {{
+        assert_eq!($n_bytes, std::mem::size_of::<cl_mem_flags>());
+        0 as cl_mem_flags
+    }};
+
+    (One, cl_command_execution_status, $n_bytes:expr) => {{
+        assert_eq!($n_bytes, std::mem::size_of::<cl_command_execution_status>());
+        0 as cl_command_execution_status
+    }};
+
+    (Many, usize, $n_bytes:expr) => {{
+        assert_eq!($n_bytes % std::mem::size_of::<usize>(), 0);
+        vec![0usize; $n_bytes / std::mem::size_of::<usize>()]
+    }};
+
+    (Many, u64, $n_bytes:expr) => {{
+        assert_eq!($n_bytes % std::mem::size_of::<u64>(), 0);
+        vec![0u64; $n_bytes / std::mem::size_of::<u64>()]
+    }};
+
+    (Many, u8, $n_bytes:expr) => {{
+        assert_eq!($n_bytes % std::mem::size_of::<u8>(), 0);
+        vec![0u8; $n_bytes / std::mem::size_of::<u8>()]
+    }};
+
+    (Many, cl_device_id, $n_bytes:expr) => {{
+        assert_eq!($n_bytes % std::mem::size_of::<cl_device_id>(), 0);
+        vec![cl_device_id::null_ptr(); $n_bytes / std::mem::size_of::<cl_device_id>()]
+    }};
+
+    (Many, cl_context_properties, $n_bytes:expr) => {{
+        assert_eq!($n_bytes % std::mem::size_of::<cl_context_properties>(), 0);
+        vec![0 as cl_context_properties; $n_bytes / std::mem::size_of::<cl_context_properties>()]
     }};
 }
 
 macro_rules! _as_ptr {
-    (String, $data:expr) => {
+    (One, String, $data:expr) => {
         // $data is a Vec<u8> here
-        $data.as_mut_ptr() as *mut c_void
+        $data.as_mut_ptr() as *mut libc::c_void
     };
-    (Vec_usize, $data:expr) => {
+    (Many, $t:ty, $data:expr) => {
         // $data is a Vec<usize> here
-        $data.as_mut_ptr() as *mut c_void
+        $data.as_mut_ptr() as *mut libc::c_void
     };
-    (Vec_u64, $data:expr) => {
-        // $data is a Vec<usize> here
-        $data.as_mut_ptr() as *mut c_void
-    };
-
-    (Vec_device, $data:expr) => {
-        // $data is a Vec<cl_device_id> here
-        $data.as_mut_ptr() as *mut c_void
-    };
-    ($t:ident, $data:expr) => {
+    (One, $t:ident, $data:expr) => {
         // $data is a u32 here
-        &mut $data as *mut _ as *mut c_void
+        &mut $data as *mut _ as *mut libc::c_void
     };
 }
 
 macro_rules! _finalize_data {
-    (String, $data:expr) => {
-        strings::to_utf8_string($data)
+    (One, String, $data:expr) => {
+        $crate::cl::strings::to_utf8_string($data)
     };
-    (bool, $data:expr) => {
+    (One, bool, $data:expr) => {
         match $data {
             0 => false,
             1 => true,
             _ => unreachable!(),
         }
     };
-    ($t:ident, $data:expr) => {
+    ($one_or_many:ident, $t:ident, $data:expr) => {
         $data
     };
 }
 
-macro_rules! _get_info {
-    ($output_t:ident, $func:ident, $parent:ident, $flag:ident) => {{
+macro_rules! _output_type {
+    (Many, $t:ty) => { Vec<$t> };
+    (One, $t:ty) => { $t };
+}
+
+macro_rules! _data_type {
+    (One, String) => { Vec<u8> };
+    (One, bool) => { u32 };
+    (Many, $t:ident) => { Vec<$t> };
+    (One, $t:ident) => { $t };
+}
+
+// macro_rules! _run_func_for_count {
+//     ($one_or_many, $output_t:ident, $func:ident, $o1:expr, $o2:expr, $flag:expr) => {{
+//         let mut n_bytes = 0usize;
+//         let status_code = $func(
+//             $crate::cl::ClObject::as_ptr(&$o1) as *mut libc::c_void,
+//             $crate::cl::ClObject::as_ptr(&$o2) as *mut libc::c_void,
+//             $flag.into(),
+//             0 as size_t,
+//             std::ptr::null_mut(),
+//             &mut n_bytes,
+//         );
+//     }};
+// }
+
+// macro_rules! get_empty_info {
+//     ($t:ty, $o1:expr, $o2:expr, $flag:expr) => {{
+//         let mut n_bytes = 0usize;
+//         let status_code = $func(
+//             $crate::cl::ClObject::as_ptr(&$o1) as *mut libc::c_void,
+//             $crate::cl::ClObject::as_ptr(&$o2) as *mut libc::c_void,
+//             $flag.into(),
+//             0 as size_t,
+//             std::ptr::null_mut(),
+//             &mut n_bytes,
+//         );
+//         StatusCodeError::check(status_code)?;
+//         assert!(n_bytes % std::mem::size_of<$t>() == 0);
+//         let count =
+//         Ok(n_bytes / std::mem::size_of<$t>())
+//     }};
+
+//     ($t:ty, $o1:expr,  $flag:expr) => {{
+//         let mut n_bytes = 0usize;
+//         let status_code = $func(
+//             $crate::cl::ClObject::as_ptr(&$o1) as *mut libc::c_void,
+//             $flag.into(),
+//             0 as size_t,
+//             std::ptr::null_mut(),
+//             &mut n_bytes,
+//         );
+//         StatusCodeError::check(status_code)?;
+//         assert!(n_bytes % std::mem::size_of<$t>() == 0);
+//         Ok(n_bytes / std::mem::size_of<$t>())
+//     }};
+// }
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! cl_get_info {
+    ($one_or_many:ident, $output_t:ident, $func:ident, $parent:expr, $flag:expr) => {{
         let mut n_bytes = 0usize;
         let status_code = $func(
-            $parent.as_ptr() as *mut c_void,
+            $crate::cl::ClObject::as_ptr(&$parent) as *mut libc::c_void,
+            $flag,
+            0 as libc::size_t,
+            std::ptr::null_mut(),
+            &mut n_bytes,
+        );
+        $crate::cl::StatusCodeError::check(status_code)?;
+        let mut data: _data_type!($one_or_many, $output_t) =
+            _empty_data!($one_or_many, $output_t, n_bytes);
+        let status = $func(
+            $crate::cl::ClObject::as_ptr(&$parent) as *mut libc::c_void,
+            $flag,
+            n_bytes,
+            _as_ptr!($one_or_many, $output_t, data),
+            std::ptr::null_mut(),
+        );
+        $crate::cl::StatusCodeError::check(status)?;
+        let out: _output_type!($one_or_many, $output_t) =
+            _finalize_data!($one_or_many, $output_t, data);
+        Ok(out)
+    }};
+    ($one_or_many:ident, $output_t:ident, $func:ident, $parent1:ident, $parent2:ident, $flag:ident) => {{
+        let mut n_bytes = 0usize;
+        let status_code = $func(
+            $crate::cl::ClObject::as_ptr(&$parent1) as *mut libc::c_void,
+            $crate::cl::ClObject::as_ptr(&$parent2) as *mut libc::c_void,
             $flag,
             0 as size_t,
             std::ptr::null_mut(),
             &mut n_bytes,
         );
         StatusCodeError::check(status_code)?;
-        let mut data = _empty_data!($output_t, n_bytes);
+        let mut data: _data_type!($one_or_many, $output_t) =
+            _empty_data!($one_or_many, $output_t, n_bytes);
         let status = $func(
-            $parent.as_ptr() as *mut c_void,
+            $crate::cl::ClObject::as_ptr(&$parent1) as *mut libc::c_void,
+            $crate::cl::ClObject::as_ptr(&$parent2) as *mut libc::c_void,
             $flag,
             n_bytes,
-            _as_ptr!($output_t, data),
+            _as_ptr!($one_or_many, $output_t, data),
             std::ptr::null_mut(),
         );
         StatusCodeError::check(status)?;
-        Ok(_finalize_data!($output_t, data))
+        let out: _output_type!($one_or_many, $output_t) =
+            _finalize_data!($one_or_many, $output_t, data);
+        Ok(out)
     }};
 }
 
@@ -195,125 +343,123 @@ macro_rules! _get_info {
 //     Ok(ClPointer::new(output_count, output as *mut Ret))
 // }
 
-lazy_static! {
-    static ref PLATFORM_ACCESS: Mutex<()> = Mutex::new(());
-}
+// /// Queues an n-dimensionally ranged kernel to be executed.
+// ///
+// /// Blocks until the kernel is finished.
+// ///
+// /// # Safety
+// /// Usage of an invalid ClObject is undefined behavior.
+// pub unsafe fn cl_enqueue_nd_range_kernel<W: Waitlist>(
+//     queue: cl_command_queue,
+//     kernel: cl_kernel,
+//     work: &Work,
+//     waitlist: W,
+// ) -> Output<cl_event> {
+//     let mut tracking_event: cl_event = new_tracking_event();
+//     let event_waitlist = waitlist.new_waitlist();
+//     let wl = event_waitlist.as_slice();
 
-/// Gets the cl_platform_ids of the host machine
-pub unsafe fn list_platform_ids() -> Output<Vec<cl_platform_id>> {
-    let platform_lock = PLATFORM_ACCESS.lock();
-    // transactional access to the platform Mutex requires a lock for some OpenCL implementations.
-    let mut num_platforms: cl_uint = 0;
-    StatusCodeError::check(clGetPlatformIDs(
-        0,
-        std::ptr::null_mut(),
-        &mut num_platforms,
-    ))?;
-    let mut ids: Vec<cl_platform_id> = vec![cl_platform_id::null_ptr(); num_platforms as usize];
-    StatusCodeError::check(clGetPlatformIDs(
-        num_platforms,
-        ids.as_mut_ptr() as *mut *mut c_void,
-        &mut num_platforms,
-    ))?;
-    std::mem::drop(platform_lock);
-    Ok(ids)
-}
+//     let gws: GlobalWorkSize = work.global_work_size()?;
+//     let lws: LocalWorkSize = work.local_work_size()?;
+//     let err_code = clEnqueueNDRangeKernel(
+//         queue,
+//         kernel,
+//         work.work_dims(),
+//         work.global_work_offset().as_ptr(),
+//         gws.as_ptr(),
+//         lws.as_ptr(),
+//         wl.waitlist_len(),
+//         wl.waitlist_ptr(),
+//         &mut tracking_event,
+//     );
 
-#[inline(always)]
-pub unsafe fn device_count(platform: cl_platform_id, device_type: cl_device_type) -> Output<u32> {
-    _object_count!(clGetDeviceIDs, platform, device_type)
-}
+//     build_output((), err_code)?;
+//     cl_finish(queue)?;
 
-#[inline(always)]
-pub unsafe fn list_devices(
-    platform: cl_platform_id,
-    device_type: cl_device_type,
-) -> Output<Vec<cl_device_id>> {
-    let count = device_count(platform, device_type)?;
-    _get_objects!(clGetDeviceIDs, cl_device_id, platform, device_type, count)
-}
+//     // TODO: Remove this check when Event checks for null pointer
+//     debug_assert!(!tracking_event.is_null());
+//     Ok(tracking_event)
+// }
 
-/// Gets platform info for a given cl_platform_id and the given cl_platform_info flag via the
-/// OpenCL FFI call to clGetPlatformInfo.
-///
-/// # Safety
-/// Use of an invalid cl_platform_id is undefined behavior. Be careful. There be dragons.
-#[inline(always)]
-pub unsafe fn get_platform_info(
-    platform: cl_platform_id,
-    flag: cl_platform_info,
-) -> Output<String> {
-    _get_info!(String, clGetPlatformInfo, platform, flag)
-}
+// fn new_tracking_event() -> cl_event {
+//     std::ptr::null_mut() as cl_event
+// }
 
-#[inline(always)]
-pub unsafe fn get_device_info_string(device: cl_device_id, flag: cl_device_info) -> Output<String> {
-    _get_info!(String, clGetDeviceInfo, device, flag)
-}
+// pub unsafe fn cl_enqueue_read_buffer<T>(
+//     queue: cl_command_queue,
+//     mem: cl_mem,
+//     buffer: &mut [T],
+//     command_queue_opts: CommandQueueOptions,
+// ) -> Output<cl_event>
+// where
+//     T: Number,
+// {
+//     let mut tracking_event = new_tracking_event();
+//     let waitlist = command_queue_opts.new_waitlist();
+//     let wl = waitlist.as_slice();
 
-#[inline(always)]
-pub unsafe fn get_device_info_bool(device: cl_device_id, flag: cl_device_info) -> Output<bool> {
-    _get_info!(bool, clGetDeviceInfo, device, flag)
-}
+//     // TODO: Make this a Error returning check
+//     // debug_assert!(buffer.len() == device_mem.len());
 
-#[inline(always)]
-pub unsafe fn get_device_info_vec_usize(
-    device: cl_device_id,
-    flag: cl_device_info,
-) -> Output<Vec<usize>> {
-    _get_info!(Vec_usize, clGetDeviceInfo, device, flag)
-}
+//     let err_code = clEnqueueReadBuffer(
+//         queue,
+//         mem,
+//         command_queue_opts.is_blocking as cl_bool,
+//         command_queue_opts.offset,
+//         buffer.buffer_byte_size(),
+//         buffer.buffer_ptr(),
+//         wl.waitlist_len(),
+//         wl.waitlist_ptr(),
+//         &mut tracking_event,
+//     );
+//     build_output(tracking_event, err_code)
+// }
 
-#[inline(always)]
-pub unsafe fn get_device_info_u32(device: cl_device_id, flag: cl_device_info) -> Output<u32> {
-    _get_info!(u32, clGetDeviceInfo, device, flag)
-}
+// pub unsafe fn cl_enqueue_write_buffer<T>(
+//     queue: cl_command_queue,
+//     mem: cl_mem,
+//     buffer: &[T],
+//     command_queue_opts: CommandQueueOptions,
+// ) -> Output<cl_event>
+// where
+//     T: Number,
+// {
+//     let mut tracking_event = new_tracking_event();
 
-#[inline(always)]
-pub unsafe fn get_device_info_u64(device: cl_device_id, flag: cl_device_info) -> Output<u64> {
-    _get_info!(u64, clGetDeviceInfo, device, flag)
-}
+//     let waitlist = command_queue_opts.new_waitlist();
+//     let wl = waitlist.as_slice();
+//     let err_code = clEnqueueWriteBuffer(
+//         queue,
+//         mem,
+//         command_queue_opts.is_blocking as cl_bool,
+//         command_queue_opts.offset,
+//         buffer.buffer_byte_size(),
+//         buffer.buffer_ptr(),
+//         wl.waitlist_len(),
+//         wl.waitlist_ptr(),
+//         &mut tracking_event,
+//     );
 
-#[inline(always)]
-pub unsafe fn get_device_info_usize(device: cl_device_id, flag: cl_device_info) -> Output<usize> {
-    _get_info!(usize, clGetDeviceInfo, device, flag)
-}
+//     build_output(tracking_event, err_code)
+// }
 
-#[allow(clippy::transmuting_null)]
-pub unsafe fn create_context(device_ids: &[cl_device_id]) -> Output<cl_context> {
-    let mut err_code = 0;
-    let context_ptr = clCreateContext(
-        std::ptr::null(),
-        device_ids.len() as u32,
-        device_ids.as_ptr() as *const *mut c_void,
-        std::mem::transmute(std::ptr::null::<fn()>()),
-        std::ptr::null_mut(),
-        &mut err_code,
-    );
-    StatusCodeError::check(err_code)?;
-    cl_context::new(context_ptr)
-}
+// pub unsafe fn cl_get_command_queue_info<T: Copy>(
+//     command_queue: cl_command_queue,
+//     flag: CommandQueueInfo,
+// ) -> Output<ClPointer<T>> {
+//     cl_get_info5(
+//         command_queue,
+//         flag as cl_command_queue_info,
+//         clGetCommandQueueInfo,
+//     )
+// }
 
-#[inline(always)]
-pub unsafe fn get_context_info_u32(context: cl_context, flag: cl_context_info) -> Output<u32> {
-    _get_info!(u32, clGetContextInfo, context, flag)
-}
-
-#[inline(always)]
-pub unsafe fn get_context_info_devices(
-    context: cl_context,
-    flag: cl_context_info,
-) -> Output<Vec<cl_device_id>> {
-    _get_info!(Vec_device, clGetContextInfo, context, flag)
-}
-
-#[inline(always)]
-pub unsafe fn get_context_info_vec_u64(
-    context: cl_context,
-    flag: cl_context_info,
-) -> Output<Vec<u64>> {
-    _get_info!(Vec_u64, clGetContextInfo, context, flag)
-}
+// get_program_info_string
+// get_program_info_vec_usize
+// get_program_info_bytes
+// get_program_info_usize
+// get_program_info_vec_device
+// get_program_info_context
 
 // pub unsafe fn cl_get_object_count<Obj, Flag, Obj2>(
 //     cl_object: Obj,

@@ -15,13 +15,13 @@ impl<T: ClObject + RetainRelease> ObjectWrapper<T> {
         self.object
     }
 
-    // pub unsafe fn cl_object_ref(&self) -> &T {
-    //     &self.object
-    // }
+    pub unsafe fn cl_object_ref(&self) -> &T {
+        &self.object
+    }
 
-    // pub unsafe fn cl_object_mut_ref(&mut self) -> &mut T {
-    //     &mut self.object
-    // }
+    pub unsafe fn cl_object_mut_ref(&mut self) -> &mut T {
+        &mut self.object
+    }
 
     pub unsafe fn retain_new(object: T) -> Self {
         object.retain();
@@ -63,6 +63,6 @@ impl<T: ClObject + RetainRelease> Eq for ObjectWrapper<T> {}
 
 impl<T: ClObject + RetainRelease> fmt::Debug for ObjectWrapper<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?} at {:?}", T::type_name(), self.address())
+        write!(f, "{}({})", T::type_name(), self.address())
     }
 }

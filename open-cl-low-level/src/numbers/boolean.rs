@@ -3,11 +3,8 @@ use std::fmt;
 use std::ops::*;
 use thiserror::Error;
 
-use crate::cl::cl_uint;
+use crate::cl::cl_bool;
 use crate::Output;
-
-#[allow(non_camel_case_types)]
-pub type cl_bool = cl_uint;
 
 #[derive(Error, Debug)]
 pub enum BoolError {
@@ -178,7 +175,7 @@ impl DivAssign for Bool {
 
 impl Default for Bool {
     fn default() -> Bool {
-        From::from(cl_uint::default())
+        From::from(cl_bool::default())
     }
 }
 

@@ -19,12 +19,21 @@ pub use cl_sys::{
     cl_sampler_info, cl_uint,
 };
 
+#[allow(non_camel_case_types)]
+pub type cl_command_execution_status = cl_int;
+
+#[allow(non_camel_case_types)]
+pub type cl_bool = cl_uint;
+
 // FFI functions
 pub use cl_sys::{
-    clBuildProgram, clCreateContext, clCreateProgramWithBinary, clCreateProgramWithSource,
-    clGetContextInfo, clGetDeviceIDs, clGetDeviceInfo, clGetPlatformIDs, clGetPlatformInfo,
-    clGetProgramBuildInfo, clGetProgramInfo, clReleaseCommandQueue, clReleaseContext,
-    clReleaseDevice, clReleaseEvent, clReleaseKernel, clReleaseMemObject, clReleaseProgram,
-    clRetainCommandQueue, clRetainContext, clRetainDevice, clRetainEvent, clRetainKernel,
-    clRetainMemObject, clRetainProgram,
+    clBuildProgram, clCreateBuffer, clCreateCommandQueue, clCreateContext, clCreateKernel,
+    clCreateProgramWithBinary, clCreateProgramWithSource, clEnqueueNDRangeKernel,
+    clEnqueueReadBuffer, clEnqueueWriteBuffer, clFinish, clGetCommandQueueInfo, clGetContextInfo,
+    clGetDeviceIDs, clGetDeviceInfo, clGetEventInfo, clGetEventProfilingInfo, clGetKernelInfo,
+    clGetMemObjectInfo, clGetPlatformIDs, clGetPlatformInfo, clGetProgramBuildInfo,
+    clGetProgramInfo, clReleaseCommandQueue, clReleaseContext, clReleaseDevice, clReleaseEvent,
+    clReleaseKernel, clReleaseMemObject, clReleaseProgram, clRetainCommandQueue, clRetainContext,
+    clRetainDevice, clRetainEvent, clRetainKernel, clRetainMemObject, clRetainProgram,
+    clSetKernelArg, clWaitForEvents,
 };

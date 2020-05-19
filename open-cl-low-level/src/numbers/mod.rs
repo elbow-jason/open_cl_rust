@@ -13,6 +13,8 @@ pub use scalar_traits::*;
 pub mod number_type;
 pub use number_type::{NumberType, NumberTypeError, NumberTyped, NumberTypedT};
 
+pub mod number_types;
+
 pub mod boolean;
 pub use boolean::{Bool, BoolError};
 

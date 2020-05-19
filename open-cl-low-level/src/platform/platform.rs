@@ -9,11 +9,12 @@
 /// NOTE: ClPlatformID is tested!
 use std::default::Default;
 
-use crate::cl::functions;
 use crate::cl::{cl_platform_id, ClObject, ObjectWrapper};
 use crate::cl::{cl_platform_info, DeviceType, PlatformInfo};
 
 use crate::{Device, Error, Output};
+
+use super::functions;
 
 /// An error related to Platform.
 #[derive(Error, Debug, PartialEq, Eq, Clone)]
@@ -28,49 +29,7 @@ pub enum PlatformError {
     NoDefaultDevice,
 }
 
-#[repr(transparent)]
-pub struct Platform(ObjectWrapper<cl_platform_id>);
-
-impl Platform {
-    unsafe fn new(p: cl_platform_id) -> Platform {
-        Platform(ObjectWrapper::new(p))
-    }
-
-    unsafe fn cl_object(&self) -> cl_platform_id {
-        self.0.cl_object()
-    }
-}
-
-// pub struct ClPlatformID {
-//     object: cl_platform_id,
-// }
-
-// impl PlatformPtr for cl_platform_id {
-//     fn platform_ptr(&self) -> cl_platform_id {
-//         *self
-//     }
-// }
-
-// impl PlatformPtr for ClPlatformID {
-//     fn platform_ptr(&self) -> cl_platform_id {
-//         unsafe { self.cl_object() }
-//     }
-// }
-
-// impl PlatformPtr for &ClPlatformID {
-//     fn platform_ptr(&self) -> cl_platform_id {
-//         unsafe { self.cl_object() }
-//     }
-// }
-
-pub fn default_platform() -> Output<Platform> {
-    let mut platforms = Platform::list_all()?;
-
-    if platforms.is_empty() {
-        return Err(PlatformError::NoPlatforms)?;
-    }
-    Ok(platforms.remove(0))
-}
+pub type Platform = ObjectWrapper<cl_platform_id>;
 
 impl Platform {
     pub fn list_all() -> Output<Vec<Platform>> {
@@ -135,23 +94,31 @@ impl Platform {
 unsafe impl Send for Platform {}
 unsafe impl Sync for Platform {}
 
+fn _default_platform() -> Output<Platform> {
+    let mut platforms = Platform::list_all()?;
+
+    if platforms.is_empty() {
+        return Err(PlatformError::NoPlatforms)?;
+    }
+    Ok(platforms.remove(0))
+}
+
 impl Default for Platform {
     fn default() -> Platform {
-        default_platform().unwrap()
+        _default_platform().unwrap()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    // use crate::device::{Device, DeviceType, DevicePtr};
-    use crate::cl::functions;
     #[test]
     fn test_cl_get_platforms() {
-        let platform_ids: Vec<cl_platform_id> = unsafe { functions::list_platform_ids().unwrap() };
-        assert!(platform_ids.len() > 0);
-        for id in platform_ids.into_iter() {
-            id.check().unwrap();
+        let all_platforms: Vec<Platform> = Platform::list_all().unwrap();
+        assert!(all_platforms.len() > 0);
+        for platform in all_platforms.into_iter() {
+            let name = platform.name().unwrap();
+            assert!(name.len() > 0);
         }
     }
 

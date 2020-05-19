@@ -1,6 +1,6 @@
 // The only entrypoint into the entire app for cl_* primitives.
 
-use crate::numbers::{NumCast, NumCastFrom, NumberOps};
+use crate::numbers::{NumCast, NumCastFrom, Number, NumberOps};
 use libc::size_t;
 use std::ops::*;
 
@@ -19,6 +19,7 @@ impl NumberOps for cl_uint {}
 impl NumberOps for cl_ulong {}
 impl NumberOps for cl_ushort {}
 impl NumberOps for size_t {}
+impl NumberOps for isize {}
 
 pub trait ClPrimitiveNumber: NumberOps + PartialOrd {}
 
@@ -99,5 +100,29 @@ macro_rules! impl_cast_one_to_many {
 
 impl_cast_many!([
     cl_uchar, cl_char, cl_ushort, cl_short, cl_uint, cl_int, cl_ulong, cl_long, cl_float,
-    cl_double, size_t
+    cl_double, size_t, isize
 ]);
+
+// Set up the rust primitives.
+macro_rules! impl_number_for_rust_primitives {
+    ( $( $t:ty ),* ) => {
+        $(
+            impl Number for $t {
+                type Scalar = $t;
+                type Outer = $t;
+
+                #[inline(always)]
+                fn new(val: Self::Outer) -> Self {
+                    val
+                }
+
+                #[inline(always)]
+                fn into_outer(self) -> Self::Outer {
+                    self
+                }
+            }
+        )*
+    };
+}
+
+impl_number_for_rust_primitives!(u8, i8, u16, i16, u32, i32, f32, u64, i64, f64, isize, usize);
