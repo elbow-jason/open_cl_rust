@@ -170,7 +170,7 @@ impl Session {
         host_buffer: H,
         opts: Option<CommandQueueOptions>,
     ) -> Output<Event> {
-        mem.number_type().match_or_panic(T::number_type());
+        mem.number_type().match_or_panic(&T::number_type());
         let queue: &mut CommandQueue = self.get_queue_by_index(queue_index)?;
         queue.write_buffer(mem, host_buffer, opts)
     }

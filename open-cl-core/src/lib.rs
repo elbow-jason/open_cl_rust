@@ -5,9 +5,6 @@
 /// command-queue or change the state of OpenCL objects such as command-queue
 /// objects, memory objects, program and kernel objects are not thread-safe.
 
-mod empty;
-pub use empty::*;
-
 // #[allow(unused_imports)]
 // #[macro_use]
 // extern crate log;
@@ -20,8 +17,8 @@ pub use empty::*;
 // extern crate failure;
 
 // #[cfg(test)]
-// #[macro_use]
-// mod testing;
+#[macro_use]
+mod testing;
 
 // // macros are in there keep it before dependent modules. order matters.
 // #[macro_use]
@@ -32,33 +29,44 @@ pub use empty::*;
 // pub extern crate open_cl_low_level;
 // pub extern crate open_cl_sys as ffi;
 
-// pub use open_cl_low_level as ll;
+pub use open_cl_low_level as ll;
+
+pub use ll::{Error, Output};
 
 // extern crate num;
 
-// pub mod buffer;
+pub mod platform;
+pub use platform::Platform;
+
+pub mod device;
+pub use device::Device;
+
+pub mod context;
+pub use context::Context;
+
+pub mod program;
+pub use program::{Program, UnbuiltProgram};
+
+pub mod buffer;
+pub use buffer::Buffer;
+
+pub mod session;
+pub use session::Session;
+
 // pub mod command_queue;
-// pub mod context;
-// pub mod device;
+
 // pub mod kernel;
-// pub mod platform;
-// pub mod program;
-// pub mod session;
+// pub use kernel::{Kernel, KernelOperation};
 
 // #[cfg(test)]
 // mod tests;
 
-// pub use buffer::Buffer;
 // pub use command_queue::CommandQueue;
-// pub use context::Context;
-// pub use device::Device;
-// pub use kernel::{Kernel, KernelOpArg, KernelOperation, NumArg, ToKernelOpArg};
-// pub use platform::Platform;
-// pub use program::{Program, UnbuiltProgram};
-// pub use session::Session;
 
-// pub use ll::{
-//     BufferCreator, ClNum, CommandQueueOptions, CommandQueueProperties, DeviceType, Error,
-//     HostAccess, KernelAccess, MemConfig, MemLocation, MutVecOrSlice, NumberType, NumberTyped,
-//     NumberTypedT, Output, VecOrSlice, Waitlist, Work,
-// };
+pub use ll::cl::{ClObject, CommandQueueProperties, DeviceType, MemFlags};
+pub use ll::numbers::{Number, NumberType, NumberTyped, NumberTypedT};
+pub use ll::vec_or_slice::{MutVecOrSlice, VecOrSlice};
+pub use ll::{
+    ArgPtr, AsPtr, BufferBuilder, CommandQueueOptions, Dims, HostAccess, KernelAccess, KernelArg,
+    KernelOperation, MemConfig, MemLocation, Waitlist, Work,
+};

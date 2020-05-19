@@ -43,10 +43,6 @@ pub unsafe trait ContextPtr: Sized {
 pub type Context = ObjectWrapper<cl_context>;
 
 impl Context {
-    // pub unsafe fn retain_new(obj: cl_context) -> Context {
-    //     Context(ObjectWrapper::retain_new(obj))
-    // }
-
     pub unsafe fn create<D>(devices: &[D]) -> Output<Context>
     where
         D: DevicePtr,

@@ -166,3 +166,12 @@ impl Work {
         self.global_size.n_items()
     }
 }
+
+impl<T> From<T> for Work
+where
+    T: Into<Dims>,
+{
+    fn from(val: T) -> Work {
+        Work::new(val)
+    }
+}

@@ -1,4 +1,4 @@
-use crate::numbers::Number;
+use crate::{Number, Output};
 
 use std::any;
 use std::cmp;
@@ -55,8 +55,17 @@ pub trait NumberTypedT {
     fn matches(other: NumberType) -> bool {
         Self::number_type() == other
     }
-    fn match_or_panic(other: NumberType) {
-        _match_or_panic(Self::number_type(), other);
+
+    fn type_check(other: &NumberType) -> Output<()> {
+        if Self::number_type() != *other {
+            Err(NumberTypeError::Mismatch(Self::number_type(), *other))?
+        } else {
+            Ok(())
+        }
+    }
+
+    fn match_or_panic(other: &NumberType) {
+        Self::type_check(other).unwrap()
     }
 
     fn type_name() -> &'static str {
@@ -75,8 +84,16 @@ pub trait NumberTyped {
         self.number_type() == other
     }
 
-    fn match_or_panic(&self, other: NumberType) {
-        _match_or_panic(self.number_type(), other);
+    fn type_check(&self, other: &NumberType) -> Output<()> {
+        if self.number_type() != *other {
+            Err(NumberTypeError::Mismatch(self.number_type(), *other))?
+        } else {
+            Ok(())
+        }
+    }
+
+    fn match_or_panic(&self, other: &NumberType) {
+        self.type_check(other).unwrap()
     }
 
     fn type_name(&self) -> &'static str {
@@ -85,13 +102,5 @@ pub trait NumberTyped {
 
     fn size_of(&self) -> usize {
         self.number_type().size_of
-    }
-}
-
-#[inline]
-fn _match_or_panic(t1: NumberType, t2: NumberType) {
-    if t1 != t2 {
-        let err = NumberTypeError::Mismatch(t1, t2);
-        panic!("{:?}", err);
     }
 }

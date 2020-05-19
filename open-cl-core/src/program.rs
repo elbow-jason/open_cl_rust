@@ -1,9 +1,9 @@
 use std::fmt;
 use std::mem::ManuallyDrop;
 
-use crate::ffi::cl_program;
+use crate::ll::cl::ClObject;
 
-use crate::ll::{ClContext, ClProgram, ContextPtr, ProgramPtr};
+use crate::ll::{Context as ClContext, ContextPtr, Program as ClProgram, ProgramPtr};
 use crate::{Context, Device, Output};
 
 pub struct UnbuiltProgram {
@@ -52,7 +52,7 @@ impl fmt::Debug for UnbuiltProgram {
 impl UnbuiltProgram {
     pub fn create_with_source(context: &Context, src: &str) -> Output<UnbuiltProgram> {
         unsafe {
-            let ll_prog = ClProgram::create_with_source(context.low_level_context(), src)?;
+            let ll_prog = ClProgram::create_with_src(context.low_level_context(), src)?;
             Ok(UnbuiltProgram::new(
                 ll_prog,
                 context.low_level_context().clone(),
@@ -92,8 +92,8 @@ impl UnbuiltProgram {
                 .map(|d| Device::new(d))
                 .collect();
 
-            let ll_program = ClProgram::new(program_ptr)?;
-            let ll_context = ClContext::new(context_ptr)?;
+            let ll_program = ClProgram::new(program_ptr);
+            let ll_context = ClContext::new(context_ptr);
             let hl_context = Context::build(ll_context, context_devices2);
             Program::new(ll_program, hl_context, devices.to_vec())
         };
@@ -150,6 +150,34 @@ impl Program {
     pub fn low_level_program(&self) -> &ClProgram {
         &self.inner
     }
+
+    pub fn reference_count(&self) -> Output<u32> {
+        unsafe { self.inner.reference_count() }
+    }
+
+    pub fn num_devices(&self) -> Output<u32> {
+        unsafe { self.inner.num_devices() }
+    }
+
+    pub fn source(&self) -> Output<String> {
+        unsafe { self.inner.source() }
+    }
+
+    pub fn binary_sizes(&self) -> Output<Vec<usize>> {
+        unsafe { self.inner.binary_sizes() }
+    }
+
+    pub fn binaries(&self) -> Output<Vec<u8>> {
+        unsafe { self.inner.binaries() }
+    }
+
+    pub fn num_kernels(&self) -> Output<usize> {
+        unsafe { self.inner.num_kernels() }
+    }
+
+    pub fn kernel_names(&self) -> Output<Vec<String>> {
+        unsafe { self.inner.kernel_names() }
+    }
 }
 
 impl Drop for Program {
@@ -175,34 +203,39 @@ impl Clone for Program {
 
 impl fmt::Debug for Program {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Program{{{:?}}}", unsafe { self.program_ptr() })
+        write!(f, "Program{{{}}}", self.inner.address())
     }
 }
 
 unsafe impl Sync for Program {}
 unsafe impl Send for Program {}
 
-unsafe impl ProgramPtr for Program {
-    unsafe fn program_ptr(&self) -> cl_program {
-        (*self.inner).program_ptr()
-    }
-}
+// unsafe impl ProgramPtr for Program {
+//     unsafe fn program_ptr(&self) -> cl_program {
+//         (*self.inner).program_ptr()
+//     }
+// }
 
-unsafe impl ProgramPtr for &Program {
-    unsafe fn program_ptr(&self) -> cl_program {
-        (*self.inner).program_ptr()
-    }
-}
+// unsafe impl ProgramPtr for &Program {
+//     unsafe fn program_ptr(&self) -> cl_program {
+//         (*self.inner).program_ptr()
+//     }
+// }
 
-unsafe impl ProgramPtr for &mut Program {
-    unsafe fn program_ptr(&self) -> cl_program {
-        (*self.inner).program_ptr()
-    }
-}
+// unsafe impl ProgramPtr for &mut Program {
+//     unsafe fn program_ptr(&self) -> cl_program {
+//         (*self.inner).program_ptr()
+//     }
+// }
 
 impl PartialEq for Program {
     fn eq(&self, other: &Self) -> bool {
-        unsafe { std::ptr::eq(self.program_ptr(), other.program_ptr()) }
+        unsafe {
+            std::ptr::eq(
+                self.inner.program_ptr().as_ptr(),
+                other.inner.program_ptr().as_ptr(),
+            )
+        }
     }
 }
 
@@ -210,7 +243,6 @@ impl Eq for Program {}
 
 #[cfg(test)]
 mod tests {
-    use crate::ll::*;
     use crate::*;
 
     const SRC: &str = "
@@ -237,10 +269,10 @@ mod tests {
     #[test]
     fn program_method_num_devices_works() {
         let program: Program = testing::get_program(SRC);
-        let output = program
+        let output: u32 = program
             .num_devices()
             .expect("Failed to call program.num_devices()");
-        assert_eq!(output, program.devices().len());
+        assert_eq!(output, program.devices().len() as u32);
     }
 
     #[test]

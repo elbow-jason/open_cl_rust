@@ -52,7 +52,7 @@ extern crate bitflags;
 mod ll_testing;
 
 #[macro_use]
-mod cl;
+pub mod cl;
 
 pub mod platform;
 pub use platform::*;
@@ -78,7 +78,7 @@ pub use kernel::*;
 pub mod command_queue;
 pub use command_queue::*;
 
-mod vec_or_slice;
+pub mod vec_or_slice;
 
 pub mod session;
 pub use session::*;
