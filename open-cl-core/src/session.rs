@@ -4,7 +4,7 @@ use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use crate::{
     Buffer, BufferBuilder, CommandQueueOptions, CommandQueueProperties, Context, Device,
     KernelOperation, MemConfig, MutVecOrSlice, Number, NumberTyped, NumberTypedT, Output, Platform,
-    Program, VecOrSlice, Waitlist, Work,
+    Program, VecOrSlice, Waitlist,
 };
 
 use crate::ll::cl::ClObject;
@@ -266,7 +266,7 @@ impl Drop for Session {
 
 #[cfg(test)]
 mod tests {
-    use crate::{testing, Buffer, KernelOperation, Session, Work};
+    use crate::{testing, Buffer, KernelOperation, Session};
 
     const SRC: &'static str = "__kernel void test(__global int *data) {
         data[get_global_id(0)] += 1;
