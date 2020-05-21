@@ -63,10 +63,10 @@ pub use session::Session;
 
 // pub use command_queue::CommandQueue;
 
-pub use ll::cl::{ClObject, CommandQueueProperties, DeviceType, MemFlags};
+pub use ll::cl::{ClObject, CommandQueueProperties, DeviceType, MemFlags, StatusCodeError};
 pub use ll::numbers::{Number, NumberType, NumberTyped, NumberTypedT};
 pub use ll::vec_or_slice::{MutVecOrSlice, VecOrSlice};
 pub use ll::{
     ArgPtr, AsPtr, BufferBuilder, CommandQueueOptions, Dims, HostAccess, KernelAccess, KernelArg,
-    KernelOperation, MemConfig, MemLocation, StatusCodeError, Waitlist, Work,
+    KernelOperation, MemConfig, MemLocation, Waitlist, Work,
 };
