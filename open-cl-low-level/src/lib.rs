@@ -39,7 +39,9 @@ pub use numbers::*;
 
 pub type Output<T> = anyhow::Result<T>;
 
-pub use thiserror::Error;
+pub use thiserror::Error as ErrorT;
+
+pub use anyhow::Error;
 
 #[macro_use]
 extern crate lazy_static;

@@ -1,7 +1,7 @@
 use std::fmt;
 use std::fmt::Debug;
 
-use crate::{Error, Output};
+use crate::{ErrorT, Output};
 
 use super::functions;
 
@@ -16,7 +16,7 @@ use crate::cl::{
 };
 
 /// An error related to a Device.
-#[derive(Error, Debug, PartialEq, Eq, Clone)]
+#[derive(ErrorT, Debug, PartialEq, Eq, Clone)]
 pub enum DeviceError {
     #[error("The given platform had no default device")]
     NoDefaultDevice,

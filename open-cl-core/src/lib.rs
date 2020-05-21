@@ -68,5 +68,5 @@ pub use ll::numbers::{Number, NumberType, NumberTyped, NumberTypedT};
 pub use ll::vec_or_slice::{MutVecOrSlice, VecOrSlice};
 pub use ll::{
     ArgPtr, AsPtr, BufferBuilder, CommandQueueOptions, Dims, HostAccess, KernelAccess, KernelArg,
-    KernelOperation, MemConfig, MemLocation, Waitlist, Work,
+    KernelOperation, MemConfig, MemLocation, StatusCodeError, Waitlist, Work,
 };

@@ -4,7 +4,7 @@ use crate::numbers::{Number, NumberTyped, NumberTypedT};
 use crate::vec_or_slice::{MutVecOrSlice, VecOrSlice};
 use crate::{
     BufferBuilder, BufferReadEvent, BuiltContext, CommandQueue, CommandQueueOptions, Context,
-    ContextBuilder, Device, Error, Event, Kernel, Mem, MemConfig, Output, Platform, Program,
+    ContextBuilder, Device, ErrorT, Event, Kernel, Mem, MemConfig, Output, Platform, Program,
     Waitlist, Work,
 };
 use std::convert::TryInto;
@@ -12,7 +12,7 @@ use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
 
 /// An error related to Session Building.
-#[derive(Error, Debug, PartialEq, Eq, Clone)]
+#[derive(ErrorT, Debug, PartialEq, Eq, Clone)]
 pub enum SessionError {
     #[error("The given queue index {0} was out of range")]
     QueueIndexOutOfRange(usize),
@@ -282,7 +282,7 @@ impl<'a> SessionQueue<'a> {
 }
 
 /// An error related to Session Building.
-#[derive(Error, Debug, PartialEq, Eq, Clone)]
+#[derive(ErrorT, Debug, PartialEq, Eq, Clone)]
 pub enum SessionBuilderError {
     #[error("Given Mem has no associated cl_mem object")]
     NoAssociatedMemObject,

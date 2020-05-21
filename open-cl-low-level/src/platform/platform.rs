@@ -12,12 +12,12 @@ use std::default::Default;
 use crate::cl::{cl_platform_id, ClObject, ObjectWrapper};
 use crate::cl::{cl_platform_info, DeviceType, PlatformInfo};
 
-use crate::{Device, Error, Output};
+use crate::{Device, ErrorT, Output};
 
 use super::functions;
 
 /// An error related to Platform.
-#[derive(Error, Debug, PartialEq, Eq, Clone)]
+#[derive(ErrorT, Debug, PartialEq, Eq, Clone)]
 pub enum PlatformError {
     #[error("No platforms found!")]
     NoPlatforms,

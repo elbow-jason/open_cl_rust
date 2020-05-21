@@ -2,10 +2,10 @@ use super::functions;
 use crate::cl::{
     cl_device_id, cl_program, strings, ClObject, ObjectWrapper, ProgramBuildInfo, ProgramInfo,
 };
-use crate::{Context, ContextPtr, Device, DevicePtr, Error, Output};
+use crate::{Context, ContextPtr, Device, DevicePtr, ErrorT, Output};
 
 /// An error related to Program.
-#[derive(Error, Debug, PartialEq, Eq, Clone)]
+#[derive(ErrorT, Debug, PartialEq, Eq, Clone)]
 pub enum ProgramError {
     #[error("The given source code was not a valid CString")]
     InvalidSourceCode,

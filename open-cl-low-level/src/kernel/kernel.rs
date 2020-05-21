@@ -1,11 +1,11 @@
 use super::{functions, KernelArg};
 use crate::cl::{cl_kernel, strings, KernelInfo, ObjectWrapper};
 use crate::{Context, Program, ProgramPtr};
-use crate::{Error, Output};
+use crate::{ErrorT, Output};
 use std::fmt::Debug;
 
 /// An error related to a `Kernel`.
-#[derive(Debug, Error, PartialEq, Eq, Clone)]
+#[derive(Debug, ErrorT, PartialEq, Eq, Clone)]
 pub enum KernelError {
     #[error("The kernel name '{0}' could not be represented as a CString.")]
     CStringInvalidKernelName(String),
