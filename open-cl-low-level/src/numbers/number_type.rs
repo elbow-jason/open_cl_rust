@@ -21,6 +21,18 @@ impl NumberType {
             size_of: std::mem::size_of::<T>(),
         }
     }
+
+    pub fn number_type_id(&self) -> any::TypeId {
+        self.type_id
+    }
+
+    pub fn number_type_name(&self) -> &'static str {
+        self.type_name
+    }
+
+    pub fn number_type_size_of(&self) -> usize {
+        self.size_of
+    }
 }
 
 impl NumberTyped for NumberType {
