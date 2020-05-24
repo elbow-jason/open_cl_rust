@@ -215,11 +215,13 @@ where {
             let command_queue_opts = kernel_op.command_queue_opts();
             // let mut mem_locks: Vec<RwLockWriteGuard<ClMem>> = Vec::new();
             for (arg_index, arg) in kernel_op.mut_args().iter_mut().enumerate() {
+                println!("setting kernel arg {:?} as {:?}\n\r", arg_index, arg);
                 kernel.set_arg(arg_index, arg)?;
             }
 
             let mut queue = self.write_queue();
             // let mut ll_kernel = kernel.write_lock();
+            println!("queue {:?}", queue);
             let event = queue.enqueue_kernel(&mut kernel, &work, command_queue_opts)?;
             // Wait until queued mems finish being accessed.
             event.wait()?;
