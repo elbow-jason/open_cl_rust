@@ -15,7 +15,7 @@ impl<'a> ArgPtr<'a> {
         }
     }
 
-    unsafe fn from_raw_parts(ptr: *mut c_void, size: usize) -> ArgPtr<'a> {
+    pub unsafe fn from_raw_parts(ptr: *mut c_void, size: usize) -> ArgPtr<'a> {
         ArgPtr {
             _phantom: PhantomData,
             _ptr: ptr,
