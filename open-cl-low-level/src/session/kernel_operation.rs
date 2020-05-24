@@ -10,10 +10,16 @@ pub struct ArgPtr<'a> {
 
 impl<'a> ArgPtr<'a> {
     pub fn new<T: KernelArg>(val: &'a T) -> ArgPtr<'a> {
+        unsafe {
+            ArgPtr::from_raw_parts(val.kernel_arg_ptr() as *mut c_void, val.kernel_arg_size())
+        }
+    }
+
+    unsafe fn from_raw_parts(ptr: *mut c_void, size: usize) -> ArgPtr<'a> {
         ArgPtr {
             _phantom: PhantomData,
-            _ptr: unsafe { val.kernel_arg_ptr() as *mut c_void },
-            _size: val.kernel_arg_size(),
+            _ptr: ptr,
+            _size: size,
         }
     }
 }
