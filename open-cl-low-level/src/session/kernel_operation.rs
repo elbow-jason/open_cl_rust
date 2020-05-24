@@ -9,7 +9,7 @@ pub struct ArgPtr<'a> {
 }
 
 impl<'a> ArgPtr<'a> {
-    fn new<T: KernelArg>(val: &'a T) -> ArgPtr<'a> {
+    pub fn new<T: KernelArg>(val: &'a T) -> ArgPtr<'a> {
         ArgPtr {
             _phantom: PhantomData,
             _ptr: unsafe { val.kernel_arg_ptr() as *mut c_void },
