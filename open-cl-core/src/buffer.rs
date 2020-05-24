@@ -4,7 +4,7 @@ use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::ll::{Context as ClContext, Mem as ClMem, MemPtr};
 use crate::{
-    BufferBuilder, ClObject, Context, HostAccess, KernelAccess, MemConfig, MemFlags, MemLocation,
+    BufferBuilder, ClObject, Context, HostAccess, KernelAccess, MemAllocation, MemConfig, MemFlags,
     Number, NumberType, NumberTyped, NumberTypedT, Output,
 };
 
@@ -63,14 +63,14 @@ impl Buffer {
         creator: B,
         host_access: HostAccess,
         kernel_access: KernelAccess,
-        mem_location: MemLocation,
+        mem_allocation: MemAllocation,
     ) -> Output<Buffer> {
         let ll_mem = ClMem::create::<T, B>(
             context.low_level_context(),
             creator,
             host_access,
             kernel_access,
-            mem_location,
+            mem_allocation,
         )?;
         Ok(Buffer::new(ll_mem, context.clone()))
     }
@@ -101,7 +101,7 @@ impl Buffer {
             creator,
             mem_config.host_access,
             mem_config.kernel_access,
-            mem_config.mem_location,
+            mem_config.mem_allocation,
         )
     }
 
@@ -110,14 +110,14 @@ impl Buffer {
         creator: B,
         host_access: HostAccess,
         kernel_access: KernelAccess,
-        mem_location: MemLocation,
+        mem_allocation: MemAllocation,
     ) -> Output<Buffer> {
         let ll_mem = ClMem::create::<T, B>(
             ll_context,
             creator,
             host_access,
             kernel_access,
-            mem_location,
+            mem_allocation,
         )?;
         let context = Context::from_low_level_context(ll_context)?;
         Ok(Buffer::new(ll_mem, context))
@@ -184,7 +184,7 @@ mod tests {
             &data[..],
             HostAccess::NoAccess,
             KernelAccess::ReadWrite,
-            MemLocation::CopyToDevice,
+            MemAllocation::CopyToDevice,
         )
         .unwrap();
     }

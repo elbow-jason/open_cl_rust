@@ -1,17 +1,18 @@
 use std::fmt;
 
-use crate::cl::{cl_mem, cl_mem_flags};
+use crate::cl::cl_mem;
 use crate::cl::{MemFlags, MemInfo, ObjectWrapper};
 use crate::numbers::Number;
 use crate::numbers::{NumberType, NumberTyped, NumberTypedT};
 use crate::{Context, ContextPtr, Output};
 
-use super::{functions, BufferBuilder, HostAccess, KernelAccess, MemConfig, MemLocation};
+use super::{functions, BufferBuilder, HostAccess, KernelAccess, MemAllocation, MemConfig};
 
 #[derive(Eq, PartialEq)]
 pub struct Mem {
     inner: ObjectWrapper<cl_mem>,
     t: NumberType,
+    mem_config: MemConfig,
 }
 
 impl NumberTyped for Mem {
@@ -27,29 +28,29 @@ impl Mem {
     /// This function does not retain its cl_mem, but will release its cl_mem
     /// when it is dropped. Mismanagement of a cl_mem's lifetime.  Therefore,
     /// this function is unsafe.
-    pub unsafe fn new(t: NumberType, object: cl_mem) -> Mem {
+    pub unsafe fn new(t: NumberType, object: cl_mem, mem_config: MemConfig) -> Mem {
         Mem {
             inner: ObjectWrapper::new(object),
-            t: t,
+            t,
+            mem_config,
         }
     }
 
     pub fn create<T: Number + NumberTypedT, B: BufferBuilder>(
         context: &Context,
-        buffer_creator: B,
+        buffer_builder: B,
         host_access: HostAccess,
         kernel_access: KernelAccess,
-        mem_location: MemLocation,
+        mem_allocation: MemAllocation,
     ) -> Output<Mem> {
+        let mem_config = MemConfig::new(host_access, kernel_access, mem_allocation);
         unsafe {
             let mem_object = functions::create_buffer::<T, B>(
                 context.context_ptr(),
-                cl_mem_flags::from(host_access)
-                    | cl_mem_flags::from(kernel_access)
-                    | cl_mem_flags::from(mem_location),
-                buffer_creator,
+                mem_config.cl_mem_flags(),
+                buffer_builder,
             )?;
-            Ok(Mem::new(T::number_type(), mem_object))
+            Ok(Mem::new(T::number_type(), mem_object, mem_config))
         }
     }
 
@@ -67,10 +68,14 @@ impl Mem {
     ) -> Output<Mem> {
         let mem_object = functions::create_buffer::<T, B>(
             context.context_ptr(),
-            mem_config.into(),
+            mem_config.cl_mem_flags(),
             buffer_builder,
         )?;
-        Ok(Mem::new(T::number_type(), mem_object))
+        Ok(Mem::new(T::number_type(), mem_object, mem_config))
+    }
+
+    pub fn mem_config(&self) -> &MemConfig {
+        &self.mem_config
     }
 }
 

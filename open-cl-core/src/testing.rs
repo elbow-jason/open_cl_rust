@@ -63,7 +63,7 @@ pub fn get_buffer<T: Number>(size: usize) -> Buffer {
         size,
         HostAccess::ReadWrite,
         KernelAccess::ReadWrite,
-        MemLocation::AllocOnDevice,
+        MemAllocation::AllocOnDevice,
     )
     .unwrap()
 }

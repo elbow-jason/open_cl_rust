@@ -65,7 +65,7 @@ fn run_procedural() {
                 len,
                 HostAccess::WriteOnly,
                 KernelAccess::ReadOnly,
-                MemLocation::AllocOnDevice,
+                MemAllocation::AllocOnDevice,
             )
             .unwrap();
             let mut mem_b = Mem::create::<i64, usize>(
@@ -73,7 +73,7 @@ fn run_procedural() {
                 len,
                 HostAccess::WriteOnly,
                 KernelAccess::ReadOnly,
-                MemLocation::AllocOnDevice,
+                MemAllocation::AllocOnDevice,
             )
             .unwrap();
             let mut mem_c = Mem::create::<i64, usize>(
@@ -81,7 +81,7 @@ fn run_procedural() {
                 len,
                 HostAccess::ReadOnly,
                 KernelAccess::WriteOnly,
-                MemLocation::AllocOnDevice,
+                MemAllocation::AllocOnDevice,
             )
             .unwrap();
             println!("Creating kernel simple_add");

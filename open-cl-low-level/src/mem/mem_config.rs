@@ -1,6 +1,7 @@
 use crate::cl::cl_mem_flags;
-use crate::cl::{HostAccessMemFlags, KernelAccessMemFlags, MemFlags, MemLocationMemFlags};
+use crate::cl::{HostAccessMemFlags, KernelAccessMemFlags, MemAllocationMemFlags, MemFlags};
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub enum KernelAccess {
     ReadOnly,
     WriteOnly,
@@ -29,6 +30,7 @@ impl From<KernelAccess> for cl_mem_flags {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub enum HostAccess {
     ReadOnly,
     WriteOnly,
@@ -59,59 +61,113 @@ impl From<HostAccess> for cl_mem_flags {
     }
 }
 
-// NOTE: MemLocation should be call `MemAllocation`.
+// NOTE: MemAllocation should be call `MemAllocation`.
 
 /// The enumeration of how memory allocation (or not) can be directed.
 ///
 /// This forum post has some good explanations:
 ///   https://software.intel.com/en-us/forums/opencl/topic/708049
-pub enum MemLocation {
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
+pub enum MemAllocation {
     KeepInPlace,
     AllocOnDevice,
     CopyToDevice,
     ForceCopyToDevice,
 }
 
-impl From<MemLocation> for MemLocationMemFlags {
-    fn from(mem_location: MemLocation) -> MemLocationMemFlags {
-        match mem_location {
-            MemLocation::KeepInPlace => MemLocationMemFlags::KEEP_IN_PLACE,
-            MemLocation::AllocOnDevice => MemLocationMemFlags::ALLOC_ON_DEVICE,
-            MemLocation::CopyToDevice => MemLocationMemFlags::COPY_TO_DEVICE,
-            MemLocation::ForceCopyToDevice => MemLocationMemFlags::FORCE_COPY_TO_DEVICE,
+impl From<MemAllocation> for MemAllocationMemFlags {
+    fn from(mem_allocation: MemAllocation) -> MemAllocationMemFlags {
+        match mem_allocation {
+            MemAllocation::KeepInPlace => MemAllocationMemFlags::KEEP_IN_PLACE,
+            MemAllocation::AllocOnDevice => MemAllocationMemFlags::ALLOC_ON_DEVICE,
+            MemAllocation::CopyToDevice => MemAllocationMemFlags::COPY_TO_DEVICE,
+            MemAllocation::ForceCopyToDevice => MemAllocationMemFlags::FORCE_COPY_TO_DEVICE,
         }
     }
 }
 
-impl From<MemLocation> for MemFlags {
-    fn from(mem_location: MemLocation) -> MemFlags {
-        MemFlags::from(MemLocationMemFlags::from(mem_location))
+impl From<MemAllocation> for MemFlags {
+    fn from(mem_allocation: MemAllocation) -> MemFlags {
+        MemFlags::from(MemAllocationMemFlags::from(mem_allocation))
     }
 }
 
-impl From<MemLocation> for cl_mem_flags {
-    fn from(mem_location: MemLocation) -> cl_mem_flags {
-        cl_mem_flags::from(MemFlags::from(mem_location))
+impl From<MemAllocation> for cl_mem_flags {
+    fn from(mem_allocation: MemAllocation) -> cl_mem_flags {
+        cl_mem_flags::from(MemFlags::from(mem_allocation))
     }
 }
 
-pub struct MemConfig {
+pub struct MemConfigBuilder {
     pub host_access: HostAccess,
     pub kernel_access: KernelAccess,
-    pub mem_location: MemLocation,
+    pub mem_allocation: MemAllocation,
+}
+
+impl Default for MemConfigBuilder {
+    fn default() -> MemConfigBuilder {
+        MemConfigBuilder {
+            host_access: HostAccess::ReadWrite,
+            kernel_access: KernelAccess::ReadWrite,
+            mem_allocation: MemAllocation::AllocOnDevice,
+        }
+    }
+}
+
+impl MemConfigBuilder {
+    pub fn build(&self) -> MemConfig {
+        MemConfig {
+            host_access: self.host_access,
+            kernel_access: self.kernel_access,
+            mem_allocation: self.mem_allocation,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
+pub struct MemConfig {
+    host_access: HostAccess,
+    kernel_access: KernelAccess,
+    mem_allocation: MemAllocation,
 }
 
 impl MemConfig {
-    pub fn build(
+    pub fn new(
         host_access: HostAccess,
         kernel_access: KernelAccess,
-        mem_location: MemLocation,
+        mem_allocation: MemAllocation,
     ) -> MemConfig {
         MemConfig {
             host_access,
             kernel_access,
-            mem_location,
+            mem_allocation,
         }
+    }
+
+    pub fn as_builder(&self) -> MemConfigBuilder {
+        MemConfigBuilder {
+            host_access: self.host_access,
+            kernel_access: self.kernel_access,
+            mem_allocation: self.mem_allocation,
+        }
+    }
+
+    pub fn cl_mem_flags(&self) -> cl_mem_flags {
+        cl_mem_flags::from(self.host_access)
+            | cl_mem_flags::from(self.kernel_access)
+            | cl_mem_flags::from(self.mem_allocation)
+    }
+
+    pub fn host_access(&self) -> HostAccess {
+        self.host_access
+    }
+
+    pub fn kernel_access(&self) -> KernelAccess {
+        self.kernel_access
+    }
+
+    pub fn mem_allocation(&self) -> MemAllocation {
+        self.mem_allocation
     }
 }
 
@@ -123,9 +179,7 @@ impl From<MemConfig> for MemFlags {
 
 impl From<MemConfig> for cl_mem_flags {
     fn from(mem_config: MemConfig) -> cl_mem_flags {
-        cl_mem_flags::from(mem_config.host_access)
-            | cl_mem_flags::from(mem_config.kernel_access)
-            | cl_mem_flags::from(mem_config.mem_location)
+        mem_config.cl_mem_flags()
     }
 }
 
@@ -134,7 +188,7 @@ impl Default for MemConfig {
         MemConfig {
             host_access: HostAccess::ReadWrite,
             kernel_access: KernelAccess::ReadWrite,
-            mem_location: MemLocation::AllocOnDevice,
+            mem_allocation: MemAllocation::AllocOnDevice,
         }
     }
 }
@@ -142,14 +196,14 @@ impl Default for MemConfig {
 impl MemConfig {
     pub fn for_data() -> MemConfig {
         MemConfig {
-            mem_location: MemLocation::CopyToDevice,
+            mem_allocation: MemAllocation::CopyToDevice,
             ..MemConfig::default()
         }
     }
 
     pub fn for_size() -> MemConfig {
         MemConfig {
-            mem_location: MemLocation::AllocOnDevice,
+            mem_allocation: MemAllocation::AllocOnDevice,
             ..MemConfig::default()
         }
     }
@@ -224,48 +278,48 @@ mod mem_flags_tests {
     }
 
     #[test]
-    fn mem_location_keep_in_place_conversion_into_mem_location_mem_flag() {
-        let mem_location = MemLocation::KeepInPlace;
+    fn mem_allocation_keep_in_place_conversion_into_mem_allocation_mem_flag() {
+        let mem_allocation = MemAllocation::KeepInPlace;
         assert_eq!(
-            MemLocationMemFlags::from(mem_location),
-            MemLocationMemFlags::KEEP_IN_PLACE
+            MemAllocationMemFlags::from(mem_allocation),
+            MemAllocationMemFlags::KEEP_IN_PLACE
         );
     }
 
     #[test]
-    fn mem_location_alloc_on_device_conversion_into_mem_location_mem_flag() {
-        let mem_location = MemLocation::AllocOnDevice;
+    fn mem_allocation_alloc_on_device_conversion_into_mem_allocation_mem_flag() {
+        let mem_allocation = MemAllocation::AllocOnDevice;
         assert_eq!(
-            MemLocationMemFlags::from(mem_location),
-            MemLocationMemFlags::ALLOC_ON_DEVICE
+            MemAllocationMemFlags::from(mem_allocation),
+            MemAllocationMemFlags::ALLOC_ON_DEVICE
         );
     }
 
     #[test]
-    fn mem_location_copy_to_device_conversion_into_mem_location_mem_flag() {
-        let mem_location = MemLocation::CopyToDevice;
+    fn mem_allocation_copy_to_device_conversion_into_mem_allocation_mem_flag() {
+        let mem_allocation = MemAllocation::CopyToDevice;
         assert_eq!(
-            MemLocationMemFlags::from(mem_location),
-            MemLocationMemFlags::COPY_TO_DEVICE
+            MemAllocationMemFlags::from(mem_allocation),
+            MemAllocationMemFlags::COPY_TO_DEVICE
         );
     }
 
     #[test]
-    fn mem_location_force_copy_to_device_conversion_into_mem_location_mem_flag() {
-        let mem_location = MemLocation::ForceCopyToDevice;
+    fn mem_allocation_force_copy_to_device_conversion_into_mem_allocation_mem_flag() {
+        let mem_allocation = MemAllocation::ForceCopyToDevice;
         assert_eq!(
-            MemLocationMemFlags::from(mem_location),
-            MemLocationMemFlags::FORCE_COPY_TO_DEVICE
+            MemAllocationMemFlags::from(mem_allocation),
+            MemAllocationMemFlags::FORCE_COPY_TO_DEVICE
         );
     }
 
     #[test]
     fn mem_config_conversion_into_cl_mem_flags() {
-        let mem_location = MemLocation::AllocOnDevice;
+        let mem_allocation = MemAllocation::AllocOnDevice;
         let host_access = HostAccess::ReadWrite;
         let kernel_access = KernelAccess::ReadWrite;
         let mem_config = MemConfig {
-            mem_location,
+            mem_allocation,
             host_access,
             kernel_access,
         };

@@ -59,7 +59,7 @@ impl From<MemFlags> for Option<KernelAccessMemFlags> {
 }
 
 bitflags! {
-    pub struct MemLocationMemFlags: cl_mem_flags {
+    pub struct MemAllocationMemFlags: cl_mem_flags {
         // CL_MEM_USE_HOST_PTR
         const KEEP_IN_PLACE = 1 << 3;
 
@@ -74,15 +74,15 @@ bitflags! {
     }
 }
 
-impl From<MemLocationMemFlags> for MemFlags {
-    fn from(loc: MemLocationMemFlags) -> MemFlags {
+impl From<MemAllocationMemFlags> for MemFlags {
+    fn from(loc: MemAllocationMemFlags) -> MemFlags {
         unsafe { MemFlags::from_bits_unchecked(loc.bits()) }
     }
 }
 
-impl From<MemFlags> for Option<MemLocationMemFlags> {
-    fn from(mem_flags: MemFlags) -> Option<MemLocationMemFlags> {
-        MemLocationMemFlags::from_bits(mem_flags.bits())
+impl From<MemFlags> for Option<MemAllocationMemFlags> {
+    fn from(mem_flags: MemFlags) -> Option<MemAllocationMemFlags> {
+        MemAllocationMemFlags::from_bits(mem_flags.bits())
     }
 }
 

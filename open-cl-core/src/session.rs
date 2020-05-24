@@ -124,9 +124,9 @@ impl Session {
         Buffer::create_from_low_level_context::<T, B>(
             self.low_level_context(),
             buffer_creator,
-            cfg.host_access,
-            cfg.kernel_access,
-            cfg.mem_location,
+            cfg.host_access(),
+            cfg.kernel_access(),
+            cfg.mem_allocation(),
         )
     }
 
@@ -142,7 +142,7 @@ impl Session {
             buffer_creator,
             mem_config.host_access,
             mem_config.kernel_access,
-            mem_config.mem_location,
+            mem_config.mem_allocation,
         )
     }
 
