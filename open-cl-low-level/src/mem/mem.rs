@@ -27,11 +27,11 @@ impl Mem {
     /// This function does not retain its cl_mem, but will release its cl_mem
     /// when it is dropped. Mismanagement of a cl_mem's lifetime.  Therefore,
     /// this function is unsafe.
-    pub unsafe fn new<T: Number + NumberTypedT>(object: cl_mem) -> Output<Mem> {
-        Ok(Mem {
+    pub unsafe fn new<T: Number + NumberTypedT>(object: cl_mem) -> Mem {
+        Mem {
             inner: ObjectWrapper::new(object),
             t: T::number_type(),
-        })
+        }
     }
 
     pub fn create<T: Number + NumberTypedT, B: BufferBuilder>(
@@ -49,7 +49,7 @@ impl Mem {
                     | cl_mem_flags::from(mem_location),
                 buffer_creator,
             )?;
-            Mem::new::<T>(mem_object)
+            Ok(Mem::new::<T>(mem_object))
         }
     }
 
@@ -70,7 +70,7 @@ impl Mem {
             mem_config.into(),
             buffer_builder,
         )?;
-        Mem::new::<T>(mem_object)
+        Ok(Mem::new::<T>(mem_object))
     }
 }
 
