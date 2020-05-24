@@ -99,9 +99,9 @@ impl Buffer {
         Buffer::create::<T, B>(
             context,
             creator,
-            mem_config.host_access,
-            mem_config.kernel_access,
-            mem_config.mem_allocation,
+            mem_config.host_access(),
+            mem_config.kernel_access(),
+            mem_config.mem_allocation(),
         )
     }
 
