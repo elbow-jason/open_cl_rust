@@ -2,6 +2,7 @@ use crate::{CommandQueueOptions, Dims, KernelArg, KernelError, Output, Work};
 use libc::c_void;
 use std::marker::PhantomData;
 
+#[derive(Debug)]
 pub struct ArgPtr<'a> {
     _phantom: PhantomData<&'a c_void>,
     _ptr: *mut c_void,

@@ -75,13 +75,13 @@ impl Buffer {
         Ok(Buffer::new(ll_mem, context.clone()))
     }
 
-    pub fn create_with_len<T: Number>(context: &Context, len: usize) -> Output<Buffer> {
-        Buffer::create_from::<T, usize>(context, len)
-    }
+    // pub fn create_with_len<T: Number>(context: &Context, len: usize) -> Output<Buffer> {
+    //     Buffer::create_from::<T, usize>(context, len)
+    // }
 
-    pub fn create_from_slice<T: Number>(context: &Context, data: &[T]) -> Output<Buffer> {
-        Buffer::create_from::<T, &[T]>(context, data)
-    }
+    // pub fn create_from_slice<T: Number>(context: &Context, data: &[T]) -> Output<Buffer> {
+    //     Buffer::create_from::<T, &[T]>(context, data)
+    // }
 
     pub fn create_from<T: Number, B: BufferBuilder>(
         context: &Context,
@@ -173,11 +173,11 @@ mod tests {
     use crate::ll::*;
     use crate::*;
 
-    #[test]
-    fn buffer_can_be_created_with_a_length() {
-        let context = testing::get_context();
-        let _buffer = Buffer::create_with_len::<u32>(&context, 10).unwrap();
-    }
+    // #[test]
+    // fn buffer_can_be_created_with_a_length() {
+    //     let context = testing::get_context();
+    //     let _buffer = Buffer::create_with_len::<u32>(&context, 10).unwrap();
+    // }
 
     #[test]
     fn buffer_can_be_created_with_a_slice_of_data() {
