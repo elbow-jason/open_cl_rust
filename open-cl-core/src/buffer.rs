@@ -162,6 +162,10 @@ impl Buffer {
     pub fn flags(&self) -> Output<MemFlags> {
         unsafe { self.read_lock().flags() }
     }
+
+    pub fn mem_config(&self) -> MemConfig {
+        *self.read_lock().mem_config()
+    }
 }
 
 #[cfg(test)]
