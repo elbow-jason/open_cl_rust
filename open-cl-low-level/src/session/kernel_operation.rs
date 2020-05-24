@@ -37,6 +37,7 @@ unsafe impl<'a> KernelArg for ArgPtr<'a> {
     }
 }
 
+#[derive(Debug)]
 pub struct KernelOperation<'a> {
     _name: String,
     _args: Vec<ArgPtr<'a>>,
