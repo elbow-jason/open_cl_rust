@@ -2,9 +2,9 @@ use std::mem::ManuallyDrop;
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::{
-    Buffer, BufferBuilder, CommandQueueOptions, CommandQueueProperties, Context, Device,
-    KernelOperation, MemConfig, MutVecOrSlice, Number, NumberTyped, NumberTypedT, Output, Platform,
-    Program, VecOrSlice, Waitlist,
+    Buffer, BufferBuilder, CommandQueueOptions, CommandQueueProperties, Context, Device, KernelArg,
+    KernelOperation, Mem, MemConfig, MutVecOrSlice, Number, NumberTyped, NumberTypedT, Output,
+    Platform, Program, VecOrSlice, Waitlist,
 };
 
 use crate::ll::cl::ClObject;
@@ -213,10 +213,17 @@ where {
             let mut kernel = ClKernel::create(self.low_level_program(), kernel_op.name())?;
             let work = kernel_op.work()?;
             let command_queue_opts = kernel_op.command_queue_opts();
-            // let mut mem_locks: Vec<RwLockWriteGuard<ClMem>> = Vec::new();
+            let mut mem_locks: Vec<RwLockWriteGuard<Mem>> = Vec::new();
             for (arg_index, arg) in kernel_op.mut_args().iter_mut().enumerate() {
+                match arg {
+                    KernelArg::Num(ref mut cl_arg) => kernel.set_arg(arg_index, cl_arg)?,
+                    KernelArg::Buffer(ref buffer) => {
+                        let mut mem = buffer.write_lock();
+                        kernel.set_arg(arg_index, &mut *mem)?;
+                        mem_locks.push(mem);
+                    }
+                }
                 println!("setting kernel arg {:?} as {:?}\n\r", arg_index, arg);
-                kernel.set_arg(arg_index, arg)?;
                 println!("done setting kernel arg {:?} as {:?}\n\r", arg_index, arg);
             }
             println!("done setting all args {:?}", kernel_op.name());
@@ -409,14 +416,11 @@ mod tests {
             .unwrap_or_else(|e| {
                 panic!("Failed to write buffer: {:?}", e);
             });
-        let mut buffer_lock = buffer.write_lock();
         let kernel_op = KernelOperation::new("test")
-            .add_arg(&mut (*buffer_lock))
+            .add_arg(&buffer)
             .with_work(data.len());
 
         session.execute_sync_kernel_operation(kernel_op).unwrap();
-
-        std::mem::drop(buffer_lock);
 
         let data2 = vec![0i32; 8];
         let data3 = session

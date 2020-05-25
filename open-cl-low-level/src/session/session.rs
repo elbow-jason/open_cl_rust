@@ -1,11 +1,11 @@
-use super::{utils, KernelOperation};
+use super::utils;
 use crate::cl::{CommandQueueProperties, DeviceType};
 use crate::numbers::{Number, NumberTyped, NumberTypedT};
 use crate::vec_or_slice::{MutVecOrSlice, VecOrSlice};
 use crate::{
     BufferBuilder, BufferReadEvent, BuiltContext, CommandQueue, CommandQueueOptions, Context,
-    ContextBuilder, Device, ErrorT, Event, Kernel, Mem, MemConfig, Output, Platform, Program,
-    Waitlist, Work,
+    ContextBuilder, Device, ErrorT, Event, Kernel, KernelOperation, Mem, MemConfig, Output,
+    Platform, Program, Waitlist, Work,
 };
 use std::convert::TryInto;
 use std::marker::PhantomData;

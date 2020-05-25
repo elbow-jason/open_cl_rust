@@ -6,10 +6,96 @@
 
 // use crate::ll::Kernel as ClKernel;
 
-// use crate::{
-//     ArgPtr, AsPtr, Buffer, CommandQueueOptions, Context, Dims, KernelArg, NumberType, NumberTyped,
-//     NumberTypedT, Output, Program, Work,
-// };
+use crate::{Buffer, CommandQueueOptions, Dims, Output, Work};
+
+use crate::ll::{KernelArg as ClKernelArg, KernelArgPtr, KernelError, Number};
+
+#[derive(Debug)]
+pub enum KernelArg<'a> {
+    Num(ClKernelArg<'a>),
+    Buffer(&'a Buffer),
+}
+
+#[derive(Debug)]
+pub struct KernelOperation<'a> {
+    _name: String,
+    _args: Vec<KernelArg<'a>>,
+    _work: Option<Work>,
+    pub command_queue_opts: Option<CommandQueueOptions>,
+}
+
+impl<'a> KernelOperation<'a> {
+    pub fn new(name: &str) -> KernelOperation<'a> {
+        KernelOperation {
+            _name: name.to_owned(),
+            _args: vec![],
+            _work: None,
+            command_queue_opts: None,
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        &self._name[..]
+    }
+
+    pub fn command_queue_opts(&self) -> Option<CommandQueueOptions> {
+        self.command_queue_opts.clone()
+    }
+
+    pub fn args(&self) -> &[KernelArg<'a>] {
+        &self._args[..]
+    }
+
+    pub fn mut_args(&mut self) -> &mut [KernelArg<'a>] {
+        &mut self._args[..]
+    }
+
+    pub fn with_dims<D: Into<Dims>>(mut self, dims: D) -> KernelOperation<'a> {
+        self._work = Some(Work::new(dims.into()));
+        self
+    }
+
+    pub fn with_work<W: Into<Work>>(mut self, work: W) -> KernelOperation<'a> {
+        self._work = Some(work.into());
+        self
+    }
+
+    pub fn add_arg<A: Into<KernelArg<'a>>>(mut self, arg: A) -> KernelOperation<'a> {
+        self._args.push(arg.into());
+        self
+    }
+
+    pub fn with_command_queue_options(mut self, opts: CommandQueueOptions) -> KernelOperation<'a> {
+        self.command_queue_opts = Some(opts);
+        self
+    }
+
+    pub fn argc(&self) -> usize {
+        self._args.len()
+    }
+
+    #[inline]
+    pub fn work(&self) -> Output<Work> {
+        self._work
+            .clone()
+            .ok_or_else(|| KernelError::WorkIsRequired.into())
+    }
+}
+
+impl<'a> From<&'a Buffer> for KernelArg<'a> {
+    fn from(buf: &'a Buffer) -> KernelArg<'a> {
+        KernelArg::Buffer(buf)
+    }
+}
+
+impl<'a, T> From<&'a T> for KernelArg<'a>
+where
+    T: KernelArgPtr + Number,
+{
+    fn from(num: &'a T) -> KernelArg<'a> {
+        KernelArg::Num(ClKernelArg::new(num))
+    }
+}
 
 // pub struct Kernel {
 //     program: ManuallyDrop<Program>,
@@ -93,50 +179,6 @@
 //         self.inner.write().unwrap()
 //     }
 // }
-
-// // pub enum KernelOpArg<'a> {
-// //     Num(NumArg<'a>),
-// //     Buffer(&'a Buffer),
-// // }
-
-// // pub struct NumArg<'a> {
-// //     t: NumberType,
-// //     _phantom: PhantomData<&'a c_void>,
-// //     _ptr: *const c_void,
-// // }
-
-// // impl<'a> NumArg<'a> {
-// //     pub fn new<T: NumberTypedT + AsPtr<T> + KernelArg + Copy>(num: T) -> NumArg<'a> {
-// //         NumArg {
-// //             t: T::number_type(),
-// //             _ptr: num.as_ptr() as *const c_void,
-// //             _phantom: PhantomData,
-// //         }
-// //     }
-
-// //     pub fn into_number<T: NumberTypedT + Copy>(self) -> Output<T> {
-// //         self.number_type().type_check(T::number_type())?;
-// //         unsafe { Ok(*(self._ptr as *const T)) }
-// //     }
-// // }
-
-// // impl<'a> NumberTyped for NumArg<'a> {
-// //     fn number_type(&self) -> NumberType {
-// //         self.t
-// //     }
-// // }
-
-// // unsafe impl<'a> KernelArg for NumArg<'a> {
-// //     fn kernel_arg_size(&self) -> usize {
-// //         self.t.size_of()
-// //     }
-// //     unsafe fn kernel_arg_ptr(&self) -> *const c_void {
-// //         self._ptr as *const c_void
-// //     }
-// //     unsafe fn kernel_arg_mut_ptr(&mut self) -> *mut c_void {
-// //         self._ptr as *mut c_void
-// //     }
-// // }
 
 // // pub trait ToKernelOpArg<'a> {
 // //     fn to_kernel_op_arg(&self) -> KernelOpArg<'a>;

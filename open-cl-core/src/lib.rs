@@ -50,13 +50,13 @@ pub use program::{Program, UnbuiltProgram};
 pub mod buffer;
 pub use buffer::Buffer;
 
+pub mod kernel;
+pub use kernel::{KernelArg, KernelOperation};
+
 pub mod session;
 pub use session::Session;
 
 // pub mod command_queue;
-
-// pub mod kernel;
-// pub use kernel::{Kernel, KernelOperation};
 
 // #[cfg(test)]
 // mod tests;
@@ -70,9 +70,9 @@ pub use ll::numbers::{Number, NumberType, NumberTyped, NumberTypedT};
 
 pub use ll::vec_or_slice::{MutVecOrSlice, VecOrSlice};
 pub use ll::{
-    ArgPtr, AsPtr, BufferBuilder, CommandQueueOptions, Dims, HasDeviceInfo, HostAccess,
-    KernelAccess, KernelArg, KernelOperation, Mem, MemAllocation, MemConfig, MemConfigBuilder,
-    MemPtr, NumCastFrom, NumCastInto, NumberTypeError, Waitlist, Work,
+    AsPtr, BufferBuilder, CommandQueueOptions, Dims, HasDeviceInfo, HostAccess, KernelAccess,
+    KernelArgPtr, Mem, MemAllocation, MemConfig, MemConfigBuilder, MemPtr, NumCastFrom,
+    NumCastInto, NumberTypeError, Waitlist, Work,
 };
 
 pub mod number_types {

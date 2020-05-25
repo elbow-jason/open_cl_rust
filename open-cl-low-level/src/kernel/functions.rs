@@ -1,4 +1,4 @@
-use super::KernelArg;
+use super::KernelArgPtr;
 use crate::cl::{
     clCreateKernel, clGetKernelInfo, clSetKernelArg, cl_context, cl_kernel, cl_kernel_info,
     cl_program, cl_uint, ClObject, StatusCodeError,
@@ -7,7 +7,7 @@ use crate::Output;
 use libc::c_void;
 use std::ffi::CString;
 
-pub unsafe fn set_kernel_arg<T: KernelArg>(
+pub unsafe fn set_kernel_arg<T: KernelArgPtr>(
     kernel: cl_kernel,
     arg_index: usize,
     arg: &T,

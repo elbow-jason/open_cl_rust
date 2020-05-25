@@ -1,4 +1,4 @@
-use super::{functions, KernelArg};
+use super::{functions, KernelArgPtr};
 use crate::cl::{cl_kernel, strings, KernelInfo, ObjectWrapper};
 use crate::{Context, Program, ProgramPtr};
 use crate::{ErrorT, Output};
@@ -80,7 +80,7 @@ impl Kernel {
     ///
     /// # Safety
     /// Calling this function on invalid kernel or with invalid `arg` is undefined behavior.
-    pub unsafe fn set_arg<T: KernelArg>(&mut self, arg_index: usize, arg: &mut T) -> Output<()> {
+    pub unsafe fn set_arg<T: KernelArgPtr>(&mut self, arg_index: usize, arg: &mut T) -> Output<()> {
         functions::set_kernel_arg(self.kernel_ptr(), arg_index, arg)
     }
 
