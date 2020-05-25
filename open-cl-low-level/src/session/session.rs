@@ -239,14 +239,9 @@ impl Session {
 /// CommandQueue. Therefore the low level Session is not Sync. If a Sync Session is
 /// required, the Session of open_cl_core is Sync by synchronizing mutations of it's
 /// objects via RwLocks.
+
 unsafe impl Send for Session {}
 // unsafe impl Sync for Session {}
-
-// impl fmt::Debug for Session {
-//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-//         write!(f, "Session{{{:?}}}", self.address())
-//     }
-// }
 
 // preserve the ordering of these fields
 // The drop order must be:

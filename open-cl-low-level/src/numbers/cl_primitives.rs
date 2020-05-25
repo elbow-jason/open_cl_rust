@@ -1,12 +1,10 @@
 // The only entrypoint into the entire app for cl_* primitives.
-
 use crate::numbers::{NumCast, NumCastFrom, Number, NumberOps};
-use libc::size_t;
-use std::ops::*;
-
 pub use cl_sys::{
     cl_char, cl_double, cl_float, cl_int, cl_long, cl_short, cl_uchar, cl_uint, cl_ulong, cl_ushort,
 };
+use libc::size_t;
+use std::ops::*;
 
 impl NumberOps for cl_char {}
 impl NumberOps for cl_double {}

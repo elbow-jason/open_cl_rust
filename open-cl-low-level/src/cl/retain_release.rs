@@ -2,13 +2,11 @@ use crate::cl::cl_object::{
     cl_command_queue, cl_context, cl_device_id, cl_event, cl_kernel, cl_mem, cl_platform_id,
     cl_program, ClObject,
 };
-
 use crate::cl::{
     clReleaseCommandQueue, clReleaseContext, clReleaseDevice, clReleaseEvent, clReleaseKernel,
     clReleaseMemObject, clReleaseProgram, clRetainCommandQueue, clRetainContext, clRetainDevice,
     clRetainEvent, clRetainKernel, clRetainMemObject, clRetainProgram,
 };
-
 use libc::c_void;
 
 pub trait RetainRelease: ClObject {

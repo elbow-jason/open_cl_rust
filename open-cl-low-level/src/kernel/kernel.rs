@@ -83,15 +83,6 @@ impl Kernel {
     pub unsafe fn set_arg<T: KernelArgPtr>(&mut self, arg_index: usize, arg: &mut T) -> Output<()> {
         functions::set_kernel_arg(self.kernel_ptr(), arg_index, arg)
     }
-
-    // pub unsafe fn set_arg_raw(
-    //     &mut self,
-    //     arg_index: u32,
-    //     arg_size: usize,
-    //     arg_ptr: *const c_void,
-    // ) -> Output<()> {
-    //     cl_set_kernel_arg_raw(self.kernel_ptr(), arg_index, arg_size, arg_ptr)
-    // }
 }
 
 unsafe impl KernelPtr for Kernel {

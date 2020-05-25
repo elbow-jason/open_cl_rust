@@ -1,10 +1,9 @@
+use crate::cl::cl_bool;
 use crate::numbers::{NumCast, NumCastFrom, NumberOps, One, Zero};
+use crate::Output;
 use std::fmt;
 use std::ops::*;
 use thiserror::Error;
-
-use crate::cl::cl_bool;
-use crate::Output;
 
 #[derive(Error, Debug)]
 pub enum BoolError {

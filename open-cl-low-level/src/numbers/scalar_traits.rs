@@ -1,8 +1,5 @@
+// Module for defining scalar newtypes
 pub use crate::numbers::Number;
-// mod vectors;
-// pub use vectors::*;
-// The only entrypoint into the entire app for cl_* primitives.
-
 use crate::numbers::{
     Bool, Char, Double, Float, Half, Int, Long, NumberOps, Short, SizeT, Uchar, Uint, Ulong, Ushort,
 };
@@ -70,8 +67,3 @@ impl UnsignedScalar for Bool {}
 impl FloatScalar for Half {}
 impl FloatScalar for Float {}
 impl FloatScalar for Double {}
-
-// use std::iter::{Sum, Product};
-// use std::hash::{Hash, Hasher};
-// use std::cmp::{Eq, Ord, Ordering};
-// use num_traits::{Zero, One};

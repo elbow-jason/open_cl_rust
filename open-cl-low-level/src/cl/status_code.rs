@@ -1,7 +1,6 @@
+use crate::Output;
 use std::fmt;
 use thiserror::Error;
-
-use crate::Output;
 
 #[derive(Error, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct StatusCodeError {

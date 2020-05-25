@@ -1,10 +1,6 @@
 /// Entrypoint for FFI types and functions.
 ///
 /// cl_* object pointers are defined in cl_objects module and are not imported from cl_sys.
-/*
-
-
-*/
 // FFI data types and info flags
 pub use cl_sys::{
     cl_addressing_mode, cl_buffer_create_type, cl_build_status, cl_channel_order, cl_channel_type,

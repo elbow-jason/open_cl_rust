@@ -1,5 +1,4 @@
 use crate::{Dims, Output};
-
 use thiserror::Error;
 
 #[derive(Error, Debug, Clone, Eq, PartialEq)]

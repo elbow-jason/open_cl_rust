@@ -7,14 +7,11 @@
 /// Platform is the interface for listing Devices.
 ///
 /// NOTE: ClPlatformID is tested!
-use std::default::Default;
-
+use super::functions;
 use crate::cl::{cl_platform_id, ClObject, ObjectWrapper};
 use crate::cl::{cl_platform_info, DeviceType, PlatformInfo};
-
 use crate::{Device, ErrorT, Output};
-
-use super::functions;
+use std::default::Default;
 
 /// An error related to Platform.
 #[derive(ErrorT, Debug, PartialEq, Eq, Clone)]

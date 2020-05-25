@@ -1,14 +1,8 @@
+use super::{functions, Waitlist};
+use crate::cl::{cl_event, CommandExecutionStatus, EventInfo, ObjectWrapper, ProfilingInfo};
+use crate::{CommandQueue, Context, Number, Output};
 use std::mem::ManuallyDrop;
 use std::time::Duration;
-
-use crate::cl::{cl_event, CommandExecutionStatus, EventInfo, ObjectWrapper, ProfilingInfo};
-
-use super::{functions, Waitlist};
-
-use crate::{CommandQueue, Context, Number, Output};
-
-// use crate::cl_helpers::cl_get_info5;
-
 use thiserror::Error;
 
 pub type Event = ObjectWrapper<cl_event>;

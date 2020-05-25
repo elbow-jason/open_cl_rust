@@ -6,9 +6,8 @@ use super::MemConfig;
 pub trait BufferBuilder: Sized {
     /// The "size-and-ptr" of a buffer creation arg.
     ///
-    /// Currently the only 2 types that implement BufferCreator are
-    /// `usize` representiing length/size and &[T] (or mut slice) for Numberber
-    /// T representing data.
+    /// Currently the only 2 types that implement BufferBuilder are
+    /// `usize` representing length/size and &[T] representing data.
     fn buffer_len(&self) -> usize;
     fn buffer_ptr(&self) -> *mut c_void;
     fn mem_config(&self) -> MemConfig;

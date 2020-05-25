@@ -5,25 +5,19 @@
 // cl_* ffi number types and thus can be directly passing into the OpenCL C FFI
 // functions.
 
-use std::cmp::Ordering;
-use std::fmt::Debug;
-
-use std::hash::Hash;
-
-use libc::size_t;
-
 use crate::numbers::cl_primitives::{
     cl_char, cl_double, cl_float, cl_int, cl_long, cl_short, cl_uchar, cl_uint, cl_ulong, cl_ushort,
 };
-
 use crate::numbers::half::Half;
-
 use crate::numbers::{NumCast, NumCastFrom, NumCastInto, Number, NumberOps, One, Zero};
-
 use derive_more::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
     Mul, MulAssign, Neg, Not, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, Sum,
 };
+use libc::size_t;
+use std::cmp::Ordering;
+use std::fmt::Debug;
+use std::hash::Hash;
 
 macro_rules! __defstruct {
     (signed, $name:ident, $cl_type:ty) => {
@@ -141,24 +135,6 @@ macro_rules! __defstruct {
         }
     };
 }
-
-// #[derive(
-//   Copy, Clone, Hash, Debug, Eq, PartialEq, Ord, PartialOrd,
-//   Add,
-//   Sub,
-//   Mul,
-//   Div,
-//   Rem,
-//   Shr,
-//   Shl,
-//   BitAnd,
-//   BitOr,
-//   BitXor,
-//   Not,
-//   Sum,
-// )]
-// #[repr(transparent)]
-// pub struct $new_type($cl_type);
 
 macro_rules! __defimpl {
     ($new_type:ident, $cl_type:ty) => {
@@ -321,8 +297,6 @@ macro_rules! define_signed_newtypes {
       __defstruct!(signed, $new_type, $cl_type);
       __defimpl!($new_type, $cl_type);
       impl_ops!($new_type, $cl_type);
-    //   impl_int_ops!($new_type, $cl_type);
-    //   impl_to_primitive!($new_type);
       impl_num_cast_from!($new_type);
     )*
   }
@@ -431,14 +405,6 @@ mod scalars_tests {
         assert_eq!(Char::one(), Char(1));
     }
 
-    // #[test]
-    // fn test_impl_shl() {
-    //     let n1 = Char(1i8);
-    //     let n2 = 1i8;
-    //     let n3 = n1 << n2;
-    //     assert_eq!(n3, Char(2i8));
-    // }
-    //
     #[test]
     fn test_impl_num_cast() {
         let n1 = Char(0i8);

@@ -1,9 +1,7 @@
 use crate::{Number, Output};
-
 use std::any;
 use std::cmp;
 use std::fmt;
-
 use thiserror::Error;
 
 #[derive(Clone, Copy, Hash)]

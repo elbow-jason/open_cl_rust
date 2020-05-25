@@ -1,6 +1,5 @@
-use crate::Output;
-
 use crate::cl::{clGetDeviceInfo, cl_device_id, cl_device_info};
+use crate::Output;
 
 #[inline(always)]
 pub unsafe fn get_device_info_string(device: cl_device_id, flag: cl_device_info) -> Output<String> {

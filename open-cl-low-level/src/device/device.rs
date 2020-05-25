@@ -1,10 +1,4 @@
-use std::fmt;
-use std::fmt::Debug;
-
-use crate::{ErrorT, Output};
-
 use super::functions;
-
 use crate::cl::{
     cl_device_affinity_domain, cl_device_exec_capabilities, cl_device_local_mem_type,
     cl_device_mem_cache_type, cl_device_type,
@@ -14,6 +8,9 @@ use crate::cl::{
     DeviceAffinityDomain, DeviceExecCapabilities, DeviceInfo, DeviceLocalMemType,
     DeviceMemCacheType, DeviceType,
 };
+use crate::{ErrorT, Output};
+use std::fmt;
+use std::fmt::Debug;
 
 /// An error related to a Device.
 #[derive(ErrorT, Debug, PartialEq, Eq, Clone)]

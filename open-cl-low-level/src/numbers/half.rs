@@ -1,16 +1,12 @@
 // "half" package aliased to "half_lib" in the Cargo.toml.
-use half_lib::f16;
-
-use std::fmt;
-use thiserror::Error;
-
-use crate::numbers::{NumCastFrom, NumberOps, One, ToPrimitive, Zero};
-
-use std::cmp::Ordering;
-use std::ops::*;
-
 use crate::cl::cl_half;
+use crate::numbers::{NumCastFrom, NumberOps, One, ToPrimitive, Zero};
 use crate::Output;
+use half_lib::f16;
+use std::cmp::Ordering;
+use std::fmt;
+use std::ops::*;
+use thiserror::Error;
 
 // use super::number::Number;
 // use crate::numbers::scalar_traits::Scalar;

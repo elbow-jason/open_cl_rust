@@ -1,3 +1,5 @@
+/// An enum for treating a Vec and a slice as the same thing.
+
 pub enum VecOrSlice<'a, T: Clone> {
     Vec(Vec<T>),
     Slice(&'a [T]),

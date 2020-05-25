@@ -1,7 +1,6 @@
 use crate::numbers::{NumCastInto, Scalar};
 pub use num_traits::{NumCast, One, ToPrimitive, Zero};
 use std::fmt::{Debug, Display};
-// use std::ops::*;
 
 pub trait NumberOps:
     Copy
@@ -16,16 +15,6 @@ pub trait NumberOps:
     + Display
     + Zero<Output = Self>
     + One<Output = Self>
-// + Add<Self, Output = Self>
-// + Sub<Self, Output = Self>
-// + Mul<Self, Output = Self>
-// + Div<Self, Output = Self>
-// + Rem<Self, Output = Self>
-// + AddAssign<Self>
-// + SubAssign<Self>
-// + MulAssign<Self>
-// + DivAssign<Self>
-// + RemAssign<Self>
 {
 }
 

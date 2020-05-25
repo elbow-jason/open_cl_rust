@@ -61,8 +61,6 @@ impl From<HostAccess> for cl_mem_flags {
     }
 }
 
-// NOTE: MemAllocation should be call `MemAllocation`.
-
 /// The enumeration of how memory allocation (or not) can be directed.
 ///
 /// This forum post has some good explanations:

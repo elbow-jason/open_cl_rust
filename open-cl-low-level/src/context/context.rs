@@ -1,10 +1,7 @@
-// use std::fmt::Debug;
-
 use super::functions;
 use crate::cl::{cl_context, cl_device_id, ClObject, ObjectWrapper};
 use crate::cl::{cl_context_properties, ContextInfo, ContextProperties};
 use crate::{Device, DevicePtr, Output};
-// use crate::cl_helpers::cl_get_info5;
 
 pub unsafe trait ContextPtr: Sized {
     unsafe fn context_ptr(&self) -> cl_context;

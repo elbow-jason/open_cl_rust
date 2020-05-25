@@ -1,11 +1,10 @@
-use libc::c_void;
-
 use super::BufferBuilder;
 use crate::cl::{
     clCreateBuffer, clGetMemObjectInfo, cl_context, cl_int, cl_mem, cl_mem_flags, cl_mem_info,
     ClObject, MemInfo, StatusCodeError,
 };
 use crate::{Number, Output};
+use libc::c_void;
 
 /// Low-level helper for creating a cl_mem buffer from a context, mem flags, and a buffer creator.
 ///

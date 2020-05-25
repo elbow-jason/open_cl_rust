@@ -5,7 +5,6 @@ use crate::cl::{
     cl_command_queue_properties, cl_context, cl_device_id, cl_event, cl_kernel, cl_mem, ClObject,
     CommandQueueInfo, StatusCodeError,
 };
-
 use crate::{BufferBuilder, GlobalWorkSize, LocalWorkSize, Number, Output, Waitlist, Work};
 use libc::c_void;
 

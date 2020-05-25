@@ -97,12 +97,6 @@ impl<'a> KernelArg<'a> {
     }
 }
 
-// impl<'a> NumberTyped for NumArg<'a> {
-//     fn number_type(&self) -> NumberType {
-//         self.t
-//     }
-// }
-
 unsafe impl<'a> KernelArgPtr for KernelArg<'a> {
     fn kernel_arg_size(&self) -> usize {
         self._size

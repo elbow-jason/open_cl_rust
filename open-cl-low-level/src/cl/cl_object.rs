@@ -1,7 +1,6 @@
 use crate::Output;
 use libc::c_void;
 use std::fmt;
-
 use thiserror::Error;
 
 #[derive(Error, Debug)]

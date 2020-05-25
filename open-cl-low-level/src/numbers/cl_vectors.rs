@@ -1,63 +1,60 @@
-/// Low level implementations of sized,
-use std::fmt;
-use std::ops::*;
-
-use crate::numbers::{NumCastFrom, NumCastInto, One, Zero};
-
 use super::scalar_traits::Scalar;
 use crate::numbers::{Char, Double, Float, Int, Long, Short, Uchar, Uint, Ulong, Ushort};
-
+use crate::numbers::{NumCastFrom, NumCastInto, One, Zero};
+/// Low level implementations of sized,
+use std::fmt;
 use std::mem::zeroed;
+use std::ops::*;
 
 macro_rules! get_index {
-    (0, $vector:expr) => {
-        $vector.0
-    };
-    (1, $vector:expr) => {
-        $vector.1
-    };
-    (2, $vector:expr) => {
-        $vector.2
-    };
-    (3, $vector:expr) => {
-        $vector.3
-    };
-    (4, $vector:expr) => {
-        $vector.4
-    };
-    (5, $vector:expr) => {
-        $vector.5
-    };
-    (6, $vector:expr) => {
-        $vector.6
-    };
-    (7, $vector:expr) => {
-        $vector.7
-    };
-    (8, $vector:expr) => {
-        $vector.8
-    };
-    (9, $vector:expr) => {
-        $vector.9
-    };
-    (10, $vector:expr) => {
-        $vector.10
-    };
-    (11, $vector:expr) => {
-        $vector.11
-    };
-    (12, $vector:expr) => {
-        $vector.12
-    };
-    (13, $vector:expr) => {
-        $vector.13
-    };
-    (14, $vector:expr) => {
-        $vector.14
-    };
-    (15, $vector:expr) => {
-        $vector.15
-    };
+  (0, $vector:expr) => {
+    $vector.0
+  };
+  (1, $vector:expr) => {
+    $vector.1
+  };
+  (2, $vector:expr) => {
+    $vector.2
+  };
+  (3, $vector:expr) => {
+    $vector.3
+  };
+  (4, $vector:expr) => {
+    $vector.4
+  };
+  (5, $vector:expr) => {
+    $vector.5
+  };
+  (6, $vector:expr) => {
+    $vector.6
+  };
+  (7, $vector:expr) => {
+    $vector.7
+  };
+  (8, $vector:expr) => {
+    $vector.8
+  };
+  (9, $vector:expr) => {
+    $vector.9
+  };
+  (10, $vector:expr) => {
+    $vector.10
+  };
+  (11, $vector:expr) => {
+    $vector.11
+  };
+  (12, $vector:expr) => {
+    $vector.12
+  };
+  (13, $vector:expr) => {
+    $vector.13
+  };
+  (14, $vector:expr) => {
+    $vector.14
+  };
+  (15, $vector:expr) => {
+    $vector.15
+  };
 }
 
 #[derive(Clone, Copy, Hash)]
@@ -82,27 +79,27 @@ pub struct ClVector8<T: Scalar>(T, T, T, T, T, T, T, T);
 pub struct ClVector16<T: Scalar>(T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T);
 
 pub trait ClVector<T: Scalar, const N: usize> {
-    fn new(val: [T; N]) -> Self;
-    fn into_array(self) -> [T; N];
-    fn as_array(&self) -> [T; N];
+  fn new(val: [T; N]) -> Self;
+  fn into_array(self) -> [T; N];
+  fn as_array(&self) -> [T; N];
 }
 
 macro_rules! vector_n_trait {
-    ($n:expr) => {
-        paste::item! {
-            pub trait [<Vector $n>] {}
-            impl [<Vector $n>] for [<ClVector $n>]<Char> {}
-            impl [<Vector $n>] for [<ClVector $n>]<Uchar> {}
-            impl [<Vector $n>] for [<ClVector $n>]<Short> {}
-            impl [<Vector $n>] for [<ClVector $n>]<Ushort> {}
-            impl [<Vector $n>] for [<ClVector $n>]<Int> {}
-            impl [<Vector $n>] for [<ClVector $n>]<Uint> {}
-            impl [<Vector $n>] for [<ClVector $n>]<Long> {}
-            impl [<Vector $n>] for [<ClVector $n>]<Ulong> {}
-            impl [<Vector $n>] for [<ClVector $n>]<Float> {}
-            impl [<Vector $n>] for [<ClVector $n>]<Double> {}
-        }
-    };
+  ($n:expr) => {
+    paste::item! {
+        pub trait [<Vector $n>] {}
+        impl [<Vector $n>] for [<ClVector $n>]<Char> {}
+        impl [<Vector $n>] for [<ClVector $n>]<Uchar> {}
+        impl [<Vector $n>] for [<ClVector $n>]<Short> {}
+        impl [<Vector $n>] for [<ClVector $n>]<Ushort> {}
+        impl [<Vector $n>] for [<ClVector $n>]<Int> {}
+        impl [<Vector $n>] for [<ClVector $n>]<Uint> {}
+        impl [<Vector $n>] for [<ClVector $n>]<Long> {}
+        impl [<Vector $n>] for [<ClVector $n>]<Ulong> {}
+        impl [<Vector $n>] for [<ClVector $n>]<Float> {}
+        impl [<Vector $n>] for [<ClVector $n>]<Double> {}
+    }
+  };
 }
 
 vector_n_trait!(2);
@@ -151,13 +148,13 @@ macro_rules! def_array {
 }
 
 macro_rules! impl_default {
-    ($name:ident, $n:expr) => {
-        impl<T: Scalar> Default for $name<T> {
-            fn default() -> $name<T> {
-                $name::new([Default::default(); $n])
-            }
-        }
-    };
+  ($name:ident, $n:expr) => {
+    impl<T: Scalar> Default for $name<T> {
+      fn default() -> $name<T> {
+        $name::new([Default::default(); $n])
+      }
+    }
+  };
 }
 
 macro_rules! impl_add {
@@ -287,27 +284,27 @@ macro_rules! impl_cl_vector {
 }
 
 macro_rules! impl_debug {
-    ($name:ident, [ $( $i:expr ),+ ]) => {
-        impl<T: Scalar> fmt::Debug for $name<T> {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                write!(f, "{}({:?})", stringify!($name), self.as_array())
-            }
-        }
-    };
+  ($name:ident, [ $( $i:expr ),+ ]) => {
+    impl<T: Scalar> fmt::Debug for $name<T> {
+      fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}({:?})", stringify!($name), self.as_array())
+      }
+    }
+  };
 }
 
 macro_rules! impl_zero {
-    ($name:ident, [ $( $i:expr ),+ ]) => {
-        impl<T: Scalar> Zero for $name<T> {
-            fn zero() -> $name<T> {
-                unsafe { zeroed() }
-            }
+  ($name:ident, [ $( $i:expr ),+ ]) => {
+    impl<T: Scalar> Zero for $name<T> {
+      fn zero() -> $name<T> {
+        unsafe { zeroed() }
+      }
 
-            fn is_zero(&self) -> bool {
-                *self == Self::zero()
-            }
-        }
-    };
+      fn is_zero(&self) -> bool {
+        *self == Self::zero()
+      }
+    }
+  };
 }
 
 macro_rules! impl_one {
@@ -444,58 +441,58 @@ macro_rules! impl_cmp {
 // }
 
 macro_rules! rust_array_conv {
-    ($name:ident, $n:expr) => {
-        impl<T: Scalar> From<[T; $n]> for $name<T> {
-            fn from(val: [T; $n]) -> $name<T> {
-                $name::new(val)
-            }
-        }
+  ($name:ident, $n:expr) => {
+    impl<T: Scalar> From<[T; $n]> for $name<T> {
+      fn from(val: [T; $n]) -> $name<T> {
+        $name::new(val)
+      }
+    }
 
-        impl<T: Scalar> From<$name<T>> for [T; $n] {
-            fn from(val: $name<T>) -> [T; $n] {
-                val.into()
-            }
-        }
-    };
+    impl<T: Scalar> From<$name<T>> for [T; $n] {
+      fn from(val: $name<T>) -> [T; $n] {
+        val.into()
+      }
+    }
+  };
 }
 
 macro_rules! impl_assigns_ops {
-    ($name:ident) => {
-        impl<T: Scalar> AddAssign for $name<T> {
-            #[inline(always)]
-            fn add_assign(&mut self, other: $name<T>) {
-                *self = *self + other;
-            }
-        }
+  ($name:ident) => {
+    impl<T: Scalar> AddAssign for $name<T> {
+      #[inline(always)]
+      fn add_assign(&mut self, other: $name<T>) {
+        *self = *self + other;
+      }
+    }
 
-        //         impl<T: Scalar> SubAssign for $name<T> {
-        //             #[inline(always)]
-        //             fn sub_assign(&mut self, other: $name<T>) {
-        //                 *self = *self - other;
-        //             }
-        //         }
+    //         impl<T: Scalar> SubAssign for $name<T> {
+    //             #[inline(always)]
+    //             fn sub_assign(&mut self, other: $name<T>) {
+    //                 *self = *self - other;
+    //             }
+    //         }
 
-        //         impl<T: Scalar> MulAssign for $name<T> {
-        //             #[inline(always)]
-        //             fn mul_assign(&mut self, other: $name<T>) {
-        //                 *self = *self * other;
-        //             }
-        //         }
+    //         impl<T: Scalar> MulAssign for $name<T> {
+    //             #[inline(always)]
+    //             fn mul_assign(&mut self, other: $name<T>) {
+    //                 *self = *self * other;
+    //             }
+    //         }
 
-        //         impl<T: Scalar> RemAssign for $name<T> {
-        //             #[inline(always)]
-        //             fn rem_assign(&mut self, other: $name<T>) {
-        //                 *self = *self % other;
-        //             }
-        //         }
+    //         impl<T: Scalar> RemAssign for $name<T> {
+    //             #[inline(always)]
+    //             fn rem_assign(&mut self, other: $name<T>) {
+    //                 *self = *self % other;
+    //             }
+    //         }
 
-        //         impl<T: Scalar> DivAssign for $name<T> {
-        //             #[inline(always)]
-        //             fn div_assign(&mut self, other: $name<T>) {
-        //                 *self = *self / other;
-        //             }
-        //         }
-    };
+    //         impl<T: Scalar> DivAssign for $name<T> {
+    //             #[inline(always)]
+    //             fn div_assign(&mut self, other: $name<T>) {
+    //                 *self = *self / other;
+    //             }
+    //         }
+  };
 }
 
 // macro_rules! impl_not {
@@ -536,22 +533,22 @@ def_array! { name: ClVector16, size: 16 }
 
 #[cfg(test)]
 mod arrays_tests {
-    // use std::ops::*;
-    use crate::numbers::cl_vectors::{ClVector, ClVector2};
-    use crate::numbers::{Char, Int, Long, Short, Uchar, Uint, Ulong, Ushort};
-    use crate::numbers::{NumCastFrom, Number};
-    // use num_traits::*;
+  // use std::ops::*;
+  use crate::numbers::cl_vectors::{ClVector, ClVector2};
+  use crate::numbers::{Char, Int, Long, Short, Uchar, Uint, Ulong, Ushort};
+  use crate::numbers::{NumCastFrom, Number};
+  // use num_traits::*;
 
-    fn constants<T: Number + NumCastFrom<usize>>(high: usize) -> Vec<T> {
-        let plus_one = high + 1;
-        let mut output = Vec::with_capacity(plus_one);
-        for i in 0..plus_one {
-            output.push(T::num_cast_from(i).unwrap());
-        }
-        output
+  fn constants<T: Number + NumCastFrom<usize>>(high: usize) -> Vec<T> {
+    let plus_one = high + 1;
+    let mut output = Vec::with_capacity(plus_one);
+    for i in 0..plus_one {
+      output.push(T::num_cast_from(i).unwrap());
     }
+    output
+  }
 
-    macro_rules! __run_ops2 {
+  macro_rules! __run_ops2 {
     ($( $scalar:ident ),*) => {
       paste::item! {
         $(
@@ -578,35 +575,35 @@ mod arrays_tests {
       }
     }
   }
-    __run_ops2!(Char, Int, Long, Short, Uchar, Uint, Ulong, Ushort);
+  __run_ops2!(Char, Int, Long, Short, Uchar, Uint, Ulong, Ushort);
 
-    // macro_rules! __run_ops4 {
-    // ($( $scalar:ident ),*) => {
-    //   paste::item! {
-    //     $(
-    //         #[allow(non_snake_case)]
-    //         #[test]
-    //         fn [<test_add_work_for_array_ $scalar _ClVector4>]() {
-    //             let c: Vec<$scalar> = constants(4);
-    //             let arr1 = ClVector4(c[2], c[1], c[4], c[0]);
-    //             let arr2 = ClVector4(c[2], c[3], c[0], c[4]);
-    //             let result = arr1 + arr2;
-    //             assert_eq!(result, ClVector4::new([c[4]; 4]));
-    //         }
+  // macro_rules! __run_ops4 {
+  // ($( $scalar:ident ),*) => {
+  //   paste::item! {
+  //     $(
+  //         #[allow(non_snake_case)]
+  //         #[test]
+  //         fn [<test_add_work_for_array_ $scalar _ClVector4>]() {
+  //             let c: Vec<$scalar> = constants(4);
+  //             let arr1 = ClVector4(c[2], c[1], c[4], c[0]);
+  //             let arr2 = ClVector4(c[2], c[3], c[0], c[4]);
+  //             let result = arr1 + arr2;
+  //             assert_eq!(result, ClVector4::new([c[4]; 4]));
+  //         }
 
-    //         #[allow(non_snake_case)]
-    //         #[test]
-    //         fn [<test_mul_work_for_array_ $scalar _ClVector4>]() {
-    //             let c: Vec<$scalar> = constants(4);
-    //             let arr1 = ClVector4(c[2], c[1], c[4], c[0]);
-    //             let arr2 = ClVector4(c[2], c[3], c[0], c[4]);
-    //             let result = arr1 * arr2;
+  //         #[allow(non_snake_case)]
+  //         #[test]
+  //         fn [<test_mul_work_for_array_ $scalar _ClVector4>]() {
+  //             let c: Vec<$scalar> = constants(4);
+  //             let arr1 = ClVector4(c[2], c[1], c[4], c[0]);
+  //             let arr2 = ClVector4(c[2], c[3], c[0], c[4]);
+  //             let result = arr1 * arr2;
 
-    //             assert_eq!(result, ClVector4::new([c[4], c[3], c[0], c[0]]));
-    //         }
-    //     )*
-    //   }
-    // }
-    // }
-    // __run_ops4!(Char, Int, Long, Short, Uchar, Uint, Ulong, Ushort);
+  //             assert_eq!(result, ClVector4::new([c[4], c[3], c[0], c[0]]));
+  //         }
+  //     )*
+  //   }
+  // }
+  // }
+  // __run_ops4!(Char, Int, Long, Short, Uchar, Uint, Ulong, Ushort);
 }

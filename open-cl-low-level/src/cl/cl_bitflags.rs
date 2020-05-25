@@ -1,5 +1,4 @@
 use crate::cl::{cl_command_queue_properties, cl_mem_flags};
-
 pub use ocl_core::{DeviceAffinityDomain, DeviceExecCapabilities, DeviceFpConfig, DeviceType};
 
 bitflags! {
@@ -121,9 +120,8 @@ impl From<MemFlags> for cl_mem_flags {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
-    // use crate::ffi::*;
+
     #[test]
     fn test_command_queue_properties_implements_default() {
         let q: CommandQueueProperties = Default::default();
@@ -137,33 +135,3 @@ mod tests {
         assert_eq!(q, CommandQueueProperties::PROFILING_ENABLE);
     }
 }
-
-// impl From<CommandQueueProperties> for cl_command_queue_properties {
-//     fn from(d: CommandQueueProperties) -> cl_command_queue_properties {
-//         d.bits()
-//     }
-// }
-
-// impl From<DeviceType> for cl_device_type {
-//     fn from(d: DeviceType) -> cl_device_type {
-//         d.bits()
-//     }
-// }
-
-// impl From<DeviceFpConfig> for cl_device_fp_config {
-//     fn from(d: DeviceFpConfig) -> cl_device_fp_config {
-//         d.bits()
-//     }
-// }
-
-// impl From<DeviceExecCapabilities> for cl_device_exec_capabilities {
-//     fn from(d: DeviceExecCapabilities) -> cl_device_exec_capabilities {
-//         d.bits()
-//     }
-// }
-
-// impl From<DeviceAffinityDomain> for cl_device_affinity_domain {
-//     fn from(d: DeviceAffinityDomain) -> cl_device_affinity_domain {
-//         d.bits()
-//     }
-// }

@@ -1,10 +1,9 @@
-use std::fmt;
-use std::mem::zeroed;
-use std::ops::*;
-
 use crate::numbers::cl_vectors::{ClVector, ClVector16, ClVector2, ClVector4, ClVector8};
 use crate::numbers::{Char, Double, Float, Int, Long, Short, Uchar, Uint, Ulong, Ushort};
 use crate::numbers::{NumCastFrom, NumCastInto, Number, NumberOps, One, Zero};
+use std::fmt;
+use std::mem::zeroed;
+use std::ops::*;
 
 macro_rules! define_struct {
     ($scalar:ident, $n:expr) => {
