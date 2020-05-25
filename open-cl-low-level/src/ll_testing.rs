@@ -1,17 +1,4 @@
-// list_devices_by_type,
-// ClCommandQueue, ClContext, ClDeviceID, ClKernel, ClMem,
-// ClProgram, DeviceType, MemConfig,
 use crate::{CommandQueue, Context, Device, Kernel, Mem, MemConfig, Number, Platform, Program};
-
-// use crate::numbers::Number;
-
-// use std::{thread, time};
-
-// pub fn sleep(ms: u64) {
-//     println!("Sleeping for {:?}ms", ms);
-//     let dur = time::Duration::from_millis(ms);
-//     thread::sleep(dur);
-// }
 
 pub fn get_kernel(src: &str, kernel_name: &str) -> (Context, Vec<Device>, Program, Kernel) {
     let (program, devices, context) = get_program(src);

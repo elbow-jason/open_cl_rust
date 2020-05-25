@@ -49,7 +49,6 @@ impl Half {
         if num < MIN.into_f32() {
             return Err(ValueTooLow(num))?;
         }
-        println!("num is {}", num);
         Ok(Half::from_f32(num))
     }
 

@@ -223,19 +223,13 @@ where {
                         mem_locks.push(mem);
                     }
                 }
-                println!("setting kernel arg {:?} as {:?}\n\r", arg_index, arg);
-                println!("done setting kernel arg {:?} as {:?}\n\r", arg_index, arg);
             }
-            println!("done setting all args {:?}", kernel_op.name());
 
             let mut queue = self.write_queue();
             // let mut ll_kernel = kernel.write_lock();
-            println!("queue {:?}", queue);
             let event = queue.enqueue_kernel(&mut kernel, &work, command_queue_opts)?;
-            println!("event {:?}", event);
             // Wait until queued mems finish being accessed.
             event.wait()?;
-            println!("done waiting for event... dropping scope...");
             // then drop locks.
             // std::mem::drop(mem_locks);
             Ok(())

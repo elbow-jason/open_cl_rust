@@ -272,7 +272,6 @@ mod device_ptr_tests {
     fn device_name_works() {
         ll_testing::with_each_device(|device| {
             let name: String = device.name().unwrap();
-            println!("name: {:?}", name);
             assert!(name.len() > 0);
         })
     }
