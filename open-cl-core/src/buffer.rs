@@ -173,11 +173,12 @@ mod tests {
     use crate::ll::*;
     use crate::*;
 
-    // #[test]
-    // fn buffer_can_be_created_with_a_length() {
-    //     let context = testing::get_context();
-    //     let _buffer = Buffer::create_with_len::<u32>(&context, 10).unwrap();
-    // }
+    #[test]
+    fn buffer_can_be_created_with_a_length() {
+        let context = testing::get_context();
+        let mem_config = MemConfig::for_size();
+        let _buffer = Buffer::create_with_config::<u32, usize>(&context, 10, mem_config).unwrap();
+    }
 
     #[test]
     fn buffer_can_be_created_with_a_slice_of_data() {
