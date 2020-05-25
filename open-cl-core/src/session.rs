@@ -184,26 +184,6 @@ impl Session {
         }
     }
 
-    // /// This function enqueues a CLKernel into a command queue
-    // ///
-    // /// # Safety
-    // /// If the ClKernel is not in a usable state or any of the Kernel's dependent object
-    // /// has been release, or the kernel belongs to a different session, or the ClKernel's
-    // /// pointer is a null pointer, then calling this function will cause undefined behavior.
-    // fn sync_enqueue_kernel(
-    //     &self,
-    //     kernel: &mut ClKernel,
-    //     work: &Work,
-    //     opts: Option<CommandQueueOptions>,
-    // ) -> Output<()> {
-    //     let mut queue = self.write_queue();
-    //     // let mut kernel_lock = kernel.write_lock();
-    //     unsafe {
-    //         let event = queue.enqueue_kernel(kernel, work, opts)?;
-    //         event.wait()
-    //     }
-    // }
-
     pub fn execute_sync_kernel_operation<'a>(
         &self,
         mut kernel_op: KernelOperation<'a>,
