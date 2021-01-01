@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-use crate::ll::numbers::ClNum;
 use crate::*;
 // use std::sync::RwLock;
 
@@ -30,6 +29,14 @@ pub fn get_all_devices() -> Vec<Device> {
     devices
 }
 
+pub fn get_device() -> Device {
+    let platform = Platform::default();
+    let mut devices: Vec<Device> = Device::list_devices_by_type(&platform, DeviceType::ALL)
+        .unwrap_or_else(|e| panic!("Failed to list all devices: {:?}", e));
+    assert!(devices.len() > 0);
+    devices.remove(0)
+}
+
 fn unwrap_ctx(o: Output<Context>) -> Context {
     o.unwrap_or_else(|e| panic!("Failed to create context: {:?}", e))
 }
@@ -49,44 +56,36 @@ pub fn get_program(src: &str) -> Program {
     unbuilt_program.build(&devices[..]).unwrap()
 }
 
-pub fn get_buffer<T: ClNum>(size: usize) -> Buffer {
+pub fn get_buffer<T: Number>(size: usize) -> Buffer {
     let context = testing::get_context();
     Buffer::create::<T, usize>(
         &context,
         size,
         HostAccess::ReadWrite,
         KernelAccess::ReadWrite,
-        MemLocation::AllocOnDevice,
+        MemAllocation::AllocOnDevice,
     )
     .unwrap()
 }
 
-pub fn test_all_devices<F>(callback: &mut F)
-where
-    F: FnMut(&Device, &Context, &CommandQueue),
-{
-    let devices = get_all_devices();
+// pub fn test_all_devices<F>(callback: &mut F)
+// where
+//     F: FnMut(&Device, &Context, &CommandQueue),
+// {
+//     let devices = get_all_devices();
 
-    assert!(devices.len() > 0, "No usable devices found");
+//     assert!(devices.len() > 0, "No usable devices found");
 
-    let context = Context::create(&devices[..]).unwrap_or_else(|e| {
-        panic!(
-            "Failed to Context::create with devices {:?} due to {:?}",
-            devices, e
-        );
-    });
-    for device in devices {
-        let queue = CommandQueue::create(&context, &device, None).unwrap_or_else(|e| {
-            panic!("Failed to CommandQueue::create due to {:?}", e);
-        });
-        callback(&device, &context, &queue);
-    }
-}
-
-pub fn get_device() -> Device {
-    let platform = Platform::default();
-    let mut devices: Vec<Device> = Device::list_devices_by_type(&platform, DeviceType::ALL)
-        .unwrap_or_else(|e| panic!("Failed to list all devices: {:?}", e));
-    assert!(devices.len() > 0);
-    devices.remove(0)
-}
+//     let context = Context::create(&devices[..]).unwrap_or_else(|e| {
+//         panic!(
+//             "Failed to Context::create with devices {:?} due to {:?}",
+//             devices, e
+//         );
+//     });
+//     for device in devices {
+//         let queue = CommandQueue::create(&context, &device, None).unwrap_or_else(|e| {
+//             panic!("Failed to CommandQueue::create due to {:?}", e);
+//         });
+//         callback(&device, &context, &queue);
+//     }
+// }

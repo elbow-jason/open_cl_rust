@@ -3,5 +3,4 @@ members = [
     "open-cl-core",
     "open-cl-runtime",
     "open-cl-low-level",
-    "open-cl-sys"
 ]

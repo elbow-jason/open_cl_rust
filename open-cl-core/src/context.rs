@@ -2,8 +2,9 @@ use std::fmt;
 use std::iter::Iterator;
 use std::mem::ManuallyDrop;
 
-use crate::ffi::cl_device_id;
-use crate::ll::{ClContext, ClDeviceID, ContextProperties, ContextPtr, DevicePtr, VecOrSlice};
+use crate::ll::cl::ContextProperties;
+use crate::ll::vec_or_slice::VecOrSlice;
+use crate::ll::{Context as ClContext, ContextPtr, Device as ClDeviceID};
 
 use crate::{Device, Output};
 
@@ -45,11 +46,11 @@ impl Context {
     }
 
     pub fn create<'a, D: Into<VecOrSlice<'a, Device>>>(devices: D) -> Output<Context> {
-        let devices = devices.into();
-        let device_ptrs: Vec<cl_device_id> =
-            devices.iter().map(|d| unsafe { d.device_ptr() }).collect();
+        let devices: Vec<Device> = devices.into().to_vec();
+        // let device_ptrs: Vec<cl_device_id> =
+        //     devices.iter().map(|d| unsafe { d.device_ptr() }).collect();
 
-        let ll_context: ClContext = unsafe { ClContext::create(&device_ptrs[..]) }?;
+        let ll_context: ClContext = unsafe { ClContext::create(&devices[..]) }?;
         Ok(Context::build(ll_context, devices))
     }
 

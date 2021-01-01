@@ -33,7 +33,7 @@ fn simple_kernel_test() {
             v1.len(),
             mem_config.host_access,
             mem_config.kernel_access,
-            mem_config.mem_location,
+            mem_config.mem_allocation,
         )
         .unwrap();
         let work_size = v1.len();

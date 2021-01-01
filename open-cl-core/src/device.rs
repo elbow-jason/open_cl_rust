@@ -3,14 +3,8 @@ use std::mem::ManuallyDrop;
 
 use crate::Platform;
 
-use crate::ffi::cl_device_id;
-use crate::ll;
-use crate::ll::{ClDeviceID, DevicePtr, DeviceType, Output};
-
-#[inline]
-fn from_low_level_vec(devices: Vec<ClDeviceID>) -> Vec<Device> {
-    devices.into_iter().map(|d| Device::new(d)).collect()
-}
+use crate::ll::cl::{cl_device_id, ClObject, DeviceType};
+use crate::ll::{Device as ClDeviceID, DevicePtr, Output};
 
 pub struct Device {
     inner: ManuallyDrop<ClDeviceID>,
@@ -58,8 +52,7 @@ impl Device {
         platform: &Platform,
         device_type: DeviceType,
     ) -> Output<Vec<Device>> {
-        let device_ids = ll::list_devices_by_type(platform.low_level_platform(), device_type)?;
-        Ok(from_low_level_vec(device_ids))
+        platform.list_devices_by_type(device_type)
     }
 
     pub fn list_default_devices(platform: &Platform) -> Output<Vec<Device>> {
@@ -102,7 +95,7 @@ impl fmt::Debug for Device {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // let name = self.device_name().unwrap();
         let ptr = unsafe { self.low_level_device().device_ptr() };
-        write!(f, "Device{{ptr: {:?}}}", ptr)
+        write!(f, "Device{{ptr: {}}}", ptr.address())
     }
 }
 
@@ -110,7 +103,7 @@ impl fmt::Debug for Device {
 mod tests {
     use super::Device;
     use super::DeviceType;
-    use crate::ffi::*;
+    use crate::ll::cl::*;
     use crate::ll::*;
     use crate::platform::Platform;
     use crate::testing;
@@ -153,7 +146,8 @@ mod tests {
     fn device_implements_device_ptr() {
         let device = testing::get_device();
         let device_id: cl_device_id = unsafe { device.device_ptr() };
-        assert!(!device_id.is_null());
-        assert_ne!(device_id, UNUSABLE_DEVICE_ID);
+        let device_ptr = unsafe { device_id.as_ptr() };
+        assert!(!device_ptr.is_null());
+        assert_ne!(device_ptr, 0xFFFF_FFFF as *mut libc::c_void);
     }
 }

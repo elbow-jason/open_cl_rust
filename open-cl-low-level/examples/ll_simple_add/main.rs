@@ -13,22 +13,22 @@ fn run_procedural() {
     unsafe {
         let src = include_str!("simple_add.ocl");
 
-        let mut platforms = list_platforms().unwrap();
+        let mut platforms = Platform::list_all().unwrap();
 
         if platforms.len() == 0 {
             panic!("No platforms found!!!");
         }
 
         let platform = platforms.remove(0);
-        let devices = list_devices_by_type(&platform, DeviceType::ALL).unwrap();
+        let devices = platform.list_devices().unwrap();
 
         if devices.len() == 0 {
             panic!("No devices found!!!");
         }
-        let context = ClContext::create(&devices[..]).unwrap();
+        let context = Context::create(&devices[..]).unwrap();
 
         println!("creating program...");
-        let mut program: ClProgram = ClProgram::create_with_source(&context, src).unwrap();
+        let mut program: Program = Program::create_with_src(&context, src).unwrap();
 
         let names = devices.iter().map(|d| d.name().unwrap());
         println!("building program on devices {:?}...", names);
@@ -42,11 +42,14 @@ fn run_procedural() {
             let r_count = program2.reference_count().unwrap();
             let prog_log = program2.get_log(device).unwrap();
             let prog_src = program2.source().unwrap();
-            println!("Program log {:?} {:?}, {:?}", r_count, prog_log, prog_src);
+            println!(
+                "Program log {:?} {:?}, src:\n{}",
+                r_count, prog_log, prog_src
+            );
             println!("Device {:?}", device);
 
-            let mut command_queue: ClCommandQueue =
-                ClCommandQueue::create(&context, device, None).unwrap();
+            let mut command_queue: CommandQueue =
+                CommandQueue::create(&context, device, None).unwrap();
 
             let vec_a = vec![1i64, 2, 3];
             let vec_b = vec![0i64, -1, -2];
@@ -57,32 +60,32 @@ fn run_procedural() {
             let name = device.name().unwrap();
             println!("{}", name);
 
-            let mut mem_a = ClMem::create::<i64, usize>(
+            let mut mem_a = Mem::create::<i64, usize>(
                 &context,
                 len,
                 HostAccess::WriteOnly,
                 KernelAccess::ReadOnly,
-                MemLocation::AllocOnDevice,
+                MemAllocation::AllocOnDevice,
             )
             .unwrap();
-            let mut mem_b = ClMem::create::<i64, usize>(
+            let mut mem_b = Mem::create::<i64, usize>(
                 &context,
                 len,
                 HostAccess::WriteOnly,
                 KernelAccess::ReadOnly,
-                MemLocation::AllocOnDevice,
+                MemAllocation::AllocOnDevice,
             )
             .unwrap();
-            let mut mem_c = ClMem::create::<i64, usize>(
+            let mut mem_c = Mem::create::<i64, usize>(
                 &context,
                 len,
                 HostAccess::ReadOnly,
                 KernelAccess::WriteOnly,
-                MemLocation::AllocOnDevice,
+                MemAllocation::AllocOnDevice,
             )
             .unwrap();
             println!("Creating kernel simple_add");
-            let mut simple_add = ClKernel::create(&program2, "simple_add").unwrap();
+            let mut simple_add = Kernel::create(&program2, "simple_add").unwrap();
 
             println!("writing buffer a...");
             let _write_event_a = command_queue
@@ -132,9 +135,9 @@ fn run_with_session() {
         let vec_a = vec![1i64, 2, 3];
         let vec_b = vec![0i64, -1, -2];
 
-        let mut mem_a = session.create_mem(&vec_a[..]).unwrap();
-        let mut mem_b = session.create_mem(&vec_b[..]).unwrap();
-        let mut mem_c: ClMem = session.create_mem::<i64, usize>(vec_a.len()).unwrap();
+        let mut mem_a = session.create_mem::<i64, &[i64]>(&vec_a[..]).unwrap();
+        let mut mem_b = session.create_mem::<i64, &[i64]>(&vec_b[..]).unwrap();
+        let mut mem_c: Mem = session.create_mem::<i64, usize>(vec_a.len()).unwrap();
 
         let mut simple_add = session.create_kernel("simple_add").unwrap();
 

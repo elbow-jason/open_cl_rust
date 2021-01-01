@@ -11,22 +11,17 @@
 use std::default::Default;
 use std::fmt;
 
-use crate::ll;
-use crate::ll::{ClPlatformID, Output, PlatformInfo, PlatformPtr};
-
-use ffi::cl_platform_id;
+use crate::device::Device;
+use crate::ll::cl::DeviceType;
+use crate::ll::{Output, Platform as ClPlatformID};
 
 pub struct Platform {
     inner: ClPlatformID,
-    _unconstructable: (),
 }
 
 impl Platform {
     pub fn new(p: ClPlatformID) -> Platform {
-        Platform {
-            inner: p,
-            _unconstructable: (),
-        }
+        Platform { inner: p }
     }
 
     pub fn low_level_platform(&self) -> &ClPlatformID {
@@ -37,18 +32,6 @@ impl Platform {
 unsafe impl Send for Platform {}
 unsafe impl Sync for Platform {}
 
-impl PlatformPtr for Platform {
-    fn platform_ptr(&self) -> cl_platform_id {
-        self.inner.platform_ptr()
-    }
-}
-
-impl PlatformPtr for &Platform {
-    fn platform_ptr(&self) -> cl_platform_id {
-        self.inner.platform_ptr()
-    }
-}
-
 impl Default for Platform {
     fn default() -> Platform {
         Platform::new(ClPlatformID::default())
@@ -57,32 +40,61 @@ impl Default for Platform {
 
 impl Platform {
     pub fn list_all() -> Output<Vec<Platform>> {
-        ll::list_platforms().map(|plats| plats.into_iter().map(|p| Platform::new(p)).collect())
+        ClPlatformID::list_all().map(|plats| plats.into_iter().map(|p| Platform::new(p)).collect())
     }
 
-    fn info(&self, info_code: PlatformInfo) -> Output<String> {
-        ll::platform_info(self, info_code)
+    pub fn list_devices_by_type(&self, device_type: DeviceType) -> Output<Vec<Device>> {
+        let devices = self
+            .inner
+            .list_devices_by_type(device_type)?
+            .into_iter()
+            .map(|d| Device::new(d))
+            .collect();
+        Ok(devices)
     }
 
     pub fn name(&self) -> Output<String> {
-        self.info(PlatformInfo::Name)
+        self.inner.name()
     }
 
     pub fn version(&self) -> Output<String> {
-        self.info(PlatformInfo::Version)
+        self.inner.version()
     }
 
     pub fn profile(&self) -> Output<String> {
-        self.info(PlatformInfo::Profile)
+        self.inner.profile()
     }
 
     pub fn vendor(&self) -> Output<String> {
-        self.info(PlatformInfo::Vendor)
+        self.inner.vendor()
     }
 
     pub fn extensions(&self) -> Output<Vec<String>> {
-        self.info(PlatformInfo::Extensions)
-            .map(|exts| exts.split(' ').map(|ext| ext.to_string()).collect())
+        self.inner.extensions()
+    }
+
+    pub fn list_default_devices(&self) -> Output<Vec<Device>> {
+        self.list_devices_by_type(DeviceType::DEFAULT)
+    }
+
+    pub fn list_all_devices(&self) -> Output<Vec<Device>> {
+        self.list_devices_by_type(DeviceType::ALL)
+    }
+
+    pub fn list_cpu_devices(&self) -> Output<Vec<Device>> {
+        self.list_devices_by_type(DeviceType::CPU)
+    }
+
+    pub fn list_gpu_devices(&self) -> Output<Vec<Device>> {
+        self.list_devices_by_type(DeviceType::GPU)
+    }
+
+    pub fn list_accelerator_devices(&self) -> Output<Vec<Device>> {
+        self.list_devices_by_type(DeviceType::ACCELERATOR)
+    }
+
+    pub fn list_custom_devices(&self) -> Output<Vec<Device>> {
+        self.list_devices_by_type(DeviceType::CUSTOM)
     }
 
     // v2.1
@@ -93,7 +105,7 @@ impl Platform {
 
 impl fmt::Debug for Platform {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Platform{{{:?}}}", self.platform_ptr())
+        write!(f, "Platform{{{:?}}}", self.inner.address())
     }
 }
 
@@ -157,5 +169,50 @@ mod tests {
 
             // assert_eq!(host_timer_resolution, "".to_string());
         }
+    }
+}
+
+#[cfg(test)]
+mod device_tests {
+    use super::DeviceType;
+    use crate::platform::Platform;
+
+    #[test]
+    fn device_all_lists_all_devices() {
+        let platform = Platform::default();
+        let devices = platform
+            .list_all_devices()
+            .expect("Failed to list all devices");
+        assert!(devices.len() > 0);
+    }
+
+    #[test]
+    fn devices_of_many_types_can_be_listed_for_a_platform() {
+        let platform = Platform::default();
+        let d1 = platform.list_default_devices();
+        assert!(d1.is_ok() || d1.is_err());
+        let d2 = platform.list_cpu_devices();
+        assert!(d2.is_ok() || d2.is_err());
+        let d3 = platform.list_gpu_devices();
+        assert!(d3.is_ok() || d3.is_err());
+        let d4 = platform.list_accelerator_devices();
+        assert!(d4.is_ok() || d4.is_err());
+        let d5 = platform.list_custom_devices();
+        assert!(d5.is_ok() || d5.is_err());
+    }
+
+    #[test]
+    fn devices_of_many_types_can_be_listed_for_a_platform_via_flags() {
+        let platform = Platform::default();
+        let d1 = platform.list_devices_by_type(DeviceType::ALL);
+        assert!(d1.is_ok() || d1.is_err());
+        let d2 = platform.list_devices_by_type(DeviceType::CPU);
+        assert!(d2.is_ok() || d2.is_err());
+        let d3 = platform.list_devices_by_type(DeviceType::GPU);
+        assert!(d3.is_ok() || d3.is_err());
+        let d4 = platform.list_devices_by_type(DeviceType::ACCELERATOR);
+        assert!(d4.is_ok() || d4.is_err());
+        let d5 = platform.list_devices_by_type(DeviceType::CUSTOM);
+        assert!(d5.is_ok() || d5.is_err());
     }
 }

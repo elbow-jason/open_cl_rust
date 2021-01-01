@@ -2,11 +2,10 @@ use std::fmt;
 use std::fmt::Debug;
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
-use crate::ll::numbers::ClNum;
-use crate::ll::{ClContext, ClMem, MemFlags, MemPtr};
+use crate::ll::{Context as ClContext, Mem as ClMem, MemPtr};
 use crate::{
-    BufferCreator, Context, HostAccess, KernelAccess, MemConfig, MemLocation, NumberType,
-    NumberTyped, Output,
+    BufferBuilder, ClObject, Context, HostAccess, KernelAccess, MemAllocation, MemConfig, MemFlags,
+    Number, NumberType, NumberTyped, NumberTypedT, Output,
 };
 
 pub struct Buffer {
@@ -43,8 +42,8 @@ impl Debug for Buffer {
 impl PartialEq for Buffer {
     fn eq(&self, other: &Self) -> bool {
         unsafe {
-            let left = self._mem.read().unwrap().mem_ptr();
-            let right = other._mem.read().unwrap().mem_ptr();
+            let left = self._mem.read().unwrap().mem_ptr().as_ptr();
+            let right = other._mem.read().unwrap().mem_ptr().as_ptr();
             std::ptr::eq(left, right)
         }
     }
@@ -59,66 +58,66 @@ impl Buffer {
         }
     }
 
-    pub fn create<T: ClNum, B: BufferCreator<T>>(
+    pub fn create<T: Number + NumberTypedT, B: BufferBuilder>(
         context: &Context,
         creator: B,
         host_access: HostAccess,
         kernel_access: KernelAccess,
-        mem_location: MemLocation,
+        mem_allocation: MemAllocation,
     ) -> Output<Buffer> {
-        let ll_mem = ClMem::create(
+        let ll_mem = ClMem::create::<T, B>(
             context.low_level_context(),
             creator,
             host_access,
             kernel_access,
-            mem_location,
+            mem_allocation,
         )?;
         Ok(Buffer::new(ll_mem, context.clone()))
     }
 
-    pub fn create_with_len<T: ClNum>(context: &Context, len: usize) -> Output<Buffer> {
-        Buffer::create_from::<T, usize>(context, len)
-    }
+    // pub fn create_with_len<T: Number>(context: &Context, len: usize) -> Output<Buffer> {
+    //     Buffer::create_from::<T, usize>(context, len)
+    // }
 
-    pub fn create_from_slice<T: ClNum>(context: &Context, data: &[T]) -> Output<Buffer> {
-        Buffer::create_from(context, data)
-    }
+    // pub fn create_from_slice<T: Number>(context: &Context, data: &[T]) -> Output<Buffer> {
+    //     Buffer::create_from::<T, &[T]>(context, data)
+    // }
 
-    pub fn create_from<T: ClNum, B: BufferCreator<T>>(
+    pub fn create_from<T: Number, B: BufferBuilder>(
         context: &Context,
         creator: B,
     ) -> Output<Buffer> {
         let mem_config = { creator.mem_config() };
-        Buffer::create_with_config(context, creator, mem_config)
+        Buffer::create_with_config::<T, B>(context, creator, mem_config)
     }
 
-    pub fn create_with_config<T: ClNum, B: BufferCreator<T>>(
+    pub fn create_with_config<T: Number, B: BufferBuilder>(
         context: &Context,
         creator: B,
         mem_config: MemConfig,
     ) -> Output<Buffer> {
-        Buffer::create(
+        Buffer::create::<T, B>(
             context,
             creator,
-            mem_config.host_access,
-            mem_config.kernel_access,
-            mem_config.mem_location,
+            mem_config.host_access(),
+            mem_config.kernel_access(),
+            mem_config.mem_allocation(),
         )
     }
 
-    pub fn create_from_low_level_context<T: ClNum, B: BufferCreator<T>>(
+    pub fn create_from_low_level_context<T: Number, B: BufferBuilder>(
         ll_context: &ClContext,
         creator: B,
         host_access: HostAccess,
         kernel_access: KernelAccess,
-        mem_location: MemLocation,
+        mem_allocation: MemAllocation,
     ) -> Output<Buffer> {
-        let ll_mem = ClMem::create(
+        let ll_mem = ClMem::create::<T, B>(
             ll_context,
             creator,
             host_access,
             kernel_access,
-            mem_location,
+            mem_allocation,
         )?;
         let context = Context::from_low_level_context(ll_context)?;
         Ok(Buffer::new(ll_mem, context))
@@ -163,6 +162,10 @@ impl Buffer {
     pub fn flags(&self) -> Output<MemFlags> {
         unsafe { self.read_lock().flags() }
     }
+
+    pub fn mem_config(&self) -> MemConfig {
+        *self.read_lock().mem_config()
+    }
 }
 
 #[cfg(test)]
@@ -173,19 +176,20 @@ mod tests {
     #[test]
     fn buffer_can_be_created_with_a_length() {
         let context = testing::get_context();
-        let _buffer = Buffer::create_with_len::<u32>(&context, 10).unwrap();
+        let mem_config = MemConfig::for_size();
+        let _buffer = Buffer::create_with_config::<u32, usize>(&context, 10, mem_config).unwrap();
     }
 
     #[test]
     fn buffer_can_be_created_with_a_slice_of_data() {
         let context = testing::get_context();
-        let data = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-        let _buffer = Buffer::create(
+        let data = vec![0i32, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+        let _buffer = Buffer::create::<i32, &[i32]>(
             &context,
             &data[..],
             HostAccess::NoAccess,
             KernelAccess::ReadWrite,
-            MemLocation::CopyToDevice,
+            MemAllocation::CopyToDevice,
         )
         .unwrap();
     }

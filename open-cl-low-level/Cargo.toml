@@ -13,7 +13,17 @@ repository =  "https://github.com/elbow-jason/open_cl_rust/tree/master/open-cl-l
 name = "open_cl_low_level"
 
 [dependencies]
-open-cl-sys = { version = "0.1.0", path = "../open-cl-sys" }
+cl-sys = "0.4.2"
+ocl-core = "0.11.2"
+
+# implementers of std::error::Error are errors in the anyhow::Result
+# https://github.com/dtolnay/anyhow
+anyhow = "1.0"
+
+# lib for derive(Error) and helpful error message definition syntax.
+# https://github.com/dtolnay/thiserror
+thiserror = "1.0"
+
 
 # easy-to-use interpolated macros
 paste = "0.1.6"
@@ -36,11 +46,8 @@ colored = "1.9"
 # number stuff
 num = "0.2.1"
 
-# traits for numbers (duh?). Allows easier extenstion of numbers and generics.
-num-traits = "0.2.11"
-
-# rust support for complex numbers. Wowowow.
-num-complex = "0.2.4"
+# util for working with number types
+num-traits = "0.2"
 
 # logging
 log = "0.4"
@@ -52,10 +59,14 @@ env_logger = "0.7"
 chrono = "0.4.10"
 
 # implements IEEE 754-2008 standard f16 for using OpenCL's cl_half in Rust
-half = "1.4.1"
+# https://stackoverflow.com/questions/50999616/how-to-idiomatically-alias-a-crate-in-rust-2018
+# Yes, I upvoted the answer.
+half_lib = { package = "half", version = "1.4.1" }
 
 # because rust does not implement float comparison like this is 1985 or something...
 float-cmp = "0.6.0"
+
+derive_more = "0.99.5"
 
 [features]
 # v1.0.0 will not be supported. It's not thread-safe and I dont' want to even
@@ -69,10 +80,6 @@ default = [
 [[example]]
 name = "ll_simple_add"
 path = "examples/ll_simple_add/main.rs"
-
-[[example]]
-name = "applying_number_type"
-path = "examples/applying_number_type/main.rs"
 
 [[example]]
 name = "casting_example"

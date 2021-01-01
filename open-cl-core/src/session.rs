@@ -2,17 +2,16 @@ use std::mem::ManuallyDrop;
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::{
-    Buffer, BufferCreator, CommandQueueOptions, Context, Device, DeviceType, Kernel, KernelOpArg,
-    KernelOperation, MemConfig, MutVecOrSlice, NumberTyped, Output, Program, VecOrSlice, Waitlist,
-    Work,
+    Buffer, BufferBuilder, CommandQueueOptions, CommandQueueProperties, Context, Device, KernelArg,
+    KernelOperation, Mem, MemConfig, MutVecOrSlice, Number, NumberTyped, NumberTypedT, Output,
+    Platform, Program, VecOrSlice, Waitlist,
 };
 
+use crate::ll::cl::ClObject;
 use crate::ll::{
-    list_devices_by_type, list_platforms, BufferReadEvent, ClCommandQueue, ClContext, ClDeviceID,
-    ClEvent, ClKernel, ClMem, ClProgram, CommandQueueProperties, CommandQueuePtr, DevicePtr,
+    BufferReadEvent, CommandQueue as ClCommandQueue, CommandQueuePtr, Context as ClContext,
+    Device as ClDeviceID, DevicePtr, Event as ClEvent, Kernel as ClKernel, Program as ClProgram,
 };
-
-use crate::ll::numbers::ClNum;
 
 #[derive(Debug)]
 pub struct Session {
@@ -20,7 +19,6 @@ pub struct Session {
     _program: ManuallyDrop<ClProgram>,
     _context: ManuallyDrop<ClContext>,
     _queue: ManuallyDrop<Arc<RwLock<ClCommandQueue>>>,
-    _unconstructable: (),
 }
 
 unsafe impl Send for Session {}
@@ -40,8 +38,8 @@ impl Session {
             let context = ClContext::create(devices.as_slice())?;
             let mut sessions: Vec<Session> = Vec::with_capacity(devices.len());
             for device in devices.iter() {
-                let device = ClDeviceID::unchecked_new(device.device_ptr());
-                let mut program = ClProgram::create_with_source(&context, src)?;
+                let device = ClDeviceID::new(device.device_ptr());
+                let mut program = ClProgram::create_with_src(&context, src)?;
                 program.build(devices.as_slice())?;
 
                 let queue = ClCommandQueue::create(&context, &device, cq_props)?;
@@ -50,7 +48,6 @@ impl Session {
                     _context: ManuallyDrop::new(context.clone()),
                     _program: ManuallyDrop::new(program.clone()),
                     _queue: ManuallyDrop::new(Arc::new(RwLock::new(queue))),
-                    _unconstructable: (),
                 };
                 sessions.push(session);
             }
@@ -59,12 +56,10 @@ impl Session {
     }
 
     pub fn create(src: &str, cq_props: Option<CommandQueueProperties>) -> Output<Vec<Session>> {
-        let platforms = list_platforms()?;
+        let platforms = Platform::list_all()?;
         let mut devices: Vec<Device> = Vec::new();
         for platform in platforms.iter() {
-            let platform_devices: Vec<Device> = list_devices_by_type(platform, DeviceType::ALL)
-                .map(|ll_devices| ll_devices.into_iter().map(|d| Device::new(d)).collect())?;
-            devices.extend(platform_devices);
+            devices.extend(platform.list_all_devices()?);
         }
         Session::create_with_devices(devices, src, cq_props)
     }
@@ -113,61 +108,54 @@ impl Session {
             _context: cloned_context,
             _program: cloned_program,
             _queue: ManuallyDrop::new(Arc::new(RwLock::new(copied_queue))),
-            _unconstructable: (),
         })
     }
 
-    /// Creates a ClKernel from the session's program.
-    pub fn create_kernel(&self, kernel_name: &str) -> Output<Kernel> {
-        unsafe {
-            let ll_kernel = ClKernel::create(self.low_level_program(), kernel_name)?;
-            Ok(Kernel::new(ll_kernel, self.program()))
-        }
-    }
+    // /// Creates a ClKernel from the session's program.
+    // fn create_kernel(&self, kernel_name: &str) -> Output<ClKernel> {
+    //     unsafe { Ok(Kernel::new(ll_kernel, self.program())) }
+    // }
 
     /// Creates a ClMem object in the given context, with the given buffer creator
     /// (either a length or some data). This function uses the BufferCreator's implementation
     /// to retrieve the appropriate MemConfig.
-    pub fn create_buffer<T: ClNum, B: BufferCreator<T>>(
-        &self,
-        buffer_creator: B,
-    ) -> Output<Buffer> {
+    pub fn create_buffer<T: Number, B: BufferBuilder>(&self, buffer_creator: B) -> Output<Buffer> {
         let cfg = buffer_creator.mem_config();
-        Buffer::create_from_low_level_context(
+        Buffer::create_from_low_level_context::<T, B>(
             self.low_level_context(),
             buffer_creator,
-            cfg.host_access,
-            cfg.kernel_access,
-            cfg.mem_location,
+            cfg.host_access(),
+            cfg.kernel_access(),
+            cfg.mem_allocation(),
         )
     }
 
     /// Creates a ClMem object in the given context, with the given buffer creator
     /// (either a length or some data) and a given MemConfig.
-    pub fn create_buffer_with_config<T: ClNum, B: BufferCreator<T>>(
+    pub fn create_buffer_with_config<T: Number, B: BufferBuilder>(
         &self,
         buffer_creator: B,
         mem_config: MemConfig,
     ) -> Output<Buffer> {
-        Buffer::create_from_low_level_context(
+        Buffer::create_from_low_level_context::<T, B>(
             self.low_level_context(),
             buffer_creator,
-            mem_config.host_access,
-            mem_config.kernel_access,
-            mem_config.mem_location,
+            mem_config.host_access(),
+            mem_config.kernel_access(),
+            mem_config.mem_allocation(),
         )
     }
 
     /// This function copies data from the host buffer into the device mem buffer. The host
     /// buffer must be a mutable slice or a vector to ensure the safety of the read_Buffer
     /// operation.
-    pub fn sync_write_buffer<'a, T: ClNum, H: Into<VecOrSlice<'a, T>>>(
+    pub fn sync_write_buffer<'a, T: Number + NumberTypedT, H: Into<VecOrSlice<'a, T>>>(
         &self,
         buffer: &Buffer,
         host_buffer: H,
         opts: Option<CommandQueueOptions>,
     ) -> Output<()> {
-        buffer.number_type().type_check(T::number_type())?;
+        buffer.number_type().type_check(&T::number_type())?;
         let mut queue = self.write_queue();
         let mut buffer_lock = buffer.write_lock();
         unsafe {
@@ -179,13 +167,13 @@ impl Session {
     /// This function copies data from a device mem buffer into a host buffer. The host
     /// buffer must be a mutable slice or a vector. For the moment the device mem must also
     /// be passed as mutable; I don't trust OpenCL.
-    pub fn sync_read_buffer<'a, T: ClNum, H: Into<MutVecOrSlice<'a, T>>>(
+    pub fn sync_read_buffer<'a, T: Number, H: Into<MutVecOrSlice<'a, T>>>(
         &self,
         buffer: &Buffer,
         host_buffer: H,
         opts: Option<CommandQueueOptions>,
     ) -> Output<Option<Vec<T>>> {
-        buffer.number_type().type_check(T::number_type())?;
+        buffer.number_type().type_check(&T::number_type())?;
         let mut queue = self.write_queue();
 
         let buffer_lock = buffer.read_lock();
@@ -196,40 +184,20 @@ impl Session {
         }
     }
 
-    /// This function enqueues a CLKernel into a command queue
-    ///
-    /// # Safety
-    /// If the ClKernel is not in a usable state or any of the Kernel's dependent object
-    /// has been release, or the kernel belongs to a different session, or the ClKernel's
-    /// pointer is a null pointer, then calling this function will cause undefined behavior.
-    pub fn sync_enqueue_kernel(
-        &self,
-        kernel: &Kernel,
-        work: &Work,
-        opts: Option<CommandQueueOptions>,
-    ) -> Output<()> {
-        let mut queue = self.write_queue();
-        let mut kernel_lock = kernel.write_lock();
-        unsafe {
-            let event = queue.enqueue_kernel(&mut (*kernel_lock), work, opts)?;
-            event.wait()
-        }
-    }
-
     pub fn execute_sync_kernel_operation<'a>(
         &self,
         mut kernel_op: KernelOperation<'a>,
     ) -> Output<()>
 where {
         unsafe {
-            let kernel = self.create_kernel(kernel_op.name())?;
+            let mut kernel = ClKernel::create(self.low_level_program(), kernel_op.name())?;
             let work = kernel_op.work()?;
             let command_queue_opts = kernel_op.command_queue_opts();
-            let mut mem_locks: Vec<RwLockWriteGuard<ClMem>> = Vec::new();
+            let mut mem_locks: Vec<RwLockWriteGuard<Mem>> = Vec::new();
             for (arg_index, arg) in kernel_op.mut_args().iter_mut().enumerate() {
                 match arg {
-                    KernelOpArg::Num(ref mut num) => kernel.set_arg(arg_index, num)?,
-                    KernelOpArg::Buffer(ref buffer) => {
+                    KernelArg::Num(ref mut cl_arg) => kernel.set_arg(arg_index, cl_arg)?,
+                    KernelArg::Buffer(ref buffer) => {
                         let mut mem = buffer.write_lock();
                         kernel.set_arg(arg_index, &mut *mem)?;
                         mem_locks.push(mem);
@@ -238,12 +206,12 @@ where {
             }
 
             let mut queue = self.write_queue();
-            let mut ll_kernel = kernel.write_lock();
-            let event = queue.enqueue_kernel(&mut ll_kernel, &work, command_queue_opts)?;
+            // let mut ll_kernel = kernel.write_lock();
+            let event = queue.enqueue_kernel(&mut kernel, &work, command_queue_opts)?;
             // Wait until queued mems finish being accessed.
             event.wait()?;
             // then drop locks.
-            std::mem::drop(mem_locks);
+            // std::mem::drop(mem_locks);
             Ok(())
         }
     }
@@ -256,7 +224,6 @@ impl Clone for Session {
             _context: self._context.clone(),
             _program: self._program.clone(),
             _queue: self._queue.clone(),
-            _unconstructable: (),
         }
     }
 }
@@ -264,8 +231,8 @@ impl Clone for Session {
 impl PartialEq for Session {
     fn eq(&self, other: &Self) -> bool {
         unsafe {
-            let self_queue_ptr = self.read_queue().command_queue_ptr();
-            let other_queue_ptr = other.read_queue().command_queue_ptr();
+            let self_queue_ptr = self.read_queue().command_queue_ptr().as_ptr();
+            let other_queue_ptr = other.read_queue().command_queue_ptr().as_ptr();
             std::ptr::eq(self_queue_ptr, other_queue_ptr)
         }
     }
@@ -286,7 +253,7 @@ impl Drop for Session {
 
 #[cfg(test)]
 mod tests {
-    use crate::{testing, Buffer, Kernel, Session, Work};
+    use crate::{testing, Buffer, KernelOperation, Session};
 
     const SRC: &'static str = "__kernel void test(__global int *data) {
         data[get_global_id(0)] += 1;
@@ -358,21 +325,21 @@ mod tests {
         assert_ne!(session, session_copy);
     }
 
-    #[test]
-    fn session_can_create_kernel() {
-        let src = "__kernel void add_one_i32(__global int *i) { *i += 1; }";
-        let session = testing::get_session(src);
-        let _kernel: Kernel = session.create_kernel("add_one_i32").unwrap_or_else(|e| {
-            panic!("Failed to create kernel for session: {:?}", e);
-        });
-    }
+    // #[test]
+    // fn session_can_create_kernel() {
+    //     let src = "__kernel void add_one_i32(__global int *i) { *i += 1; }";
+    //     let session = testing::get_session(src);
+    //     let _kernel: Kernel = session.create_kernel("add_one_i32").unwrap_or_else(|e| {
+    //         panic!("Failed to create kernel for session: {:?}", e);
+    //     });
+    // }
 
     #[test]
     fn session_can_create_buffer_from_data() {
         let data: Vec<i32> = vec![0, 1, 2, 3, 4, 5, 6, 7];
         let session = new_session();
         let _buffer: Buffer = session
-            .create_buffer(&data[..])
+            .create_buffer::<i32, &[i32]>(&data[..])
             .unwrap_or_else(|e| panic!("Session failed to create buffer: {:?}", e));
     }
 
@@ -390,7 +357,7 @@ mod tests {
         let data: Vec<i32> = vec![0, 1, 2, 3, 4, 5, 6, 7];
         let session = new_session();
         let buffer: Buffer = session
-            .create_buffer(&data[..])
+            .create_buffer::<i32, &[i32]>(&data[..])
             .unwrap_or_else(|e| panic!("Session failed to create buffer: {:?}", e));
         assert_eq!(buffer.len(), 8);
         let () = session
@@ -415,7 +382,7 @@ mod tests {
         let data: Vec<i32> = vec![0, 1, 2, 3, 4, 5, 6, 7];
         let session = new_session();
         let buffer: Buffer = session
-            .create_buffer(&data[..])
+            .create_buffer::<i32, &[i32]>(&data[..])
             .unwrap_or_else(|e| panic!("Session failed to create buffer: {:?}", e));
         assert_eq!(buffer.len(), 8);
         let () = session
@@ -423,12 +390,11 @@ mod tests {
             .unwrap_or_else(|e| {
                 panic!("Failed to write buffer: {:?}", e);
             });
-        let kernel: Kernel = session.create_kernel("test").unwrap();
-        let mut buffer_lock = buffer.write_lock();
-        unsafe { kernel.set_arg(0, &mut (*buffer_lock)).unwrap() };
-        let work = Work::new(data.len());
-        session.sync_enqueue_kernel(&kernel, &work, None).unwrap();
-        std::mem::drop(buffer_lock);
+        let kernel_op = KernelOperation::new("test")
+            .add_arg(&buffer)
+            .with_work(data.len());
+
+        session.execute_sync_kernel_operation(kernel_op).unwrap();
 
         let data2 = vec![0i32; 8];
         let data3 = session

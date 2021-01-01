@@ -10,10 +10,9 @@ homepage = "https://github.com/elbow-jason/open_cl_rust/tree/master/opencl-core"
 repository =  "https://github.com/elbow-jason/open_cl_rust/tree/master/opencl-core"
 
 [lib]
-name = "opencl_core"
+name = "open_cl_core"
 
 [dependencies]
-open-cl-sys = { version = "0.1.0", path = "../open-cl-sys" }
 open-cl-low-level = { version = "0.2.1", path = "../open-cl-low-level" }
 paste = "0.1.6"
 libc = "0.2.65"
@@ -38,8 +37,8 @@ default = [
 ]
 
 
-[[example]]
-name = "simple_add"
-path = "examples/simple_add/main.rs"
+# [[example]]
+# name = "simple_add"
+# path = "examples/simple_add/main.rs"
 
 
