@@ -268,10 +268,10 @@ mod tests {
     fn kernel_set_arg_works_for_cl_uchar2() {
         let src: &str = "
         __kernel void test123(uchar2 i) {
-            i[0] + 1;
+            return;
         }";
         let (_context, _devices, _program, mut kernel) = ll_testing::get_kernel(src, KERNEL_NAME);
-        let mut arg1 = Uchar2::from([1u8, 1]);
+        let mut arg1 = Uchar2::from([1u8, 2]);
         let () = unsafe { kernel.set_arg(0, &mut arg1) }.unwrap();
     }
 
